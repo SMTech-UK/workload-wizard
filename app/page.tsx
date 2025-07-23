@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Users, BookOpen, Clock, AlertTriangle, FileText, Settings } from "lucide-react"
 import Navigation from "@/components/navigation"
-import UserProfileModal, { TabType } from "@/hooks/user-profile-modal"
+import SettingsModal, { TabType } from "@/hooks/settings-modal"
 import LecturerManagement from "@/components/lecturer-management"
 import ModuleAssignment from "@/components/module-assignment"
 import ReportsSection from "@/components/reports-section"
@@ -28,7 +28,7 @@ export default function AcademicWorkloadPlanner() {
     setProfileModalOpen(true);
   };
   const handleSettingsClick = () => {
-    setProfileModalTab("settings");
+    setProfileModalTab("general");
     setProfileModalOpen(true);
   };
   const { user, isLoading } = useUser();
@@ -112,7 +112,7 @@ export default function AcademicWorkloadPlanner() {
               onSettingsClick={handleSettingsClick}
             />
       </div>
-      <UserProfileModal open={profileModalOpen} onOpenChange={setProfileModalOpen} initialTab={profileModalTab} />
+      <SettingsModal open={profileModalOpen} onOpenChange={setProfileModalOpen} initialTab={profileModalTab} />
 
       <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -122,16 +122,7 @@ export default function AcademicWorkloadPlanner() {
                 <h1 className="text-3xl font-bold text-gray-900">Academic Workload Dashboard</h1>
                 <p className="text-gray-600 mt-1">September 2024 - September 2025 Academic Year</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Export Report
-                </Button>
-                <Button>
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Button>
-              </div>
+
             </div>
 
             {/* Key Metrics */}

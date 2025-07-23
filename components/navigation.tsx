@@ -7,7 +7,7 @@ import { useUser } from "@auth0/nextjs-auth0"
 import UserProfile from "./user-profile-dropdown"
 import { useState } from "react"
 import { Menu } from "lucide-react"
-import { TabType } from "@/hooks/user-profile-modal";
+import { TabType } from "@/hooks/settings-modal";
 import UserProfileDropdown from "./user-profile-dropdown"
 
 interface NavigationProps {
@@ -75,7 +75,7 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
               <Bell className="w-5 h-5" />
               <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 text-xs">3</Badge>
             </Button>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={onSettingsClick}>
               <Settings className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2">

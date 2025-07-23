@@ -16,15 +16,15 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@auth0/nextjs-auth0";
 import { toast } from "sonner";
 
-export type TabType = "profile" | "settings"
+export type TabType = "profile" | "settings" | "general"
 
-interface UserProfileModalProps {
+interface SettingsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTab?: TabType;
 }
 
-export default function UserProfileModal({ open, onOpenChange, initialTab = "profile" }: UserProfileModalProps) {
+export default function SettingsModal({ open, onOpenChange, initialTab = "profile" }: SettingsModalProps) {
   const { user, isLoading } = useUser();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   React.useEffect(() => {
@@ -346,6 +346,19 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
                   <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">App Settings</span>
                   <Separator className="flex-1" />
                 </div>
+                <button
+                  onClick={() => setActiveTab('general')}
+                  className={cn(
+                    "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
+                    activeTab === 'general' ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                  )}
+                >
+                  <Settings className="h-4 w-4" />
+                  <div>
+                    <div className="font-medium text-sm">General Settings</div>
+                    <div className={cn("text-xs", activeTab === 'general' ? "text-primary-foreground/70" : "text-muted-foreground")}>Web app configuration</div>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -636,6 +649,13 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
                           </div>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {activeTab === "general" && (
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-semibold">General Settings</h2>
+                      <p className="text-muted-foreground">This is a placeholder for web app general settings.</p>
                     </div>
                   )}
                 </div>
