@@ -89,7 +89,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
     preferences: user?.user_metadata?.preferences || {
       theme: "system",
       language: "en",
-      timezone: "PST",
+      timezone: "GMT",
     },
   });
 
@@ -110,7 +110,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
         preferences: user.user_metadata?.preferences || {
           theme: "system",
           language: "en",
-          timezone: "PST",
+          timezone: "GMT",
         },
       });
     }
@@ -119,15 +119,15 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
   const sidebarItems = [
     {
       id: "profile" as TabType,
-      label: "Profile",
+      label: "User Profile",
       icon: User,
-      description: "Manage your profile information",
+      description: "Manage your user profile information",
     },
     {
       id: "settings" as TabType,
-      label: "Settings",
+      label: "User Settings",
       icon: Settings,
-      description: "Configure your preferences",
+      description: "Configure your user preferences",
     },
   ]
 
@@ -174,7 +174,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
       JSON.stringify(settingsData.preferences) !== JSON.stringify(user.user_metadata?.preferences || {
         theme: "system",
         language: "en",
-        timezone: "PST",
+        timezone: "GMT",
       });
     if (!hasChanged) {
       toast("No changes detected.", { description: "Update some fields before saving." });
@@ -295,29 +295,57 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
             {/* Sidebar */}
             <div className="w-64 bg-muted/30 border-r p-4">
               <div className="space-y-2">
-                {sidebarItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={cn(
-                      "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
-                      activeTab === item.id ? "bg-primary text-primary-foreground" : "hover:bg-muted",
-                    )}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <div>
-                      <div className="font-medium text-sm">{item.label}</div>
-                      <div
-                        className={cn(
-                          "text-xs",
-                          activeTab === item.id ? "text-primary-foreground/70" : "text-muted-foreground",
-                        )}
-                      >
-                        {item.description}
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                {/* In the sidebar, render the 'User Settings' divider at the very top, then the 'User Profile' button, then the 'App Settings' divider, then the 'User Settings' button. */}
+                {/* Example: */}
+                {/* <div className="my-4 flex items-center space-x-2"> */}
+                {/*   <Separator className="flex-1" /> */}
+                {/*   <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">User Settings</span> */}
+                {/*   <Separator className="flex-1" /> */}
+                {/* </div> */}
+                {/* <button>...</button> // User Profile */}
+                {/* <div className="my-4 flex items-center space-x-2"> */}
+                {/*   <Separator className="flex-1" /> */}
+                {/*   <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">App Settings</span> */}
+                {/*   <Separator className="flex-1" /> */}
+                {/* </div> */}
+                {/* <button>...</button> // User Settings */}
+                {/* ... existing code ... */}
+                <div className="my-4 flex items-center space-x-2">
+                  <Separator className="flex-1" />
+                  <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">User Settings</span>
+                  <Separator className="flex-1" />
+                </div>
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={cn(
+                    "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
+                    activeTab === 'profile' ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                  )}
+                >
+                  <User className="h-4 w-4" />
+                  <div>
+                    <div className="font-medium text-sm">User Profile</div>
+                    <div className={cn("text-xs", activeTab === 'profile' ? "text-primary-foreground/70" : "text-muted-foreground")}>Manage your user profile information</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={cn(
+                    "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
+                    activeTab === 'settings' ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                  )}
+                >
+                  <Settings className="h-4 w-4" />
+                  <div>
+                    <div className="font-medium text-sm">User Settings</div>
+                    <div className={cn("text-xs", activeTab === 'settings' ? "text-primary-foreground/70" : "text-muted-foreground")}>Configure your user preferences</div>
+                  </div>
+                </button>
+                <div className="my-4 flex items-center space-x-2">
+                  <Separator className="flex-1" />
+                  <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">App Settings</span>
+                  <Separator className="flex-1" />
+                </div>
               </div>
             </div>
 
@@ -329,7 +357,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h2 className="text-2xl font-semibold">Profile</h2>
+                          <h2 className="text-2xl font-semibold">User Profile</h2>
                           <p className="text-muted-foreground">Manage your profile information and avatar</p>
                         </div>
                         {!isEditing && (
