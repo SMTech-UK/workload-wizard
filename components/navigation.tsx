@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useUser } from "@auth0/nextjs-auth0"
+import UserProfile from "./user-profile-dropdown"
 
 interface NavigationProps {
   activeTab: string
@@ -53,8 +55,7 @@ export default function Navigation({ activeTab, setActiveTab }: NavigationProps)
               <Settings className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2 pl-4 border-l">
-              <div className="w-8 h-8 bg-gray-300 rounded-full" />
-              <span className="text-sm font-medium">Admin User</span>
+              <UserProfile />
             </div>
           </div>
         </div>
