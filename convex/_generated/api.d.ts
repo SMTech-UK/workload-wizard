@@ -18,6 +18,7 @@ import type * as dept_summary from "../dept_summary.js";
 import type * as lecturer_profile from "../lecturer_profile.js";
 import type * as lecturers from "../lecturers.js";
 import type * as modules from "../modules.js";
+import type * as notifications from "../notifications.js";
 import type * as recent_activity from "../recent_activity.js";
 
 /**
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   lecturer_profile: typeof lecturer_profile;
   lecturers: typeof lecturers;
   modules: typeof modules;
+  notifications: typeof notifications;
   recent_activity: typeof recent_activity;
 }>;
 export declare const api: FilterApi<

@@ -19,8 +19,10 @@ import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useEffect } from "react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 
 export default function AcademicWorkloadPlanner() {
+  const createNotification = useMutation(api.notifications.createNotification);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileModalTab, setProfileModalTab] = useState<TabType>("profile");
   const handleProfileClick = () => {
@@ -105,12 +107,12 @@ export default function AcademicWorkloadPlanner() {
     <div className="min-h-screen bg-gray-50">
       {/* Navigation with custom user profile dropdown */}
       <div className="w-full bg-white">
-      <Navigation
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              onProfileClick={handleProfileClick}
-              onSettingsClick={handleSettingsClick}
-            />
+        <Navigation
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          onProfileClick={handleProfileClick}
+          onSettingsClick={handleSettingsClick}
+        />
       </div>
       <SettingsModal open={profileModalOpen} onOpenChange={setProfileModalOpen} initialTab={profileModalTab} />
 

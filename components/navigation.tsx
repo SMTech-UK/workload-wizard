@@ -9,6 +9,7 @@ import { useState } from "react"
 import { Menu } from "lucide-react"
 import { TabType } from "@/hooks/settings-modal";
 import UserProfileDropdown from "./user-profile-dropdown"
+import { Notifications } from "@/components/notifications"
 
 interface NavigationProps {
   activeTab: string
@@ -70,11 +71,8 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
               <Menu className="w-6 h-6" />
             </button>
           </div>
-          <div className="flex items-center gap-4 flex-shrink-0">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 text-xs">3</Badge>
-            </Button>
+          <div className="flex items-center gap-4 flex-shrink-0 overflow-visible">
+            <Notifications />
             <Button variant="ghost" size="icon" onClick={onSettingsClick}>
               <Settings className="w-5 h-5" />
             </Button>
