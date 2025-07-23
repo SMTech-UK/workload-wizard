@@ -1,6 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { useQuery } from "convex/react"
+import { useMutation } from "convex/react"
+import { api } from "../convex/_generated/api"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,78 +16,107 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Search, Edit, Eye, AlertTriangle } from "lucide-react"
-
-// Mock lecturer data
-const lecturers = [
-  {
-    id: 1,
-    name: "Dr. Sarah Smith",
-    email: "s.smith@university.edu",
-    contractType: "AP",
-    fte: 1.0,
-    totalHours: 1200,
-    assignedHours: 1150,
-    qualifications: ["PhD Computer Science", "FHEA"],
-    department: "Computer Science",
-    status: "near-capacity",
-  },
-  {
-    id: 2,
-    name: "Dr. Michael Johnson",
-    email: "m.johnson@university.edu",
-    contractType: "AP",
-    fte: 1.0,
-    totalHours: 1200,
-    assignedHours: 1250,
-    qualifications: ["PhD Mathematics", "HEA"],
-    department: "Mathematics",
-    status: "overloaded",
-  },
-  {
-    id: 3,
-    name: "Dr. Emily Williams",
-    email: "e.williams@university.edu",
-    contractType: "TA",
-    fte: 0.8,
-    totalHours: 900,
-    assignedHours: 800,
-    qualifications: ["PhD Physics", "PGCHE"],
-    department: "Physics",
-    status: "available",
-  },
-  {
-    id: 4,
-    name: "Dr. James Brown",
-    email: "j.brown@university.edu",
-    contractType: "RA",
-    fte: 0.5,
-    totalHours: 450,
-    assignedHours: 400,
-    qualifications: ["PhD Chemistry"],
-    department: "Chemistry",
-    status: "available",
-  },
-]
+import { Plus, Search, Edit, Eye, AlertTriangle, X } from "lucide-react"
+import StaffProfileModal from "./staff-profile-modal"
 
 export default function LecturerManagement() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedLecturer, setSelectedLecturer] = useState(null)
+  const [selectedLecturer, setSelectedLecturer] = useState<any>(null)
+  const [modalOpen, setModalOpen] = useState(false);
+  const lecturers = useQuery(api.lecturers.getAll) ?? [];
+  const createLecturer = useMutation(api.lecturers.createLecturer)
+  const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
+  const modules = useQuery(api.modules.getAll) ?? [];
+
+  // Add state for form fields
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    contract: "",
+    team: "",
+    specialism: "",
+    capacity: 0,
+    maxTeachingHours: 0,
+    role: "Lecturer",
+    status: "available",
+    teachingAvailability: 0,
+    totalAllocated: 0,
+    totalContract: 0,
+    allocatedTeachingHours: 0,
+    allocatedAdminHours: 0,
+  })
+  const [submitting, setSubmitting] = useState(false)
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target
+    setForm((prev) => ({ ...prev, [id]: id === "capacity" || id === "maxTeachingHours" ? Number(value) : value }))
+  }
+
+  const handleSelectChange = (value: string) => {
+    setForm((prev) => ({ ...prev, contract: value }))
+  }
+
+  const handleCreateLecturer = async () => {
+    setSubmitting(true)
+    try {
+      await createLecturer(form)
+      setModalOpen(false)
+      setForm({
+        fullName: "",
+        email: "",
+        contract: "",
+        team: "",
+        specialism: "",
+        capacity: 0,
+        maxTeachingHours: 0,
+        role: "Lecturer",
+        status: "available",
+        teachingAvailability: 0,
+        totalAllocated: 0,
+        totalContract: 0,
+        allocatedTeachingHours: 0,
+        allocatedAdminHours: 0,
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const filteredLecturers = lecturers.filter(
     (lecturer) =>
-      lecturer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lecturer.department.toLowerCase().includes(searchTerm.toLowerCase()),
+      lecturer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lecturer.team?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  interface lecturer {
+    fullName: string
+    team: string
+    specialism: string
+    contract: string
+    email: string
+    capacity: number
+    id: string
+    maxTeachingHours: number
+    role: string
+    status: string
+    teachingAvailability: number
+    totalAllocated: number
+    totalContract: number
+    allocatedTeachingHours: number
+    allocatedAdminHours: number
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "overloaded":
         return <Badge variant="destructive">Overloaded</Badge>
+      case "at-capacity":
+        return <Badge variant="secondary">At Capacity</Badge>
       case "near-capacity":
         return <Badge variant="secondary">Near Capacity</Badge>
       case "available":
@@ -93,6 +125,8 @@ export default function LecturerManagement() {
             Available
           </Badge>
         )
+      case "n/a":
+        return <Badge variant="outline">N/A</Badge>
       default:
         return <Badge variant="outline">Unknown</Badge>
     }
@@ -125,47 +159,53 @@ export default function LecturerManagement() {
             <DialogHeader>
               <DialogTitle>Add New Lecturer</DialogTitle>
               <DialogDescription>
-                Create a new lecturer profile with contract details and qualifications.
+                Create a new lecturer profile with contract details and allocations.
               </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input id="name" placeholder="Dr. John Doe" />
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input id="fullName" value={form.fullName} onChange={handleFormChange} placeholder="Dr. John Doe" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="j.doe@university.edu" />
+                <Input id="email" type="email" value={form.email} onChange={handleFormChange} placeholder="j.doe@university.edu" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contract">Contract Type</Label>
-                <Select>
+                <Select value={form.contract} onValueChange={handleSelectChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select contract type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="AP">Academic Permanent (AP)</SelectItem>
-                    <SelectItem value="TA">Teaching Associate (TA)</SelectItem>
-                    <SelectItem value="RA">Research Associate (RA)</SelectItem>
+                    <SelectItem value="AP">Academic Practitioner (AP)</SelectItem>
+                    <SelectItem value="TA">Teaching Academic (TA)</SelectItem>
+                    <SelectItem value="RA">Research Academic (RA)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fte">FTE</Label>
-                <Input id="fte" type="number" step="0.1" min="0" max="1" placeholder="1.0" />
+                <Label htmlFor="capacity">Capacity</Label>
+                <Input id="capacity" type="number" value={form.capacity} onChange={handleFormChange} placeholder="1200" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="department">Department</Label>
-                <Input id="department" placeholder="Computer Science" />
+                <Label htmlFor="maxTeachingHours">Max Teaching Hours</Label>
+                <Input id="maxTeachingHours" type="number" value={form.maxTeachingHours} onChange={handleFormChange} placeholder="520" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="qualifications">Qualifications</Label>
-                <Input id="qualifications" placeholder="PhD, FHEA, etc." />
+                <Label htmlFor="team">Team</Label>
+                <Input id="team" value={form.team} onChange={handleFormChange} placeholder="Simulation" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="specialism">Specialism</Label>
+                <Input id="specialism" value={form.specialism} onChange={handleFormChange} placeholder="Paramedic" />
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline">Cancel</Button>
-              <Button>Create Lecturer</Button>
+              <Button variant="outline" onClick={() => setModalOpen(false)} disabled={submitting}>Cancel</Button>
+              <Button onClick={handleCreateLecturer} disabled={submitting || !form.fullName || !form.email || !form.contract}>
+                {submitting ? "Creating..." : "Create Lecturer"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -195,9 +235,9 @@ export default function LecturerManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Contracts</SelectItem>
-                <SelectItem value="AP">Academic Permanent</SelectItem>
-                <SelectItem value="TA">Teaching Associate</SelectItem>
-                <SelectItem value="RA">Research Associate</SelectItem>
+                <SelectItem value="AP">Academic Practitioner</SelectItem>
+                <SelectItem value="TA">Teaching Academic</SelectItem>
+                <SelectItem value="RA">Research Academic</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -216,46 +256,53 @@ export default function LecturerManagement() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Contract</TableHead>
-                <TableHead>Department</TableHead>
+                <TableHead>Team</TableHead>
                 <TableHead>Capacity</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLecturers.map((lecturer) => (
-                <TableRow key={lecturer.id}>
+              {filteredLecturers.map((lecturer) => {
+                // If assigned and capacity are both 0, treat status as 'n/a'
+                const status = (lecturer.totalAllocated === 0 && lecturer.totalContract === 0) ? 'n/a' : lecturer.status;
+                const handleOpenModal = () => {
+                  setSelectedLecturer(lecturer);
+                  setModalOpen(true);
+                };
+                return (
+                  <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40" onClick={handleOpenModal}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{lecturer.name}</div>
+                      <div className="font-medium">{lecturer.fullName}</div>
                       <div className="text-sm text-muted-foreground">{lecturer.email}</div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
-                      {getContractTypeBadge(lecturer.contractType)}
-                      <div className="text-xs text-muted-foreground">FTE: {lecturer.fte}</div>
+                      {getContractTypeBadge(lecturer.contract)}
+                      <div className="text-xs text-muted-foreground">FTE: {lecturer.contract}</div>
                     </div>
                   </TableCell>
-                  <TableCell>{lecturer.department}</TableCell>
+                  <TableCell>{lecturer.team || lecturer.specialism || '-'}</TableCell>
                   <TableCell>
                     <div className="space-y-2 min-w-32">
                       <div className="flex items-center justify-between text-sm">
-                        <span>{lecturer.assignedHours}h</span>
-                        <span className="text-muted-foreground">/ {lecturer.totalHours}h</span>
+                        <span>{lecturer.totalAllocated}h</span>
+                        <span className="text-muted-foreground">/ {lecturer.totalContract}h</span>
                       </div>
-                      <Progress value={(lecturer.assignedHours / lecturer.totalHours) * 100} className="h-2" />
+                      <Progress value={lecturer.totalContract ? (lecturer.totalAllocated / lecturer.totalContract) * 100 : 0} className="h-2" />
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {getStatusBadge(lecturer.status)}
-                      {lecturer.status === "overloaded" && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                      {getStatusBadge(status)}
+                      {status === "overloaded" && <AlertTriangle className="w-4 h-4 text-red-500" />}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenModal(); }}>
                         <Eye className="w-4 h-4" />
                       </Button>
                       <Button variant="ghost" size="sm">
@@ -264,11 +311,30 @@ export default function LecturerManagement() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      {/* Replace LecturerDetailsModal with StaffProfileModal */}
+      <StaffProfileModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        lecturer={selectedLecturer}
+        adminAllocations={selectedLecturer ? (adminAllocations.find(a => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? []) : []}
+        moduleAllocations={selectedLecturer && selectedLecturer.moduleAllocations ? selectedLecturer.moduleAllocations.map((alloc: any) => {
+          const module = modules.find((m: any) => m.id === alloc.moduleCode);
+          return {
+            ...alloc,
+            moduleName: module ? module.title : alloc.moduleName,
+            semester: module ? module.semester : alloc.semester,
+            type: module ? (module.status === 'core' ? 'Core' : 'Elective') : alloc.type,
+            credits: module ? module.credits : undefined,
+            teachingHours: module ? module.teachingHours : undefined,
+          };
+        }) : []}
+      />
     </div>
   )
 }

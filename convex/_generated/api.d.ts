@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as admin_allocations from "../admin_allocations.js";
 import type * as cohorts from "../cohorts.js";
 import type * as dept_summary from "../dept_summary.js";
 import type * as lecturer_profile from "../lecturer_profile.js";
@@ -30,6 +31,7 @@ import type * as recent_activity from "../recent_activity.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  admin_allocations: typeof admin_allocations;
   cohorts: typeof cohorts;
   dept_summary: typeof dept_summary;
   lecturer_profile: typeof lecturer_profile;

@@ -99,8 +99,8 @@ export default function AcademicWorkloadPlanner() {
   const totalModules = modules.length;
   const unassignedModules = modules.filter(m => m.status === "unassigned").length;
   const overloadedStaff = lecturers.filter(l => l.status === "overloaded").length;
-  const totalCapacity = lecturers.reduce((sum, l) => sum + (l.capacity || 0), 0);
-  const assignedHours = lecturers.reduce((sum, l) => sum + (l.assigned || 0), 0);
+  const totalCapacity = lecturers.reduce((sum, l) => sum + (l.totalContract || 0), 0);
+  const assignedHours = lecturers.reduce((sum, l) => sum + (l.totalAllocated || 0), 0);
   const capacityUtilization = totalCapacity ? Math.round((assignedHours / totalCapacity) * 100) : 0;
 
   const getStatusColor = (status: string) => {
@@ -145,7 +145,7 @@ export default function AcademicWorkloadPlanner() {
 
   useEffect(() => {
     lecturers.forEach((lecturer: any) => {
-      const newStatus = calculateLecturerStatus(lecturer.assigned, lecturer.capacity);
+      const newStatus = calculateLecturerStatus(lecturer.totalAllocated, lecturer.totalContract);
       if (lecturer.status !== newStatus) {
         updateLecturerStatus({ id: lecturer._id, status: newStatus });
       }
@@ -232,17 +232,17 @@ export default function AcademicWorkloadPlanner() {
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{lecturer.name}</span>
+                          <span className="font-medium">{lecturer.fullName}</span>
                           <Badge variant="outline" className="text-xs">
-                            {lecturer.type}
+                            {lecturer.role}
                           </Badge>
                         </div>
                         {getStatusBadge(lecturer.status)}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Progress value={(lecturer.assigned / lecturer.capacity) * 100} className="flex-1" />
+                        <Progress value={(lecturer.totalAllocated / lecturer.totalContract) * 100} className="flex-1" />
                         <span className="text-sm text-muted-foreground min-w-fit">
-                          {lecturer.assigned}h / {lecturer.capacity}h
+                          {lecturer.totalAllocated}h / {lecturer.totalContract}h
                         </span>
                       </div>
                     </div>

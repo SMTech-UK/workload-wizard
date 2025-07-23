@@ -1,5 +1,4 @@
-{"type": "notification", "id": 1, "text": "Module CS101 assigned to Dr. Smith", "isRead": false, "timestamp": "2024-06-01T10:15:00Z"}
-{"type": "notification", "id": 2, "text": "Workload template updated for Semester 2", "isRead": false, "timestamp": "2024-06-01T09:00:00Z"}
-{"type": "notification", "id": 3, "text": "Dr. Johnson requested capacity review", "isRead": false, "timestamp": "2024-05-31T16:30:00Z"}
-{"type": "notification", "id": 4, "text": "New lecturer profile created: Dr. Williams", "isRead": false, "timestamp": "2024-05-30T14:45:00Z"}
-{"type": "notification", "id": 5, "text": "Module MA101 edited (teaching hours updated)", "isRead": false, "timestamp": "2024-05-29T11:20:00Z"}
+{"type": "admin_allocations", "lecturerId": "lect1", "adminAllocations": [ { "category": "MSc Supervision", "description": "5 hrs 1st supervisor", "vacantPost1": 25, "vacantPost2": 25 }, { "category": "Doctoral Supervision", "description": "25hrs 1st supervisor/15hrs 2nd supervisor", "vacantPost1": 50, "vacantPost2": 25 } ]}
+{"type": "admin_allocations", "lecturerId": "lect2", "adminAllocations": [ { "category": "Module leadership", "description": "40 per 20 credit mod, 60 for two intakes", "vacantPost1": 120, "vacantPost2": 80 }, { "category": "AA & ASLT", "description": "Assessment & Academic Standards", "vacantPost1": 150, "vacantPost2": 150 } ]}
+{"type": "admin_allocations", "lecturerId": "lect3", "adminAllocations": [ { "category": "Course leadership", "description": "1 hour / student + 20 hours for meetings", "vacantPost1": 45, "vacantPost2": 0 }, { "category": "Personal CPD", "description": "Continuing Professional Development", "vacantPost1": 20, "vacantPost2": 20 } ]}
+

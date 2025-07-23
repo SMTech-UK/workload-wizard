@@ -16,3 +16,28 @@ export const updateStatus = mutation({
     await ctx.db.patch(args.id, { status: args.status });
   },
 });
+
+// Mutation to create a new lecturer
+export const createLecturer = mutation({
+  args: {
+    fullName: v.string(),
+    team: v.string(),
+    specialism: v.string(),
+    contract: v.string(),
+    email: v.string(),
+    capacity: v.number(),
+    maxTeachingHours: v.number(),
+    role: v.string(),
+    status: v.string(),
+    teachingAvailability: v.number(),
+    totalAllocated: v.number(),
+    totalContract: v.number(),
+    allocatedTeachingHours: v.number(),
+    allocatedAdminHours: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("lecturers", {
+      ...args,
+    });
+  },
+});
