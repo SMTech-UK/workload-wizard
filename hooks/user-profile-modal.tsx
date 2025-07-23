@@ -5,7 +5,7 @@ import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Camera, User, Settings, Bell, Shield, Palette, X, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useUser } from "@auth0/nextjs-auth0";
 
 export type TabType = "profile" | "settings"
 
@@ -23,40 +24,96 @@ interface UserProfileModalProps {
 }
 
 export default function UserProfileModal({ open, onOpenChange, initialTab = "profile" }: UserProfileModalProps) {
+  const { user, isLoading } = useUser();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  // Reset tab when modal is opened with a new initialTab
   React.useEffect(() => {
     if (open) setActiveTab(initialTab);
   }, [open, initialTab]);
-  const [avatarUrl, setAvatarUrl] = useState("/placeholder.svg?height=80&width=80")
-  const [isEditing, setIsEditing] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(user?.picture || "/placeholder.svg?height=80&width=80");
+  const [isEditing, setIsEditing] = useState(false);
 
+  // Only bio/location are local fields, name/email/picture come from Auth0
   const [profileData, setProfileData] = useState({
-    name: "Sarah Johnson",
-    email: "sarah.johnson@example.com",
-    bio: "Product designer passionate about creating intuitive user experiences.",
-    location: "San Francisco, CA",
-  })
+    job_title: (user?.user_metadata?.job_title as string) || "",
+    team: (user?.user_metadata?.team as string) || "",
+    specialism: (user?.user_metadata?.specialism as string) || "",
+    office_location: (user?.user_metadata?.office_location as string) || "",
+  });
+  const [tempProfileData, setTempProfileData] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    job_title: profileData.job_title,
+    team: profileData.team,
+    specialism: profileData.specialism,
+    office_location: profileData.office_location,
+  });
 
-  const [tempProfileData, setTempProfileData] = useState(profileData)
+  // Keep custom fields in sync with user.user_metadata when modal opens or user changes
+  React.useEffect(() => {
+    if (open && user) {
+      setProfileData({
+        job_title: (user.user_metadata?.job_title as string) || "",
+        team: (user.user_metadata?.team as string) || "",
+        specialism: (user.user_metadata?.specialism as string) || "",
+        office_location: (user.user_metadata?.office_location as string) || "",
+      });
+      setTempProfileData(prev => ({
+        ...prev,
+        job_title: (user.user_metadata?.job_title as string) || "",
+        team: (user.user_metadata?.team as string) || "",
+        specialism: (user.user_metadata?.specialism as string) || "",
+        office_location: (user.user_metadata?.office_location as string) || "",
+      }));
+    }
+  }, [open, user]);
+
+  // Update avatarUrl if user changes (e.g. after login)
+  React.useEffect(() => {
+    if (user) {
+      setAvatarUrl(user.picture || "/placeholder.svg?height=80&width=80");
+    }
+  }, [user]);
 
   const [settingsData, setSettingsData] = useState({
-    notifications: {
+    notifications: user?.user_metadata?.notifications || {
       email: true,
       push: false,
       marketing: true,
     },
-    privacy: {
+    privacy: user?.user_metadata?.privacy || {
       profileVisible: true,
       showEmail: false,
       showLocation: true,
     },
-    preferences: {
+    preferences: user?.user_metadata?.preferences || {
       theme: "system",
       language: "en",
       timezone: "PST",
     },
-  })
+  });
+
+  // Keep settingsData in sync with user.user_metadata when modal opens
+  React.useEffect(() => {
+    if (open && user) {
+      setSettingsData({
+        notifications: user.user_metadata?.notifications || {
+          email: true,
+          push: false,
+          marketing: true,
+        },
+        privacy: user.user_metadata?.privacy || {
+          profileVisible: true,
+          showEmail: false,
+          showLocation: true,
+        },
+        preferences: user.user_metadata?.preferences || {
+          theme: "system",
+          language: "en",
+          timezone: "PST",
+        },
+      });
+    }
+  }, [open, user]);
 
   const sidebarItems = [
     {
@@ -74,34 +131,125 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
   ]
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (e) => {
-        setAvatarUrl(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+        setAvatarUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
 
-  const handleSaveProfile = () => {
-    setProfileData(tempProfileData)
-    setIsEditing(false)
-  }
+  const handleSaveProfile = async () => {
+    if (!user) {
+      alert("User not found. Please log in again.");
+      return;
+    }
+    // Validation: Full name and email are required
+    if (!tempProfileData.name.trim() || !tempProfileData.email.trim()) {
+      alert("Full name and email address are required.");
+      return;
+    }
+    // Validation: Only submit if something has changed
+    const hasChanged =
+      tempProfileData.name !== (user.name || "") ||
+      tempProfileData.email !== (user.email || "") ||
+      avatarUrl !== (user.picture || "/placeholder.svg?height=80&width=80") ||
+      tempProfileData.job_title !== ((user.user_metadata?.job_title as string) || "") ||
+      tempProfileData.team !== ((user.user_metadata?.team as string) || "") ||
+      tempProfileData.specialism !== ((user.user_metadata?.specialism as string) || "") ||
+      tempProfileData.office_location !== ((user.user_metadata?.office_location as string) || "") ||
+      JSON.stringify(settingsData.notifications) !== JSON.stringify(user.user_metadata?.notifications || {
+        email: true,
+        push: false,
+        marketing: true,
+      }) ||
+      JSON.stringify(settingsData.privacy) !== JSON.stringify(user.user_metadata?.privacy || {
+        profileVisible: true,
+        showEmail: false,
+        showLocation: true,
+      }) ||
+      JSON.stringify(settingsData.preferences) !== JSON.stringify(user.user_metadata?.preferences || {
+        theme: "system",
+        language: "en",
+        timezone: "PST",
+      });
+    if (!hasChanged) {
+      alert("No changes detected.");
+      return;
+    }
+    // Update Auth0 profile (name, email, picture, and user_metadata)
+    try {
+      const res = await fetch("/api/auth0-update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.sub,
+          name: tempProfileData.name,
+          email: tempProfileData.email,
+          picture: avatarUrl,
+          job_title: tempProfileData.job_title,
+          team: tempProfileData.team,
+          specialism: tempProfileData.specialism,
+          office_location: tempProfileData.office_location,
+          notifications: settingsData.notifications,
+          privacy: settingsData.privacy,
+          preferences: settingsData.preferences,
+        }),
+      });
+      if (res.ok) {
+        // Refetch the latest user profile from your API
+        const profileRes = await fetch("/api/user-profile");
+        if (profileRes.ok) {
+          const updatedUser = await profileRes.json();
+          setProfileData({
+            job_title: updatedUser.user_metadata?.job_title || "",
+            team: updatedUser.user_metadata?.team || "",
+            specialism: updatedUser.user_metadata?.specialism || "",
+            office_location: updatedUser.user_metadata?.office_location || "",
+          });
+          setTempProfileData({
+            name: updatedUser.name || "",
+            email: updatedUser.email || "",
+            job_title: updatedUser.user_metadata?.job_title || "",
+            team: updatedUser.user_metadata?.team || "",
+            specialism: updatedUser.user_metadata?.specialism || "",
+            office_location: updatedUser.user_metadata?.office_location || "",
+          });
+          setAvatarUrl(updatedUser.picture || "/placeholder.svg?height=80&width=80");
+        }
+        setIsEditing(false);
+      } else {
+        alert("Failed to update profile.");
+      }
+    } catch (err) {
+      alert("Failed to update profile.");
+    }
+  };
 
   const handleCancelEdit = () => {
-    setTempProfileData(profileData)
-    setIsEditing(false)
-  }
+    setTempProfileData(prev => ({
+      ...prev,
+      name: user?.name || "",
+      email: user?.email || "",
+      job_title: profileData.job_title,
+      team: profileData.team,
+      specialism: profileData.specialism,
+      office_location: profileData.office_location,
+    }));
+    setAvatarUrl(user?.picture || "/placeholder.svg?height=80&width=80");
+    setIsEditing(false);
+  };
 
   const getInitials = (name: string) => {
-    return name
+    return (name || "")
       .split(" ")
       .map((word) => word[0])
       .join("")
       .toUpperCase()
-      .slice(0, 2)
-  }
+      .slice(0, 2);
+  };
 
   const updateSettings = (category: keyof typeof settingsData, key: string, value: any) => {
     setSettingsData((prev) => ({
@@ -113,9 +261,34 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
     }))
   }
 
+  if (isLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogTitle className="sr-only">Loading</DialogTitle>
+          <DialogDescription className="sr-only">Loading user profile...</DialogDescription>
+          Loading...
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  if (!user) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogTitle className="sr-only">Not Authenticated</DialogTitle>
+          <DialogDescription className="sr-only">You must be logged in to view your profile.</DialogDescription>
+          You must be logged in to view your profile.
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const isSaveDisabled = isEditing && (!tempProfileData.name.trim() || !tempProfileData.email.trim());
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] max-h-[700px] p-0">
+      <DialogContent className="max-w-4xl h-[80vh] max-h-[700px] p-0 overflow-hidden">
           <div className="flex h-full">
             {/* Sidebar */}
             <div className="w-64 bg-muted/30 border-r p-4">
@@ -148,7 +321,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto max-h-[80vh]">
                 <div className="p-6">
                   {activeTab === "profile" && (
                     <div className="space-y-6">
@@ -171,8 +344,8 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
                       <div className="flex items-center space-x-6">
                         <div className="relative">
                           <Avatar className="h-20 w-20">
-                            <AvatarImage src={avatarUrl || "/placeholder.svg"} alt={profileData.name} />
-                            <AvatarFallback className="text-xl">{getInitials(profileData.name)}</AvatarFallback>
+                            <AvatarImage src={avatarUrl || "/placeholder.svg"} alt={tempProfileData.name} />
+                            <AvatarFallback className="text-xl">{getInitials(tempProfileData.name)}</AvatarFallback>
                           </Avatar>
                           {isEditing && (
                             <label
@@ -191,8 +364,8 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-lg">{profileData.name}</h3>
-                          <p className="text-muted-foreground">{profileData.email}</p>
+                          <h3 className="font-semibold text-lg">{tempProfileData.name}</h3>
+                          <p className="text-muted-foreground">{tempProfileData.email}</p>
                           {isEditing && (
                             <p className="text-sm text-muted-foreground mt-1">
                               Click the camera icon to change your avatar
@@ -207,7 +380,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
                           <Label htmlFor="name">Full Name</Label>
                           <Input
                             id="name"
-                            value={isEditing ? tempProfileData.name : profileData.name}
+                            value={tempProfileData.name}
                             onChange={(e) => setTempProfileData({ ...tempProfileData, name: e.target.value })}
                             disabled={!isEditing}
                           />
@@ -217,37 +390,56 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
                           <Input
                             id="email"
                             type="email"
-                            value={isEditing ? tempProfileData.email : profileData.email}
+                            value={tempProfileData.email}
                             onChange={(e) => setTempProfileData({ ...tempProfileData, email: e.target.value })}
                             disabled={!isEditing}
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="location">Location</Label>
+                          <Label htmlFor="job_title">Job Title</Label>
                           <Input
-                            id="location"
-                            value={isEditing ? tempProfileData.location : profileData.location}
-                            onChange={(e) => setTempProfileData({ ...tempProfileData, location: e.target.value })}
+                            id="job_title"
+                            value={tempProfileData.job_title}
+                            onChange={(e) => setTempProfileData({ ...tempProfileData, job_title: e.target.value })}
                             disabled={!isEditing}
-                            placeholder="City, Country"
+                            placeholder="e.g. Senior Lecturer"
                           />
                         </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor="bio">Bio</Label>
-                          <Textarea
-                            id="bio"
-                            value={isEditing ? tempProfileData.bio : profileData.bio}
-                            onChange={(e) => setTempProfileData({ ...tempProfileData, bio: e.target.value })}
+                        <div className="space-y-2">
+                          <Label htmlFor="team">Team</Label>
+                          <Input
+                            id="team"
+                            value={tempProfileData.team}
+                            onChange={(e) => setTempProfileData({ ...tempProfileData, team: e.target.value })}
                             disabled={!isEditing}
-                            placeholder="Tell us about yourself..."
-                            rows={3}
+                            placeholder="e.g. Simulation"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="specialism">Specialism</Label>
+                          <Input
+                            id="specialism"
+                            value={tempProfileData.specialism}
+                            onChange={(e) => setTempProfileData({ ...tempProfileData, specialism: e.target.value })}
+                            disabled={!isEditing}
+                            placeholder="e.g. Paramedic"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="office_location">Office Location</Label>
+                          <Input
+                            id="office_location"
+                            value={tempProfileData.office_location}
+                            onChange={(e) => setTempProfileData({ ...tempProfileData, office_location: e.target.value })}
+                            disabled={!isEditing}
+                            placeholder="e.g. Paragon House"
                           />
                         </div>
                       </div>
 
                       {isEditing && (
                         <div className="flex space-x-3 pt-4">
-                          <Button onClick={handleSaveProfile}>
+                          <Button onClick={handleSaveProfile} disabled={isSaveDisabled}>
                             <Check className="h-4 w-4 mr-2" />
                             Save Changes
                           </Button>
