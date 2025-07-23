@@ -5,6 +5,8 @@ import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkle
 import { Badge } from "@/components/ui/badge"
 import { useUser } from "@auth0/nextjs-auth0"
 import UserProfile from "./user-profile-dropdown"
+import { useState } from "react"
+import { Menu } from "lucide-react"
 
 interface NavigationProps {
   activeTab: string
@@ -18,20 +20,22 @@ export default function Navigation({ activeTab, setActiveTab }: NavigationProps)
     { id: "assignments", label: "Assignments", icon: BookOpen },
     { id: "reports", label: "Reports", icon: FileText },
   ]
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2">
+      <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 w-full overflow-x-auto">
+          <div className="flex items-center gap-4 w-full">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <WandSparkles className="w-5 h-5 text-white" />
               </div>
               <span className="text-xl font-bold text-gray-900">WorkloadWizard</span>
             </div>
 
-            <nav className="flex items-center gap-1">
+            {/* Desktop nav */}
+            <nav className="hidden lg:flex items-center gap-1 ml-8">
               {navItems.map((item) => (
                 <Button
                   key={item.id}
@@ -44,9 +48,16 @@ export default function Navigation({ activeTab, setActiveTab }: NavigationProps)
                 </Button>
               ))}
             </nav>
+            {/* Hamburger for mobile/tablet */}
+            <button
+              className="lg:hidden ml-auto p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              aria-label="Open navigation menu"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
           </div>
-
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-shrink-0">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="w-5 h-5" />
               <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 text-xs">3</Badge>
@@ -59,6 +70,25 @@ export default function Navigation({ activeTab, setActiveTab }: NavigationProps)
             </div>
           </div>
         </div>
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <nav className="lg:hidden flex flex-col gap-1 pb-4 animate-in fade-in slide-in-from-top-2">
+            {navItems.map((item) => (
+              <Button
+                key={item.id}
+                variant={activeTab === item.id ? "default" : "ghost"}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-2 w-full justify-start"
+              >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </Button>
+            ))}
+          </nav>
+        )}
       </div>
     </header>
   )

@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useUser } from "@auth0/nextjs-auth0"
+import LandingPage from "@/components/landing-page"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -21,16 +23,19 @@ import { useEffect } from "react";
 
 
 export default function AcademicWorkloadPlanner() {
-  const [activeTab, setActiveTab] = useState("dashboard")
+  const { user, isLoading } = useUser();
+
+  // All hooks must be called unconditionally!
+  const [activeTab, setActiveTab] = useState("dashboard");
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
   const modules = useQuery(api.modules.getAll) ?? [];
   const recentActivity = useQuery(api.recent_activity.getAll) ?? [];
+  const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
+
   const totalLecturers = lecturers.length;
   const totalModules = modules.length;
   const unassignedModules = modules.filter(m => m.status === "unassigned").length;
   const overloadedStaff = lecturers.filter(l => l.status === "overloaded").length;
-  
-  // Example for capacity utilization (customize as needed)
   const totalCapacity = lecturers.reduce((sum, l) => sum + (l.capacity || 0), 0);
   const assignedHours = lecturers.reduce((sum, l) => sum + (l.assigned || 0), 0);
   const capacityUtilization = totalCapacity ? Math.round((assignedHours / totalCapacity) * 100) : 0;
@@ -72,8 +77,6 @@ export default function AcademicWorkloadPlanner() {
     return "available";
   }
 
-  const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
-
   useEffect(() => {
     lecturers.forEach((lecturer: any) => {
       const newStatus = calculateLecturerStatus(lecturer.assigned, lecturer.capacity);
@@ -82,6 +85,13 @@ export default function AcademicWorkloadPlanner() {
       }
     });
   }, [lecturers, updateLecturerStatus]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  if (!user) {
+    return <LandingPage />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

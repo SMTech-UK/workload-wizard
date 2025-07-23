@@ -10,6 +10,7 @@ import {
 import { User, Settings, LogOut, CreditCard, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useUser } from "@auth0/nextjs-auth0"
 
 interface UserProfileDropdownProps {
@@ -70,9 +71,11 @@ export default function Component({
               <span>Help & Support</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600" onClick={() => router.push('/auth/logout')}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+            <DropdownMenuItem asChild className="text-red-600">
+              <Link href="/auth/logout">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
