@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { Auth0Provider } from "@auth0/nextjs-auth0";
+import { Toaster } from "sonner";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -22,9 +23,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+  ...props
+}: any) {
   return (
     <html lang="en">
       <body
@@ -32,6 +32,7 @@ export default function RootLayout({
       >
         <Auth0Provider>
         <ConvexClientProvider>{children}</ConvexClientProvider>
+        <Toaster position="top-right" richColors closeButton />
         </Auth0Provider>
       </body>
     </html>

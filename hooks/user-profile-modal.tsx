@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Camera, User, Settings, Bell, Shield, Palette, X, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@auth0/nextjs-auth0";
+import { toast } from "sonner";
 
 export type TabType = "profile" | "settings"
 
@@ -143,12 +144,12 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
 
   const handleSaveProfile = async () => {
     if (!user) {
-      alert("User not found. Please log in again.");
+      toast.error("User not found. Please log in again.");
       return;
     }
     // Validation: Full name and email are required
     if (!tempProfileData.name.trim() || !tempProfileData.email.trim()) {
-      alert("Full name and email address are required.");
+      toast.error("Full name and email address are required.");
       return;
     }
     // Validation: Only submit if something has changed
@@ -176,7 +177,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
         timezone: "PST",
       });
     if (!hasChanged) {
-      alert("No changes detected.");
+      toast("No changes detected.", { description: "Update some fields before saving." });
       return;
     }
     // Update Auth0 profile (name, email, picture, and user_metadata)
@@ -220,11 +221,12 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
           setAvatarUrl(updatedUser.picture || "/placeholder.svg?height=80&width=80");
         }
         setIsEditing(false);
+        toast.success("Profile updated successfully!");
       } else {
-        alert("Failed to update profile.");
+        toast.error("Failed to update profile.");
       }
     } catch (err) {
-      alert("Failed to update profile.");
+      toast.error("Failed to update profile.");
     }
   };
 
@@ -321,7 +323,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto max-h-[80vh]">
+              <div className="flex-1 overflow-y-auto max-h-[calc(80vh-32px)] p-6"> {/* 32px for padding/margins */}
                 <div className="p-6">
                   {activeTab === "profile" && (
                     <div className="space-y-6">
@@ -546,7 +548,7 @@ export default function UserProfileModal({ open, onOpenChange, initialTab = "pro
                       <Separator />
 
                       {/* Preferences */}
-                      <div className="space-y-4">
+                      <div className="space-y-4 pb-8">
                         <div className="flex items-center space-x-2">
                           <Palette className="h-5 w-5" />
                           <h3 className="text-lg font-medium">Preferences</h3>
