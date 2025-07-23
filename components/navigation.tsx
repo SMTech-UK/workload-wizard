@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell } from "lucide-react"
+import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 interface NavigationProps {
@@ -24,9 +24,9 @@ export default function Navigation({ activeTab, setActiveTab }: NavigationProps)
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-white" />
+                <WandSparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">WorkloadPlanner</span>
+              <span className="text-xl font-bold text-gray-900">WorkloadWizard</span>
             </div>
 
             <nav className="flex items-center gap-1">

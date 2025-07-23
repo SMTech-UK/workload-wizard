@@ -11,35 +11,29 @@ import Navigation from "@/components/navigation"
 import LecturerManagement from "@/components/lecturer-management"
 import ModuleAssignment from "@/components/module-assignment"
 import ReportsSection from "@/components/reports-section"
+import { DashboardCard, DashboardCardData } from "@/components/DashboardCard";
+import { DashboardMetricCard } from "@/components/ui/dashboard-metric-card";
+import { useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
+import { useMutation } from "convex/react";
+import { useEffect } from "react";
 
-// Mock data
-const dashboardData = {
-  totalLecturers: 45,
-  totalModules: 128,
-  assignedHours: 18420,
-  totalCapacity: 22500,
-  overloadedStaff: 3,
-  unassignedModules: 12,
-  pendingApprovals: 7,
-}
 
-const recentActivity = [
-  { id: 1, action: "Module CS101 assigned to Dr. Smith", time: "2 hours ago", type: "assignment" },
-  { id: 2, action: "Workload template updated for Semester 2", time: "4 hours ago", type: "update" },
-  { id: 3, action: "Dr. Johnson requested capacity review", time: "1 day ago", type: "request" },
-  { id: 4, action: "New lecturer profile created: Dr. Williams", time: "2 days ago", type: "creation" },
-]
-
-const capacityOverview = [
-  { name: "Dr. Smith", assigned: 1150, capacity: 1200, type: "AP", status: "near-capacity" },
-  { name: "Dr. Johnson", assigned: 1250, capacity: 1200, type: "AP", status: "overloaded" },
-  { name: "Dr. Williams", assigned: 800, capacity: 900, type: "TA", status: "available" },
-  { name: "Dr. Brown", assigned: 400, capacity: 450, type: "RA", status: "available" },
-  { name: "Dr. Davis", assigned: 1180, capacity: 1200, type: "AP", status: "near-capacity" },
-]
 
 export default function AcademicWorkloadPlanner() {
   const [activeTab, setActiveTab] = useState("dashboard")
+  const lecturers = useQuery(api.lecturers.getAll) ?? [];
+  const modules = useQuery(api.modules.getAll) ?? [];
+  const recentActivity = useQuery(api.recent_activity.getAll) ?? [];
+  const totalLecturers = lecturers.length;
+  const totalModules = modules.length;
+  const unassignedModules = modules.filter(m => m.status === "unassigned").length;
+  const overloadedStaff = lecturers.filter(l => l.status === "overloaded").length;
+  
+  // Example for capacity utilization (customize as needed)
+  const totalCapacity = lecturers.reduce((sum, l) => sum + (l.capacity || 0), 0);
+  const assignedHours = lecturers.reduce((sum, l) => sum + (l.assigned || 0), 0);
+  const capacityUtilization = totalCapacity ? Math.round((assignedHours / totalCapacity) * 100) : 0;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -71,6 +65,24 @@ export default function AcademicWorkloadPlanner() {
     }
   }
 
+  function calculateLecturerStatus(assigned: number, capacity: number): "overloaded" | "near-capacity" | "available" {
+    const percent = (assigned / capacity) * 100;
+    if (percent > 100) return "overloaded";
+    if (percent > 90) return "near-capacity";
+    return "available";
+  }
+
+  const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
+
+  useEffect(() => {
+    lecturers.forEach((lecturer: any) => {
+      const newStatus = calculateLecturerStatus(lecturer.assigned, lecturer.capacity);
+      if (lecturer.status !== newStatus) {
+        updateLecturerStatus({ id: lecturer._id, status: newStatus });
+      }
+    });
+  }, [lecturers, updateLecturerStatus]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -97,54 +109,32 @@ export default function AcademicWorkloadPlanner() {
 
             {/* Key Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Lecturers</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.totalLecturers}</div>
-                  <p className="text-xs text-muted-foreground">+2 from last semester</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Modules</CardTitle>
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{dashboardData.totalModules}</div>
-                  <p className="text-xs text-muted-foreground">{dashboardData.unassignedModules} unassigned</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Capacity Utilization</CardTitle>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {Math.round((dashboardData.assignedHours / dashboardData.totalCapacity) * 100)}%
-                  </div>
-                  <Progress
-                    value={(dashboardData.assignedHours / dashboardData.totalCapacity) * 100}
-                    className="mt-2"
-                  />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Alerts</CardTitle>
-                  <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">{dashboardData.overloadedStaff}</div>
-                  <p className="text-xs text-muted-foreground">Staff over capacity</p>
-                </CardContent>
-              </Card>
+            <DashboardMetricCard
+              title="Total Lecturers"
+              value={totalLecturers}
+              subtitle={`+${totalLecturers - 43} from last semester`} // Example
+              icon={<Users className="h-4 w-4 text-muted-foreground" />}
+            />
+            <DashboardMetricCard
+              title="Total Modules"
+              value={totalModules}
+              subtitle={`${unassignedModules} unassigned`}
+              icon={<BookOpen className="h-4 w-4 text-muted-foreground" />}
+            />
+            <DashboardMetricCard
+              title="Capacity Utilisation"
+              value={`${capacityUtilization}%`}
+              icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+            >
+              <Progress value={capacityUtilization} className="mt-2" />
+            </DashboardMetricCard>
+            <DashboardMetricCard
+              title="Alerts"
+              value={overloadedStaff}
+              subtitle="Staff over capacity"
+              icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
+              valueClassName="text-red-600"
+            />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -155,7 +145,7 @@ export default function AcademicWorkloadPlanner() {
                   <CardDescription>Current workload allocation by lecturer</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {capacityOverview.map((lecturer, index) => (
+                  {lecturers.map((lecturer, index) => (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
