@@ -7,13 +7,17 @@ import { useUser } from "@auth0/nextjs-auth0"
 import UserProfile from "./user-profile-dropdown"
 import { useState } from "react"
 import { Menu } from "lucide-react"
+import { TabType } from "@/hooks/user-profile-modal";
+import UserProfileDropdown from "./user-profile-dropdown"
 
 interface NavigationProps {
   activeTab: string
   setActiveTab: (tab: string) => void
+  onProfileClick?: () => void
+  onSettingsClick?: () => void
 }
 
-export default function Navigation({ activeTab, setActiveTab }: NavigationProps) {
+export default function Navigation({ activeTab, setActiveTab, onProfileClick, onSettingsClick }: NavigationProps) {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "lecturers", label: "Lecturers", icon: Users },
@@ -21,7 +25,16 @@ export default function Navigation({ activeTab, setActiveTab }: NavigationProps)
     { id: "reports", label: "Reports", icon: FileText },
   ]
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profileModalTab, setProfileModalTab] = useState<TabType>("profile");
+  const handleProfileClick = () => {
+    setProfileModalTab("profile");
+    setProfileModalOpen(true);
+  };
+  const handleSettingsClick = () => {
+    setProfileModalTab("settings");
+    setProfileModalOpen(true);
+  };
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -65,8 +78,8 @@ export default function Navigation({ activeTab, setActiveTab }: NavigationProps)
             <Button variant="ghost" size="icon">
               <Settings className="w-5 h-5" />
             </Button>
-            <div className="flex items-center gap-2 pl-4 border-l">
-              <UserProfile />
+            <div className="flex items-center gap-2">
+              <UserProfileDropdown onProfileClick={onProfileClick} onSettingsClick={onSettingsClick} />
             </div>
           </div>
         </div>

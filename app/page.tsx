@@ -10,19 +10,27 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Users, BookOpen, Clock, AlertTriangle, FileText, Settings } from "lucide-react"
 import Navigation from "@/components/navigation"
+import UserProfileModal, { TabType } from "@/hooks/user-profile-modal"
 import LecturerManagement from "@/components/lecturer-management"
 import ModuleAssignment from "@/components/module-assignment"
 import ReportsSection from "@/components/reports-section"
-import { DashboardCard, DashboardCardData } from "@/components/DashboardCard";
 import { DashboardMetricCard } from "@/components/ui/dashboard-metric-card";
 import { useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useEffect } from "react";
 
-
-
 export default function AcademicWorkloadPlanner() {
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profileModalTab, setProfileModalTab] = useState<TabType>("profile");
+  const handleProfileClick = () => {
+    setProfileModalTab("profile");
+    setProfileModalOpen(true);
+  };
+  const handleSettingsClick = () => {
+    setProfileModalTab("settings");
+    setProfileModalOpen(true);
+  };
   const { user, isLoading } = useUser();
 
   // All hooks must be called unconditionally!
@@ -95,9 +103,18 @@ export default function AcademicWorkloadPlanner() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Navigation with custom user profile dropdown */}
+      <div className="w-full bg-white">
+      <Navigation
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              onProfileClick={handleProfileClick}
+              onSettingsClick={handleSettingsClick}
+            />
+      </div>
+      <UserProfileModal open={profileModalOpen} onOpenChange={setProfileModalOpen} initialTab={profileModalTab} />
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsContent value="dashboard" className="space-y-6">
             <div className="flex items-center justify-between">

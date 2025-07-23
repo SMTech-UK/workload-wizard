@@ -14,17 +14,11 @@ import Link from "next/link"
 import { useUser } from "@auth0/nextjs-auth0"
 
 interface UserProfileDropdownProps {
-  isLoggedIn?: boolean
-  user?: {
-    name: string
-    email: string
-    avatar?: string
-  }
+  onProfileClick?: () => void;
+  onSettingsClick?: () => void;
 }
 
-export default function Component({
-  // props are no longer used
-}: UserProfileDropdownProps) {
+export default function Component({ onProfileClick, onSettingsClick }: UserProfileDropdownProps) {
   const router = useRouter();
   const { user: auth0User, isLoading } = useUser();
 
@@ -54,11 +48,11 @@ export default function Component({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={onProfileClick}>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={onSettingsClick}>
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
             </DropdownMenuItem>
