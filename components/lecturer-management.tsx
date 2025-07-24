@@ -88,11 +88,15 @@ export default function LecturerManagement() {
     }
   }
 
-  const filteredLecturers = lecturers.filter(
-    (lecturer) =>
+  const [statusFilter, setStatusFilter] = useState('all');
+  const filteredLecturers = lecturers.filter((lecturer) => {
+    const matchesSearch =
       lecturer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lecturer.team?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+      lecturer.team?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === 'all' || lecturer.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   interface lecturer {
     fullName: string
@@ -230,15 +234,17 @@ export default function LecturerManagement() {
                 />
               </div>
             </div>
-            <Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by contract" />
+                <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Contracts</SelectItem>
-                <SelectItem value="AP">Academic Practitioner</SelectItem>
-                <SelectItem value="TA">Teaching Academic</SelectItem>
-                <SelectItem value="RA">Research Academic</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="near-capacity">Near Capacity</SelectItem>
+                <SelectItem value="at-capacity">At Capacity</SelectItem>
+                <SelectItem value="overloaded">Overloaded</SelectItem>
+                <SelectItem value="n/a">N/A</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -282,7 +288,7 @@ export default function LecturerManagement() {
                   <TableCell>
                     <div className="space-y-1">
                       {getContractTypeBadge(lecturer.contract)}
-                      <div className="text-xs text-muted-foreground">FTE: {lecturer.contract}</div>
+                      <div className="text-xs text-muted-foreground">FTE: {lecturer.fte.toFixed(1)}</div>
                     </div>
                   </TableCell>
                   <TableCell>{lecturer.team || lecturer.specialism || '-'}</TableCell>
@@ -314,9 +320,6 @@ export default function LecturerManagement() {
                     <div className="flex gap-2">
                       <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenModal(); }}>
                         <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="w-4 h-4" />
                       </Button>
                     </div>
                   </TableCell>

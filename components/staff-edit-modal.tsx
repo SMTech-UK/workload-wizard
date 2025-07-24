@@ -104,20 +104,27 @@ export default function StaffEditModal({
   staffMember,
 }: StaffEditModalProps) {
   const [formData, setFormData] = useState<StaffMember>(staffMember)
-  const [errors, setErrors] = useState<Partial<StaffMember>>({})
+  const [errors, setErrors] = useState<Partial<Record<keyof StaffMember, string>>>({})
 
   useEffect(() => {
     setFormData(staffMember);
   }, [staffMember]);
 
   // When FTE changes, update contract hours
-  const handleFteChange = (fte: number) => {
+  const handleFteChange = (fteStr: string) => {
+    // Allow empty string or '0' for editing
+    if (fteStr === "" || fteStr === "0") {
+      setFormData({ ...formData, fte: fteStr as any, totalContract: 0 });
+      return;
+    }
+    const fte = Number(fteStr);
+    if (isNaN(fte)) return;
     const totalContract = Math.round(fte * 1498 * 100) / 100;
     setFormData({ ...formData, fte, totalContract });
   };
 
   const validateForm = () => {
-    const newErrors: Partial<StaffMember> = {}
+    const newErrors: Partial<Record<keyof StaffMember, string>> = {}
 
     if (!formData.fullName.trim()) {
       newErrors.fullName = "Full name is required"
@@ -143,6 +150,18 @@ export default function StaffEditModal({
 
     if (!formData.role) {
       newErrors.role = "Role is required"
+    }
+
+    if (
+      formData.fte === undefined ||
+      formData.fte === null ||
+      (typeof formData.fte === "string" && (formData.fte as string).trim() === "")
+    ) {
+      newErrors.fte = "FTE is required";
+    } else if (
+      typeof formData.fte === "number" && (formData.fte > 1 || formData.fte <= 0)
+    ) {
+      newErrors.fte = "FTE must be greater than 0 and less than or equal to 1";
     }
 
     setErrors(newErrors)
@@ -393,12 +412,14 @@ export default function StaffEditModal({
                       <Input
                         id="fte"
                         type="number"
-                        min={0.1}
+                        min={0.01}
+                        max={1}
                         step={0.01}
-                        value={formData.fte}
-                        onChange={e => handleFteChange(Number(e.target.value))}
+                        value={formData.fte == 0 ? "0" : formData.fte ?? ""}
+                        onChange={e => handleFteChange(e.target.value)}
                         className="w-full text-xs"
                       />
+                      {errors.fte && <p className="text-xs text-red-500 mt-1">{errors.fte}</p>}
                     </div>
                     <div>
                       <Label className="text-xs font-medium text-gray-700">Contract Hours</Label>

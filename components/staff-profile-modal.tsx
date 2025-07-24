@@ -29,11 +29,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useState, useEffect } from "react"
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import StaffEditModal from "./staff-edit-modal"
 import AdminAllocationsEditModal from "./admin-allocations-edit-modal"
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { Id } from "../convex/_generated/dataModel";
+import type { Id } from "../convex/_generated/dataModel";
 import { useConvex } from "convex/react";
 import Calculator from "@/lib/calculator";
 
@@ -59,22 +60,23 @@ interface lecturer {
   fte: number
 }
 
-interface AdminAllocation {
-  category: string
-  description: string
-  hours: number
-  isHeader?: boolean
-}
+// Types for allocations
+type ModuleAllocation = {
+  moduleCode: string;
+  moduleName: string;
+  hoursAllocated: number;
+  type: string;
+  semester: string;
+};
 
-interface ModuleAllocation {
-  moduleCode: string
-  moduleName: string
-  hoursAllocated: number
-  type: string
-  semester: string
-}
+type AdminAllocation = {
+  category: string;
+  description: string;
+  hours: number;
+  isHeader?: boolean;
+};
 
-interface StaffProfileModalProps {
+type StaffProfileModalProps = {
   isOpen: boolean
   onClose: () => void
   lecturer: lecturer
@@ -88,9 +90,8 @@ export default function StaffProfileModal({
   onClose = () => {},
   lecturer,
   adminAllocations,
-  moduleAllocations,
   onLecturerUpdate,
-}: StaffProfileModalProps) {
+}: Omit<StaffProfileModalProps, 'moduleAllocations'>) {
   // Null check for lecturer
   if (!lecturer) {
     return (
@@ -131,6 +132,9 @@ export default function StaffProfileModal({
   const deleteLecturer = useMutation(api.lecturers.deleteLecturer);
   const convex = useConvex();
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
+
+  // Fetch module allocations for this lecturer from Convex
+  const moduleAllocations = useQuery(api.modules.getByLecturerId, lecturer ? { lecturerId: lecturer._id } : "skip") ?? [];
 
   function formatFTEWithFamily(totalContract: number, family: string) {
     if (!totalContract || !family) return '';
@@ -251,48 +255,35 @@ export default function StaffProfileModal({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => setDeleteConfirmOpen(true)} className="hover:bg-red-100 rounded-lg" aria-label="Delete profile">
-                      <Trash2 className="h-5 w-5 text-red-600" />
+              {/* Action menu popover */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" className="hover:bg-gray-100 rounded-lg" aria-label="More actions">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-48 p-2">
+                  {/* Commented out buttons now as menu items */}
+                  <div className="flex flex-col gap-1">
+                    {/* Delete */}
+                    <Button variant="ghost" className="justify-start w-full" onClick={() => setDeleteConfirmOpen(true)}>
+                      <Trash2 className="h-4 w-4 mr-2 text-red-600" /> Delete profile
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Delete</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => { /* TODO: Implement download handler */ }} className="hover:bg-gray-100 rounded-lg" aria-label="Download profile">
-                      <Download className="h-5 w-5" />
+                    {/* Download */}
+                    <Button variant="ghost" className="justify-start w-full" onClick={() => { /* TODO: Implement download handler */ }}>
+                      <Download className="h-4 w-4 mr-2" /> Download profile
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Download</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => { /* TODO: Implement print handler */ }} className="hover:bg-gray-100 rounded-lg" aria-label="Print profile">
-                      <Printer className="h-5 w-5" />
+                    {/* Print */}
+                    <Button variant="ghost" className="justify-start w-full" onClick={() => { /* TODO: Implement print handler */ }}>
+                      <Printer className="h-4 w-4 mr-2" /> Print profile
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Print</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => { /* TODO: Implement message handler */ }} className="hover:bg-gray-100 rounded-lg" aria-label="Message staff">
-                      <Mail className="h-5 w-5" />
+                    {/* Message */}
+                    <Button variant="ghost" className="justify-start w-full" onClick={() => { /* TODO: Implement message handler */ }}>
+                      <Mail className="h-4 w-4 mr-2" /> Message staff
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Message</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => { /* TODO: Implement more handler */ }} className="hover:bg-gray-100 rounded-lg" aria-label="More actions">
-                      <MoreVertical className="h-5 w-5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>More</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+                  </div>
+                </PopoverContent>
+              </Popover>
               <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-gray-200 rounded-lg" aria-label="Close profile modal">
                 <X className="h-5 w-5" />
               </Button>
@@ -438,15 +429,19 @@ export default function StaffProfileModal({
                       <BarChart3 className="h-5 w-5" />
                       Administrative Allocations
                     </CardTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAdminEditModalOpen(true)}
-                      className="hover:bg-gray-50"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-600 font-semibold">Total:</span>
+                      <Badge className="bg-gray-900 text-white font-semibold">{totalAdminHours}h</Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdminEditModalOpen(true)}
+                        className="hover:bg-gray-50"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="max-h-96 overflow-y-auto">
@@ -474,40 +469,55 @@ export default function StaffProfileModal({
                 </Card>
                 {/* Module Allocations Table */}
                 <Card className="border border-gray-200 shadow-sm bg-white">
-                  <CardHeader className="bg-white border-b border-gray-200">
+                  <CardHeader className="bg-white border-b border-gray-200 flex flex-row items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                       <BookOpen className="h-5 w-5" />
                       Module Allocations
                     </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-600 font-semibold">Total:</span>
+                      <Badge className="bg-gray-900 text-white font-semibold">{displayLecturer.allocatedTeachingHours}h</Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setModuleOpen(true)}
+                        className="hover:bg-gray-50"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="max-h-96 overflow-y-auto">
-                      {moduleAllocations.map((module, index) => (
-                        <div key={index} className="hover:bg-gray-50 border-b border-gray-100 p-6 transition-colors">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                                {module.moduleCode.slice(-2)}
+                      {moduleAllocations.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                          No modules allocated.
+                        </div>
+                      ) : (
+                        moduleAllocations.map((module, index) => (
+                          <div key={index} className="hover:bg-gray-50 border-b border-gray-100 p-6 transition-colors">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                                  {module?.moduleId ? String(module.moduleId).slice(-2) : '--'}
+                                </div>
+                                <div>
+                                  <div className="font-semibold text-gray-900">{module?.title ?? 'No Title'}</div>
+                                  <div className="text-xs text-gray-500">Module: {module?.moduleId ?? 'No ID'}</div>
+                                  <div className="text-xs text-gray-500">Cohort: {module?.cohort ?? 'N/A'}</div>
+                                  <div className="text-xs text-gray-500">Site: {module?.site ?? 'N/A'}</div>
+                                </div>
                               </div>
-                              <div>
-                                <div className="font-semibold text-gray-900">{module.moduleCode}</div>
-                                <div className="text-sm text-gray-500">{module.semester}</div>
+                              <div className="flex flex-col items-end gap-1 min-w-[120px]">
+                                <div className="text-xs text-gray-500">Semester: {module?.semester ?? 'N/A'}</div>
+                                <div className="text-xs text-gray-500">Teaching: <span className="font-semibold text-gray-900">{module?.teachingHours ?? 0}h</span></div>
+                                <div className="text-xs text-gray-500">Marking: <span className="font-semibold text-gray-900">{module?.markingHours ?? 0}h</span></div>
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-xl font-bold text-gray-900">{module.hoursAllocated}h</div>
-                              <Badge
-                                className={`${
-                                  module.type === "Core" ? "bg-black text-white" : "bg-gray-600 text-white"
-                                }`}
-                              >
-                                {module.type}
-                              </Badge>
                             </div>
                           </div>
-                          <div className="text-sm font-medium text-gray-700">{module.moduleName}</div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
