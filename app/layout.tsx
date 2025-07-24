@@ -4,6 +4,8 @@ import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { Auth0Provider } from "@auth0/nextjs-auth0";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -34,6 +36,8 @@ export default function RootLayout({
         <ConvexClientProvider>{children}</ConvexClientProvider>
         <Toaster position="top-right" richColors closeButton />
         </Auth0Provider>
+        <SpeedInsights/>
+        <Analytics/>
       </body>
     </html>
   );
