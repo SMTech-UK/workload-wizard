@@ -16,7 +16,7 @@ export default function WorkloadWizardLanding() {
               <span className="text-xl font-bold text-gray-900">WorkloadWizard</span>
             </div>
         <nav className="ml-auto">
-          <Link href="/auth/login">
+          <Link href="/login">
             <Button variant="outline" size="sm">
               Sign In
             </Button>

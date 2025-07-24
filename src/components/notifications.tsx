@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Bell, CheckIcon, Mail } from 'lucide-react';
 import { useMutation, useQuery } from 'convex/react';
 
-import { api } from '../convex/_generated/api';
+import { api } from '../../convex/_generated/api';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';

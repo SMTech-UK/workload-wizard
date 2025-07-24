@@ -88,7 +88,7 @@ const reportTemplates = [
   },
 ]
 
-export default function ReportsSection() {
+export default function ReportsSection({ onViewAllActivity }: { onViewAllActivity?: () => void }) {
   const [selectedDepartment, setSelectedDepartment] = useState("all")
   const [selectedPeriod, setSelectedPeriod] = useState("current")
 
@@ -116,6 +116,9 @@ export default function ReportsSection() {
           <p className="text-gray-600 mt-1">Comprehensive workload analysis and reporting</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={onViewAllActivity}>
+            View All Activity
+          </Button>
           <Button variant="outline">
             <Calendar className="w-4 h-4 mr-2" />
             Schedule Report

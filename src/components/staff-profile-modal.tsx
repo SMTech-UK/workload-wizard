@@ -33,8 +33,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import StaffEditModal from "./staff-edit-modal"
 import AdminAllocationsEditModal from "./admin-allocations-edit-modal"
 import { useMutation, useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
-import type { Id } from "../convex/_generated/dataModel";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { useConvex } from "convex/react";
 import Calculator from "@/lib/calculator";
 import { useLogRecentActivity } from "@/lib/recentActivity";

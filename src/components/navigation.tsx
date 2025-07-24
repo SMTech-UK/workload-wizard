@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles } from "lucide-react"
+import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useUser } from "@auth0/nextjs-auth0"
 import UserProfile from "./user-profile-dropdown"
@@ -10,20 +10,25 @@ import { Menu } from "lucide-react"
 import { TabType } from "@/hooks/settings-modal";
 import UserProfileDropdown from "./user-profile-dropdown"
 import { Notifications } from "@/components/notifications"
+import { useRouter, usePathname } from "next/navigation";
 
 interface NavigationProps {
   activeTab: string
   setActiveTab: (tab: string) => void
   onProfileClick?: () => void
   onSettingsClick?: () => void
+  onInboxClick?: () => void;
 }
 
 export default function Navigation({ activeTab, setActiveTab, onProfileClick, onSettingsClick }: NavigationProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "lecturers", label: "Lecturers", icon: Users },
     { id: "assignments", label: "Assignments", icon: BookOpen },
     { id: "reports", label: "Reports", icon: FileText },
+    { id: "inbox", label: "Inbox", icon: Bell, href: "/inbox" },
   ]
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -53,8 +58,18 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
               {navItems.map((item) => (
                 <Button
                   key={item.id}
-                  variant={activeTab === item.id ? "default" : "ghost"}
-                  onClick={() => setActiveTab(item.id)}
+                  variant={
+                    (item.href && pathname === item.href) || (!item.href && activeTab === item.id)
+                      ? "default"
+                      : "ghost"
+                  }
+                  onClick={() => {
+                    if (item.href) {
+                      router.push(item.href);
+                    } else {
+                      setActiveTab(item.id);
+                    }
+                  }}
                   className="flex items-center gap-2"
                 >
                   <item.icon className="w-4 h-4" />

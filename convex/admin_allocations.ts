@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import Calculator from "../lib/calculator";
+import Calculator from "@/lib/calculator";
 
 export const getAll = query({
   args: {},

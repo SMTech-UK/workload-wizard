@@ -1,8 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useUser } from "@auth0/nextjs-auth0"
-import LandingPage from "@/components/landing-page"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +14,7 @@ import ModuleAssignment from "@/components/module-assignment"
 import ReportsSection from "@/components/reports-section"
 import { DashboardMetricCard } from "@/components/ui/dashboard-metric-card";
 import { useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useEffect } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -26,6 +24,8 @@ import StaffProfileModal from "@/components/staff-profile-modal"
 import { useConvex } from "convex/react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { timeAgo } from "@/lib/notify";
+import NotificationsInbox from "@/components/notifications-inbox";
+import { useRouter } from "next/navigation";
 
 const academicYears = [
   "Academic Year 25/26",
@@ -99,15 +99,6 @@ export default function AcademicWorkloadPlanner() {
   const [selectedLecturer, setSelectedLecturer] = useState<any>(undefined);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
-  const handleProfileClick = () => {
-    setUserProfileModalTab("profile");
-    setUserProfileModalOpen(true);
-  };
-  const handleSettingsClick = () => {
-    setUserProfileModalTab("general");
-    setUserProfileModalOpen(true);
-  };
-  const { user, isLoading } = useUser();
 
   // All hooks must be called unconditionally!
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -201,6 +192,15 @@ export default function AcademicWorkloadPlanner() {
     }, 150);
   };
 
+  const handleProfileClick = () => {
+    setUserProfileModalTab("profile");
+    setUserProfileModalOpen(true);
+  };
+  const handleSettingsClick = () => {
+    setUserProfileModalTab("general");
+    setUserProfileModalOpen(true);
+  };
+
   const selectedAdminAllocations = selectedLecturer
     ? (adminAllocations.find((a: any) => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
     : [];
@@ -219,12 +219,7 @@ export default function AcademicWorkloadPlanner() {
       })
     : [];
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-  if (!user) {
-    return <LandingPage />;
-  }
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -235,6 +230,7 @@ export default function AcademicWorkloadPlanner() {
           setActiveTab={setActiveTab}
           onProfileClick={handleProfileClick}
           onSettingsClick={handleSettingsClick}
+          onInboxClick={() => router.push("/inbox")}
         />
       </div>
       <SettingsModal open={userProfileModalOpen} onOpenChange={setUserProfileModalOpen} initialTab={userProfileModalTab} />
@@ -398,7 +394,13 @@ export default function AcademicWorkloadPlanner() {
                       </TooltipProvider>
                     </div>
                   </ScrollArea>
-                  <Button variant="outline" className="w-full mt-2">View all activity</Button>
+                  <Button
+                    variant="outline"
+                    className="w-full mt-2"
+                    onClick={() => router.push("/inbox")}
+                  >
+                    View all activity
+                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -437,7 +439,7 @@ export default function AcademicWorkloadPlanner() {
           </TabsContent>
 
           <TabsContent value="reports">
-            <ReportsSection />
+            <ReportsSection onViewAllActivity={() => { router.push("/inbox"); }} />
           </TabsContent>
         </Tabs>
         {selectedLecturer && (

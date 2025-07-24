@@ -11,7 +11,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import Calculator from "@/lib/calculator"
 import { useMutation } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { api } from "../../convex/_generated/api";
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@auth0/nextjs-auth0";
 
