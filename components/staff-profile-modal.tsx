@@ -351,17 +351,15 @@ export default function StaffProfileModal({
             {/* Workload Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="border border-gray-200 shadow-sm bg-white">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
+                <CardContent className="p-6 flex flex-col h-full justify-between">
+                  <div className="relative mb-4 flex-1">
+                    <div className="flex flex-col">
                       <p className="text-gray-600 text-sm font-medium">Total Workload</p>
                       <p className="text-2xl font-bold text-gray-900">{displayLecturer.totalAllocated}h</p>
                     </div>
-                    <div className="flex flex-col items-center justify-center">
-                      <Clock className="h-5 w-5 text-gray-400 mb-1" />
-                    </div>
+                    <Clock className="h-5 w-5 text-gray-400 absolute top-0 right-0" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex flex-col items-stretch space-y-1 mt-auto">
                     <Progress value={workloadPercentage} className="bg-gray-200 h-2" />
                     <p className="text-xs text-gray-500">{workloadPercentage.toFixed(1)}% of contract</p>
                   </div>
@@ -369,18 +367,16 @@ export default function StaffProfileModal({
               </Card>
 
               <Card className="border border-gray-200 shadow-sm bg-white">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
+                <CardContent className="p-6 flex flex-col h-full justify-between">
+                  <div className="relative mb-4 flex-1">
+                    <div className="flex flex-col">
                       <p className="text-gray-600 text-sm font-medium">Teaching Hours</p>
                       <p className="text-2xl font-bold text-gray-900">{displayLecturer.allocatedTeachingHours}h</p>
+                      <span className="mt-2 text-xs text-primary font-semibold bg-primary/10 rounded px-2 py-0.5">{teachingBreakdownPercent.toFixed(1)}% of workload</span>
                     </div>
-                    <div className="flex flex-col items-center justify-center">
-                      <BookOpen className="h-5 w-5 text-gray-400 mb-1" />
-                      <span className="text-xs text-primary font-semibold bg-primary/10 rounded px-2 py-0.5">{teachingBreakdownPercent.toFixed(1)}% of workload</span>
-                    </div>
+                    <BookOpen className="h-5 w-5 text-gray-400 absolute top-0 right-0" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex flex-col items-stretch space-y-1 mt-auto">
                     <Progress value={teachingPercentage} className="bg-gray-200 h-2" />
                     <p className="text-xs text-gray-500">{teachingPercentage.toFixed(1)}% of max teaching</p>
                   </div>
@@ -388,18 +384,16 @@ export default function StaffProfileModal({
               </Card>
 
               <Card className="border border-gray-200 shadow-sm bg-white">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
+                <CardContent className="p-6 flex flex-col h-full justify-between">
+                  <div className="relative mb-4 flex-1">
+                    <div className="flex flex-col">
                       <p className="text-gray-600 text-sm font-medium">Admin Hours</p>
                       <p className="text-2xl font-bold text-gray-900">{displayLecturer.allocatedAdminHours}h</p>
+                      <span className="mt-2 text-xs text-primary font-semibold bg-primary/10 rounded px-2 py-0.5">{adminBreakdownPercent.toFixed(1)}% of workload</span>
                     </div>
-                    <div className="flex flex-col items-center justify-center">
-                      <Users className="h-5 w-5 text-gray-400 mb-1" />
-                      <span className="text-xs text-primary font-semibold bg-primary/10 rounded px-2 py-0.5">{adminBreakdownPercent.toFixed(1)}% of workload</span>
-                    </div>
+                    <Users className="h-5 w-5 text-gray-400 absolute top-0 right-0" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex flex-col items-stretch space-y-1 mt-auto">
                     <Progress value={adminPercentage} className="bg-gray-200 h-2" />
                     <p className="text-xs text-gray-500">{adminPercentage.toFixed(1)}% of contract</p>
                   </div>
@@ -407,17 +401,15 @@ export default function StaffProfileModal({
               </Card>
 
               <Card className="border border-gray-200 shadow-sm bg-white">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
+                <CardContent className="p-6 flex flex-col h-full justify-between">
+                  <div className="relative mb-4 flex-1">
+                    <div className="flex flex-col">
                       <p className="text-gray-600 text-sm font-medium">Availability</p>
                       <p className="text-2xl font-bold text-gray-900">{displayLecturer.capacity}h</p>
                     </div>
-                    <div className="flex flex-col items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-gray-400 mb-1" />
-                    </div>
+                    <TrendingUp className="h-5 w-5 text-gray-400 absolute top-0 right-0" />
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex flex-col items-stretch space-y-1 mt-auto">
                     <Progress value={availabilityPercentage} className="bg-gray-200 h-2" />
                     <p className="text-xs text-gray-500">{availabilityPercentage.toFixed(1)}% of contract</p>
                   </div>
