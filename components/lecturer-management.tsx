@@ -24,6 +24,8 @@ import { Progress } from "@/components/ui/progress"
 import { Plus, Search, Edit, Eye, AlertTriangle, X } from "lucide-react"
 import StaffProfileModal from "./staff-profile-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLogRecentActivity } from "@/lib/recentActivity";
+import { useUser } from "@auth0/nextjs-auth0";
 
 export default function LecturerManagement() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -31,8 +33,11 @@ export default function LecturerManagement() {
   const [modalOpen, setModalOpen] = useState(false);
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
   const createLecturer = useMutation(api.lecturers.createLecturer)
+  const deleteLecturer = useMutation(api.lecturers.deleteLecturer)
   const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
   const modules = useQuery(api.modules.getAll) ?? [];
+  const logRecentActivity = useLogRecentActivity();
+  const { user } = useUser();
 
   // Add careerFamilies and helper for FTE calculation
   const careerFamilies = [
@@ -159,7 +164,17 @@ export default function LecturerManagement() {
   const handleCreateLecturer = async () => {
     setSubmitting(true)
     try {
-      await createLecturer(form)
+      const newLecturerId = await createLecturer(form);
+      // Log recent activity
+      await logRecentActivity({
+        action: "lecturer created",
+        changeType: "create",
+        entity: "lecturer",
+        entityId: newLecturerId, // use the Convex _id
+        fullName: form.fullName, // for formatting
+        modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
+        permission: "default"
+      });
       setModalOpen(false)
       setForm({
         fullName: "",
@@ -241,6 +256,21 @@ export default function LecturerManagement() {
     }
     return <Badge className={colors[type as keyof typeof colors]}>{type}</Badge>
   }
+
+  // Add this function to handle lecturer deletion and log recent activity
+  const handleDeleteLecturer = async (lecturer: any) => {
+    if (!lecturer || !lecturer._id) return;
+    await deleteLecturer({ id: lecturer._id });
+    await logRecentActivity({
+      action: "lecturer deleted",
+      changeType: "delete",
+      entity: "lecturer",
+      entityId: lecturer._id,
+      fullName: lecturer.fullName,
+      modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
+      permission: "default"
+    });
+  };
 
   return (
     <div className="space-y-6">

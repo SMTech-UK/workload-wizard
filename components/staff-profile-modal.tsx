@@ -37,6 +37,8 @@ import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { useConvex } from "convex/react";
 import Calculator from "@/lib/calculator";
+import { useLogRecentActivity } from "@/lib/recentActivity";
+import { useUser } from "@auth0/nextjs-auth0";
 
 interface lecturer {
   _id: Id<'lecturers'> // Convex document id
@@ -132,6 +134,8 @@ export default function StaffProfileModal({
   const deleteLecturer = useMutation(api.lecturers.deleteLecturer);
   const convex = useConvex();
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
+  const logRecentActivity = useLogRecentActivity();
+  const { user } = useUser();
 
   // Fetch module allocations for this lecturer from Convex
   const moduleAllocations = useQuery(api.modules.getByLecturerId, lecturer ? { lecturerId: lecturer._id } : "skip") ?? [];
@@ -217,24 +221,98 @@ export default function StaffProfileModal({
 
   // Default admin allocation categories
   const DEFAULT_ADMIN_ALLOCATIONS = [
-    { category: "Module Leadership", description: "", hours: 0 },
-    { category: "AA & ASLT", description: "", hours: 0 },
-    { category: "Course Leadership", description: "", hours: 0 },
-    { category: "Personal CPD", description: "", hours: 0 },
-    { category: "Personal Tutor", description: "", hours: 0 },
-    { category: "FTP", description: "", hours: 0 },
-    { category: "Lead Role", description: "", hours: 0 },
-    { category: "Curriculum Development", description: "", hours: 0 },
-    { category: "Recruitment Interviews", description: "", hours: 0 },
-    { category: "Recruitment Activities", description: "", hours: 0 },
-    { category: "HEA Assessor", description: "", hours: 0 },
-    { category: "Projects", description: "", hours: 0 },
-    { category: "Research, Scholarship and Professional Practice", description: "", hours: 0 },
+    {
+      category: "Module Leadership",
+      description:
+        "40 hours per 20-credit module; 60 hours for two intakes; bespoke arrangements require a note",
+      hours: 0,
+    },
+    {
+      category: "AA & ASLT",
+      description:
+        "Academic Assessor and Apprenticeship Support Link Tutor",
+      hours: 0,
+    },
+    {
+      category: "Course Leadership",
+      description:
+        "1 hour per student plus 20 hours for meetings",
+      hours: 0,
+    },
+    {
+      category: "Personal CPD",
+      description:
+        "Continuing Professional Development courses",
+      hours: 0,
+    },
+    {
+      category: "Personal Tutor",
+      description: "1 hour of tutorial support per student",
+      hours: 0,
+    },
+    {
+      category: "FTP",
+      description:
+        "20 hours for all Senior Lecturers who have been trained",
+      hours: 0,
+    },
+    {
+      category: "Lead Role",
+      description:
+        "Team leadership responsibilities and oversight duties",
+      hours: 0,
+    },
+    {
+      category: "Curriculum Development",
+      description:
+        "Creation and review of programme curriculum and learning materials",
+      hours: 0,
+    },
+    {
+      category: "Recruitment Interviews",
+      description:
+        "Conducting interviews with prospective students",
+      hours: 0,
+    },
+    {
+      category: "Recruitment Activities",
+      description:
+        "Open days, Recognition of Prior Learning (RPL) sessions, School Visits",
+      hours: 0,
+    },
+    {
+      category: "HEA Assessor",
+      description:
+        "Assessing applications for Higher Education Academy fellowship",
+      hours: 0,
+    },
+    {
+      category: "Projects",
+      description:
+        "Project work - add a note for each specific project",
+      hours: 0,
+    },
+    {
+      category: "Research, Scholarship and Professional Practice",
+      description:
+        "AP = 75 hours & TA = 150 hours for research and scholarly activity",
+      hours: 0,
+    },
   ];
 
   async function handleDeleteLecturer() {
     if (!lecturer || !lecturer._id) return;
     await deleteLecturer({ id: lecturer._id });
+    await logRecentActivity({
+      action: "lecturer deleted",
+      changeType: "delete",
+      entity: "lecturer",
+      entityId: lecturer._id,
+      fullName: lecturer.fullName,
+      modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
+      permission: "default",
+      type: "lecturer_deleted"
+    });
     toast("Staff profile deleted.");
     setDeleteConfirmOpen(false);
     onClose();

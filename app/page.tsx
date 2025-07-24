@@ -24,6 +24,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
 import StaffProfileModal from "@/components/staff-profile-modal"
 import { useConvex } from "convex/react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { timeAgo } from "@/lib/notify";
 
 const academicYears = [
   "Academic Year 25/26",
@@ -70,18 +72,39 @@ function AcademicYearSelector({ selected, onSelect }: { selected: string; onSele
   );
 }
 
+// Helper to format timestamp
+function formatActivityTimestamp(timestamp: string) {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  if (diffHours < 24) {
+    // Show relative time (e.g., '2 hours ago')
+    return timeAgo(date.getTime());
+  } else {
+    // Show date and time (e.g., '2024-06-01 14:30')
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+}
+
 export default function AcademicWorkloadPlanner() {
   const createNotification = useMutation(api.notifications.createNotification);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [staffProfileModalOpen, setStaffProfileModalOpen] = useState(false);
   const [selectedLecturer, setSelectedLecturer] = useState<any>(undefined);
   const [profileModalTab, setProfileModalTab] = useState<TabType>("profile");
   const handleProfileClick = () => {
     setProfileModalTab("profile");
-    setProfileModalOpen(true);
+    setStaffProfileModalOpen(true);
   };
   const handleSettingsClick = () => {
     setProfileModalTab("general");
-    setProfileModalOpen(true);
+    setStaffProfileModalOpen(true);
   };
   const { user, isLoading } = useUser();
 
@@ -157,18 +180,22 @@ export default function AcademicWorkloadPlanner() {
     });
   }, [lecturers, updateLecturerStatus]);
 
-  const handleOpenProfileModal = (lecturer: any) => {
-    setSelectedLecturer(lecturer);
-    setProfileModalOpen(true);
+  const handleOpenStaffProfileModal = (lecturerId: string) => {
+    if (!lecturerId) return;
+    const lecturer = lecturers.find((l: any) => l && l._id === lecturerId);
+    if (lecturer && lecturer._id) {
+      setSelectedLecturer(lecturer);
+      setStaffProfileModalOpen(true);
+    }
   };
 
   const handleLecturerUpdate = async (updatedLecturer: any) => {
-    setProfileModalOpen(false);
+    setStaffProfileModalOpen(false);
     setTimeout(async () => {
       const freshLecturer = await convex.query(api.lecturers.getById, { id: updatedLecturer._id });
       if (freshLecturer) {
         setSelectedLecturer(freshLecturer);
-        setProfileModalOpen(true);
+        setStaffProfileModalOpen(true);
       }
     }, 150);
   };
@@ -209,7 +236,7 @@ export default function AcademicWorkloadPlanner() {
           onSettingsClick={handleSettingsClick}
         />
       </div>
-      <SettingsModal open={profileModalOpen} onOpenChange={setProfileModalOpen} initialTab={profileModalTab} />
+      <SettingsModal open={staffProfileModalOpen} onOpenChange={setStaffProfileModalOpen} initialTab={profileModalTab} />
 
       <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -298,15 +325,72 @@ export default function AcademicWorkloadPlanner() {
                 <CardContent className="flex flex-col gap-2">
                   <ScrollArea className="max-h-64">
                     <div className="space-y-4 pr-2">
-                      {recentActivity.map((activity) => (
-                        <div key={activity.id} className="flex items-start gap-3">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                            <p className="text-xs text-gray-500">{activity.time}</p>
-                          </div>
-                        </div>
-                      ))}
+                      <TooltipProvider>
+                        {recentActivity
+                          .slice()
+                          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                          .slice(0, 5)
+                          .map((activity) => {
+                          let dotColor = "bg-blue-500";
+                          if (activity.changeType === "create") dotColor = "bg-green-500";
+                          else if (activity.changeType === "edit") dotColor = "bg-yellow-400";
+                          else if (activity.changeType === "delete") dotColor = "bg-red-500";
+                          return (
+                            <div key={activity.id} className="flex items-start gap-3 pb-1 border-b border-gray-200 last:border-b-0">
+                              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${dotColor}`} />
+                              <div className="flex-1 min-w-0 flex items-center justify-between">
+                                <div>
+                                  {activity.type === "lecturer_created" && activity.details ? (
+                                    <span className="text-sm font-medium text-gray-900">
+                                      Lecturer{' '}
+                                      <button
+                                        className="font-bold underline text-primary hover:text-primary/80"
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          handleOpenStaffProfileModal(activity.details.lecturerId);
+                                        }}
+                                      >
+                                        {activity.details.fullName}
+                                      </button>{' '}
+                                      created
+                                      {activity.formatted.includes(' by ') && (
+                                        <span className="italic text-gray-600">{` by ${activity.formatted.split(' by ')[1]}`}</span>
+                                      )}
+                                    </span>
+                                  ) : activity.type === "lecturer_deleted" && activity.details ? (
+                                    <span className="text-sm font-medium text-gray-900">
+                                      Lecturer {activity.details.fullName} deleted
+                                      {activity.formatted.includes(' by ') && (
+                                        <span className="italic text-gray-600">{` by ${activity.formatted.split(' by ')[1]}`}</span>
+                                      )}
+                                    </span>
+                                  ) : (
+                                    <span className="text-sm font-medium text-gray-900">{activity.formatted}</span>
+                                  )}
+                                </div>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="text-xs text-gray-500 cursor-help ml-4 whitespace-nowrap">
+                                      {formatActivityTimestamp(activity.timestamp)}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {new Date(activity.timestamp).toLocaleString(undefined, {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit',
+                                    })}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </TooltipProvider>
                     </div>
                   </ScrollArea>
                   <Button variant="outline" className="w-full mt-2">View all activity</Button>
@@ -324,7 +408,7 @@ export default function AcademicWorkloadPlanner() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent">
                     <Users className="w-6 h-6" />
-                    Add New Lecturer
+                    Import Lecturers
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2 bg-transparent">
                     <BookOpen className="w-6 h-6" />
@@ -354,11 +438,10 @@ export default function AcademicWorkloadPlanner() {
         {selectedLecturer && (
           <StaffProfileModal
             key={selectedLecturer._id}
-            isOpen={profileModalOpen}
-            onClose={() => setProfileModalOpen(false)}
+            isOpen={staffProfileModalOpen}
+            onClose={() => setStaffProfileModalOpen(false)}
             lecturer={selectedLecturer}
             adminAllocations={selectedAdminAllocations}
-            moduleAllocations={selectedModuleAllocations}
             onLecturerUpdate={handleLecturerUpdate}
           />
         )}
