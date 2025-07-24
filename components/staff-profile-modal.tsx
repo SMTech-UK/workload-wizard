@@ -388,11 +388,20 @@ export default function StaffProfileModal({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Administrative Allocations Table */}
                 <Card className="border border-gray-200 shadow-sm bg-white">
-                  <CardHeader className="bg-white border-b border-gray-200">
+                  <CardHeader className="bg-white border-b border-gray-200 flex flex-row items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
                       <BarChart3 className="h-5 w-5" />
                       Administrative Allocations
                     </CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAdminEditModalOpen(true)}
+                      className="hover:bg-gray-50"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
                   </CardHeader>
                   <CardContent className="p-0">
                     <div className="max-h-96 overflow-y-auto">

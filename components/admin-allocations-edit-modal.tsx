@@ -84,6 +84,13 @@ export default function AdminAllocationsEditModal({
   const remainingAvailableHours = capacity - adminDelta;
   const isOverAllocated = remainingAvailableHours < 0;
 
+  // --- NEW: Per-allocation delta calculation ---
+  const getAllocationDelta = (index: number) => {
+    const original = allocations[index]?.hours ?? 0;
+    const current = formData[index]?.hours ?? 0;
+    return Number(current) - Number(original);
+  };
+
   const handleSave = async () => {
     if (isOverAllocated) {
       toast("Cannot save: Over-allocated hours.");
@@ -151,11 +158,27 @@ export default function AdminAllocationsEditModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="text-center">
                   <p className="text-sm text-gray-500 font-medium">Remaining Available Hours</p>
-                  <p className={`text-2xl font-bold ${isOverAllocated ? 'text-red-600' : 'text-gray-900'}`}>{remainingAvailableHours}h</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className={`text-2xl font-bold ${isOverAllocated ? 'text-red-600' : 'text-gray-900'}`}>{remainingAvailableHours}h</p>
+                    {/* Show delta for available hours (inverse of adminDelta) */}
+                    {adminDelta !== 0 && (
+                      <span className={`text-sm font-semibold ${adminDelta < 0 ? 'text-green-600' : 'text-red-600'}`}> 
+                        {adminDelta > 0 ? `-${adminDelta}` : `+${-adminDelta}`}h
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-gray-500 font-medium">Current Period Allocated</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalAdminHours}h</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-2xl font-bold text-gray-900">{totalAdminHours}h</p>
+                    {/* Show delta for period allocated */}
+                    {adminDelta !== 0 && (
+                      <span className={`text-sm font-semibold ${adminDelta > 0 ? 'text-green-600' : 'text-red-600'}`}> 
+                        {adminDelta > 0 ? `+${adminDelta}` : `${adminDelta}`}h
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -216,13 +239,26 @@ export default function AdminAllocationsEditModal({
                           </div>
 
                           {/* Total */}
-                          <div className="flex justify-center items-center">
-                            <Badge
-                              variant="outline"
-                              className="bg-gray-100 text-gray-700 border-gray-300 font-semibold"
-                            >
-                              {Number(allocation.hours) > 0 ? allocation.hours : 0}h
-                            </Badge>
+                          <div className="relative flex items-center justify-center min-h-[32px]">
+                            <div className="flex items-center justify-center w-full">
+                              <Badge
+                                variant="outline"
+                                className="bg-gray-100 text-gray-700 border-gray-300 font-semibold z-10"
+                              >
+                                {Number(allocation.hours) > 0 ? allocation.hours : 0}h
+                              </Badge>
+                            </div>
+                            {/* Show per-row delta if changed, absolutely positioned to the right of the badge */}
+                            {(() => {
+                              const delta = getAllocationDelta(index);
+                              if (delta === 0) return null;
+                              return (
+                                <span className={`absolute left-1/2 translate-x-8 text-xs font-semibold ${delta > 0 ? 'text-green-600' : 'text-red-600'}`}
+                                  >
+                                  {delta > 0 ? `+${delta}` : `${delta}`}h
+                                </span>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
