@@ -11,6 +11,8 @@
   "dependencies": {
     "@auth0/auth0-react": "^2.4.0",
     "@auth0/nextjs-auth0": "^4.8.0",
+    "@clerk/nextjs": "^6.26.0",
+    "@clerk/themes": "^2.4.1",
     "@hello-pangea/dnd": "^16.6.0",
     "@knocklabs/node": "^1.11.1",
     "@knocklabs/react": "^0.7.25",

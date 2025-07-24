@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import Link from "next/link"
 import { WandSparkles } from "lucide-react"
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs"
 
 export default function WorkloadWizardLanding() {
   return (
@@ -16,11 +17,12 @@ export default function WorkloadWizardLanding() {
               <span className="text-xl font-bold text-gray-900">WorkloadWizard</span>
             </div>
         <nav className="ml-auto">
-          <Link href="/login">
-            <Button variant="outline" size="sm">
-              Sign In
-            </Button>
-          </Link>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+            <SignedOut>
+              <SignInButton />
+            </SignedOut>
         </nav>
       </header>
 

@@ -7,6 +7,15 @@ import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Knock } from "@knocklabs/node"
 import { redirect } from "next/navigation";
+import {
+  ClerkProvider,
+  SignInButton,
+  SignUpButton,
+  SignedIn,
+  SignedOut,
+  UserButton,
+} from '@clerk/nextjs'
+import { neobrutalism } from '@clerk/themes'
 
 const geistSans = localFont({
   src: "../fonts/GeistVF.woff",
@@ -29,6 +38,9 @@ export default async function RootLayout({
   ...props
 }: any) {
   return (
+    <ClerkProvider appearance={{
+        baseTheme: neobrutalism,
+    }}>
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -39,5 +51,6 @@ export default async function RootLayout({
         <Analytics/>
       </body>
     </html>
+    </ClerkProvider>
   );
 }

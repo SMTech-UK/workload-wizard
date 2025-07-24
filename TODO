@@ -1,0 +1,10 @@
+
+Todo:
+  ☐ Set up Clerk backend
+  ☐ Integrate Clerk with Convex for user details (https://clerk.com/docs/integrations/databases/convex)
+  ☐ Implement Clerk user profile using existing theme
+  ☐ Integrate Clerk with current user button and dropdown
+  ☐ Set up notifications and recent activity using Knock integration
+  ☐ Connect Clerk, Knock, and Convex for unified user management and notifications
+  ☐ Complete module allocation feature after auth and notifications are set up
+  
