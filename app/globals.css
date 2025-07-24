@@ -125,3 +125,16 @@ input[type=number] {
   box-shadow: 0 0 0 1.5px #fca5a5 !important;
   transition: border-color 0.2s, background-color 0.2s;
 }
+
+@keyframes gradientBG {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient {
+  animation: gradientBG 10s ease-in-out infinite;
+}

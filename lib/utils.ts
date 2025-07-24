@@ -1,6 +1,7 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+// Utility to join class names conditionally
+export function cn(...inputs: any[]): string {
+  return inputs
+    .flat(Infinity)
+    .filter(Boolean)
+    .join(' ');
 }

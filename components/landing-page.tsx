@@ -1,26 +1,22 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import Image from "next/image"
 import Link from "next/link"
 import { WandSparkles } from "lucide-react"
 
 export default function WorkloadWizardLanding() {
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 to-white">
+    <div className="relative flex flex-col min-h-screen overflow-hidden">
+      {/* Animated Gradient Background */}
+      <div className="absolute inset-0 -z-10 animate-gradient bg-gradient-to-br from-blue-900 via-purple-800 to-pink-900 bg-[length:400%_400%]" />
       {/* Header */}
       <header className="px-4 lg:px-6 h-16 flex items-center">
       <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <WandSparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold text-gray-900">WorkloadWizard</span>
+              <span className="text-xl font-bold text-blue-400">WorkloadWizard</span>
             </div>
         <nav className="ml-auto">
-          <Link href="/auth/login">
-            <Button variant="outline" size="sm">
-              Sign In
-            </Button>
-          </Link>
         </nav>
       </header>
 
@@ -30,15 +26,15 @@ export default function WorkloadWizardLanding() {
           <div className="container px-4 md:px-6 mx-auto">
             <div className="flex flex-col items-center space-y-6 text-center max-w-4xl mx-auto">
               <div className="space-y-6">
-                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">
+                <Badge variant="secondary" className="bg-white/10 text-white border-white/30 backdrop-blur-sm shadow-md">
                   ✨ Transform Your Workflow
                 </Badge>
-                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-                  Academic Workload Staffing
-                  <span className="block text-blue-600">Made Easy & Transparent</span>
+                <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl text-white">
+                  Effortless Academic Staffing
+                  <span className="block text-purple-200">For Modern Institutions</span>
                 </h1>
-                <p className="mx-auto max-w-[700px] text-gray-600 text-lg md:text-xl leading-relaxed">
-                  WorkloadWizard is a tool for universities and colleges to easily and transparently manage academic workload staffing allocations. Simplify the process of assigning teaching, research, and service duties—ensuring fairness, clarity, and efficiency for all staff.
+                <p className="mx-auto max-w-[700px] text-white/80 text-lg md:text-xl leading-relaxed">
+                  Simplify and clarify academic workload allocations for your institution.
                 </p>
               </div>
             </div>
@@ -47,20 +43,9 @@ export default function WorkloadWizardLanding() {
       </main>
 
       {/* Simple Footer */}
-      <footer className="py-6 px-4 border-t bg-white/50">
+      <footer className="py-2 px-4 border-t border-white/20 bg-white/10 backdrop-blur-sm shadow-md">
         <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center">
-          <p className="text-sm text-gray-500">© {new Date().getFullYear()} WorkloadWizard. All rights reserved.</p>
-          <div className="flex gap-6 mt-2 sm:mt-0">
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-              Privacy
-            </Link>
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-              Terms
-            </Link>
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-              Contact
-            </Link>
-          </div>
+          <p className="text-sm text-white/70">© {new Date().getFullYear()} WorkloadWizard. All rights reserved.</p>
         </div>
       </footer>
     </div>
