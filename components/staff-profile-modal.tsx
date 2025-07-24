@@ -85,8 +85,8 @@ export default function StaffProfileModal({
     )
   }
 
-  const [adminOpen, setAdminOpen] = useState(true)
-  const [moduleOpen, setModuleOpen] = useState(true)
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [moduleOpen, setModuleOpen] = useState(false)
 
   const workloadPercentage = (lecturer.totalAllocated / lecturer.totalContract) * 100
   const teachingPercentage = (lecturer.allocatedTeachingHours / lecturer.maxTeachingHours) * 100
