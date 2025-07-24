@@ -23,6 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { Plus, Search, Edit, Eye, AlertTriangle, X } from "lucide-react"
 import StaffProfileModal from "./staff-profile-modal"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function LecturerManagement() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -288,8 +289,17 @@ export default function LecturerManagement() {
                   <TableCell>
                     <div className="space-y-2 min-w-32">
                       <div className="flex items-center justify-between text-sm">
-                        <span>{lecturer.totalAllocated}h</span>
-                        <span className="text-muted-foreground">/ {lecturer.totalContract}h</span>
+                        <span>{lecturer.capacity}h</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-muted-foreground cursor-help">remaining</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Total Contract: {lecturer.totalContract}h
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                       <Progress value={lecturer.totalContract ? (lecturer.totalAllocated / lecturer.totalContract) * 100 : 0} className="h-2" />
                     </div>

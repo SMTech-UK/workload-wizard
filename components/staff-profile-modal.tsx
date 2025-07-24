@@ -34,6 +34,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Id } from "../convex/_generated/dataModel";
 import { useConvex } from "convex/react";
+import Calculator from "@/lib/calculator";
 
 interface lecturer {
   _id: Id<'lecturers'> // Convex document id
@@ -126,6 +127,16 @@ export default function StaffProfileModal({
   const convex = useConvex();
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
 
+  // Helper to get the current admin allocations for the lecturer
+  const getCurrentAdminAllocations = () => {
+    const found = (useQuery(api.admin_allocations.getAll) ?? []).find(
+      (a: any) => a.lecturerId === displayLecturer._id
+    );
+    return found && found.adminAllocations && found.adminAllocations.length > 0
+      ? found.adminAllocations
+      : DEFAULT_ADMIN_ALLOCATIONS;
+  };
+
   function handleSaveLecturer(updatedStaffMember: Partial<lecturer>) {
     if (!lecturer || !lecturer._id) return;
     updateLecturer({
@@ -155,9 +166,16 @@ export default function StaffProfileModal({
       setEditModalOpen(false);
     });
   }
-  const workloadPercentage = (lecturer.totalAllocated / lecturer.totalContract) * 100
-  const teachingPercentage = (lecturer.allocatedTeachingHours / lecturer.maxTeachingHours) * 100
-  const availabilityPercentage = (lecturer.capacity / lecturer.totalContract) * 100
+  const workloadPercentage = (displayLecturer.totalAllocated / displayLecturer.totalContract) * 100;
+  const adminBreakdownPercent = Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours) > 0
+    ? (displayLecturer.allocatedAdminHours / Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours)) * 100
+    : 0;
+  const teachingBreakdownPercent = Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours) > 0
+    ? (displayLecturer.allocatedTeachingHours / Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours)) * 100
+    : 0;
+  const teachingPercentage = (displayLecturer.allocatedTeachingHours / displayLecturer.maxTeachingHours) * 100;
+  const adminPercentage = (displayLecturer.allocatedAdminHours / displayLecturer.totalContract) * 100;
+  const availabilityPercentage = (displayLecturer.totalAllocated / displayLecturer.totalContract) * 100;
 
   // Calculate total admin hours
   const totalAdminHours = adminAllocations
@@ -167,6 +185,22 @@ export default function StaffProfileModal({
   // Calculate total module hours
   const totalModuleHours = moduleAllocations.reduce((sum, module) => sum + module.hoursAllocated, 0)
 
+  // Default admin allocation categories
+  const DEFAULT_ADMIN_ALLOCATIONS = [
+    { category: "Module Leadership", description: "", hours: 0 },
+    { category: "AA & ASLT", description: "", hours: 0 },
+    { category: "Course Leadership", description: "", hours: 0 },
+    { category: "Personal CPD", description: "", hours: 0 },
+    { category: "Personal Tutor", description: "", hours: 0 },
+    { category: "FTP", description: "", hours: 0 },
+    { category: "Lead Role", description: "", hours: 0 },
+    { category: "Curriculum Development", description: "", hours: 0 },
+    { category: "Recruitment Interviews", description: "", hours: 0 },
+    { category: "Recruitment Activities", description: "", hours: 0 },
+    { category: "HEA Assessor", description: "", hours: 0 },
+    { category: "Projects", description: "", hours: 0 },
+    { category: "Research, Scholarship and Professional Practice", description: "", hours: 0 },
+  ];
 
   return (
     <>
@@ -323,11 +357,13 @@ export default function StaffProfileModal({
                       <p className="text-gray-600 text-sm font-medium">Total Workload</p>
                       <p className="text-2xl font-bold text-gray-900">{displayLecturer.totalAllocated}h</p>
                     </div>
-                    <Clock className="h-6 w-6 text-gray-400" />
+                    <div className="flex flex-col items-center justify-center">
+                      <Clock className="h-5 w-5 text-gray-400 mb-1" />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Progress value={workloadPercentage} className="bg-gray-200 h-2" />
-                    <p className="text-xs text-gray-500">{workloadPercentage.toFixed(1)}% of capacity</p>
+                    <p className="text-xs text-gray-500">{workloadPercentage.toFixed(1)}% of contract</p>
                   </div>
                 </CardContent>
               </Card>
@@ -339,7 +375,10 @@ export default function StaffProfileModal({
                       <p className="text-gray-600 text-sm font-medium">Teaching Hours</p>
                       <p className="text-2xl font-bold text-gray-900">{displayLecturer.allocatedTeachingHours}h</p>
                     </div>
-                    <BookOpen className="h-6 w-6 text-gray-400" />
+                    <div className="flex flex-col items-center justify-center">
+                      <BookOpen className="h-5 w-5 text-gray-400 mb-1" />
+                      <span className="text-xs text-primary font-semibold bg-primary/10 rounded px-2 py-0.5">{teachingBreakdownPercent.toFixed(1)}% of workload</span>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Progress value={teachingPercentage} className="bg-gray-200 h-2" />
@@ -355,10 +394,14 @@ export default function StaffProfileModal({
                       <p className="text-gray-600 text-sm font-medium">Admin Hours</p>
                       <p className="text-2xl font-bold text-gray-900">{displayLecturer.allocatedAdminHours}h</p>
                     </div>
-                    <Users className="h-6 w-6 text-gray-400" />
+                    <div className="flex flex-col items-center justify-center">
+                      <Users className="h-5 w-5 text-gray-400 mb-1" />
+                      <span className="text-xs text-primary font-semibold bg-primary/10 rounded px-2 py-0.5">{adminBreakdownPercent.toFixed(1)}% of workload</span>
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <p className="text-xs text-gray-500">Administrative workload</p>
+                  <div className="space-y-2">
+                    <Progress value={adminPercentage} className="bg-gray-200 h-2" />
+                    <p className="text-xs text-gray-500">{adminPercentage.toFixed(1)}% of contract</p>
                   </div>
                 </CardContent>
               </Card>
@@ -368,13 +411,15 @@ export default function StaffProfileModal({
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <p className="text-gray-600 text-sm font-medium">Availability</p>
-                      <p className="text-2xl font-bold text-gray-900">{displayLecturer.teachingAvailability}h</p>
+                      <p className="text-2xl font-bold text-gray-900">{displayLecturer.capacity}h</p>
                     </div>
-                    <TrendingUp className="h-6 w-6 text-gray-400" />
+                    <div className="flex flex-col items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-gray-400 mb-1" />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Progress value={availabilityPercentage} className="bg-gray-200 h-2" />
-                    <p className="text-xs text-gray-500">Teaching capacity remaining</p>
+                    <p className="text-xs text-gray-500">{availabilityPercentage.toFixed(1)}% of contract</p>
                   </div>
                 </CardContent>
               </Card>
@@ -405,7 +450,7 @@ export default function StaffProfileModal({
                             <Edit className="h-3 w-3 mr-1" />
                             Edit
                           </Button>
-                          <span className="text-sm font-semibold text-gray-600">{totalAdminHours}h total</span>
+                          <span className="text-sm font-semibold text-gray-600">{displayLecturer.allocatedAdminHours}h total</span>
                           {adminOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </div>
                       </CardTitle>
@@ -414,39 +459,23 @@ export default function StaffProfileModal({
                   <CollapsibleContent>
                     <CardContent className="p-0">
                       <div className="max-h-96 overflow-y-auto">
-                        {adminAllocations.map((allocation, index) => (
+                        {getCurrentAdminAllocations().map((allocation: AdminAllocation, index: number) => (
                           <div
                             key={index}
-                            className={`${
-                              allocation.isHeader
-                                ? "bg-gray-100 text-gray-900 font-semibold py-3 px-6 border-b border-gray-200"
-                                : "hover:bg-gray-50 border-b border-gray-100 py-4 px-6 transition-colors"
-                            }`}
+                            className="flex items-center justify-between border-b border-gray-100 py-3 px-6 hover:bg-gray-50 transition-colors"
                           >
-                            {allocation.isHeader ? (
-                              <div className="text-sm uppercase tracking-wide">{allocation.category}</div>
-                            ) : (
-                              <div className="grid grid-cols-3 gap-4 items-center">
-                                <div className="space-y-1">
-                                  <div className="font-medium text-gray-900">{allocation.category}</div>
-                                  {allocation.description && (
-                                    <div className="text-xs text-gray-500">{allocation.description}</div>
-                                  )}
-                                </div>
-                                <div className="text-center">
-                                  <Badge
-                                    variant="outline"
-                                    className={`${
-                                      allocation.hours > 0
-                                        ? "bg-black text-white border-black"
-                                        : "bg-gray-100 text-gray-400 border-gray-200"
-                                    }`}
-                                  >
-                                    {allocation.hours}h
-                                  </Badge>
-                                </div>
-                              </div>
-                            )}
+                            <div>
+                              <div className="font-medium text-gray-900">{allocation.category}</div>
+                              {allocation.description && (
+                                <div className="text-xs text-gray-500">{allocation.description}</div>
+                              )}
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className="bg-gray-100 text-gray-700 border-gray-300 font-semibold"
+                            >
+                              {Number(allocation.hours) > 0 ? allocation.hours : 0}h
+                            </Badge>
                           </div>
                         ))}
                       </div>
@@ -527,10 +556,18 @@ export default function StaffProfileModal({
       <AdminAllocationsEditModal
         isOpen={adminEditModalOpen}
         onClose={() => setAdminEditModalOpen(false)}
-        onSave={() => {}}
-        allocations={adminAllocations}
+        allocations={(() => {
+          // Find the admin allocations for this lecturer
+          const found = (useQuery(api.admin_allocations.getAll) ?? []).find(
+            (a: any) => a.lecturerId === displayLecturer._id
+          );
+          return found && found.adminAllocations && found.adminAllocations.length > 0
+            ? found.adminAllocations
+            : DEFAULT_ADMIN_ALLOCATIONS;
+        })()}
         staffMemberName={displayLecturer.fullName}
         capacity={displayLecturer.capacity}
+        lecturerId={displayLecturer._id}
       />
     </>
   )

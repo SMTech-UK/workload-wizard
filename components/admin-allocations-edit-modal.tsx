@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
 import { toast } from "sonner"
+import Calculator from "@/lib/calculator"
+import { useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
 
 interface AdminAllocation {
   category: string
@@ -20,103 +23,26 @@ interface AdminAllocation {
 interface AdminAllocationsEditModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (allocations: AdminAllocation[]) => void
   allocations: AdminAllocation[]
   staffMemberName: string
   capacity: number // NEW PROP
+  lecturerId: string
 }
-
-const defaultAllocations: AdminAllocation[] = [
-  {
-    category: "Module Leadership",
-    description:
-      "40 hours per 20-credit module; 60 hours for two intakes; bespoke arrangements require a note",
-    hours: 0,
-  },
-  {
-    category: "AA & ASLT",
-    description:
-      "Academic Assessor and Apprenticeship Support Link Tutor",
-    hours: 150,
-  },
-  {
-    category: "Course Leadership",
-    description:
-      "1 hour per student plus 20 hours for meetings",
-    hours: 0,
-  },
-  {
-    category: "Personal CPD",
-    description:
-      "Continuing Professional Development courses",
-    hours: 0,
-  },
-  {
-    category: "Personal Tutor",
-    description: "1 hour of tutorial support per student",
-    hours: 0,
-  },
-  {
-    category: "FTP",
-    description:
-      "20 hours for all Senior Lecturers who have been trained",
-    hours: 0,
-  },
-  {
-    category: "Lead Role",
-    description:
-      "Team leadership responsibilities and oversight duties",
-    hours: 0,
-  },
-  {
-    category: "Curriculum Development",
-    description:
-      "Creation and review of programme curriculum and learning materials",
-    hours: 70,
-  },
-  {
-    category: "Recruitment Interviews",
-    description:
-      "Conducting interviews with prospective students",
-    hours: 76,
-  },
-  {
-    category: "Recruitment Activities",
-    description:
-      "Open days, Recognition of Prior Learning (RPL) sessions, School Visits",
-    hours: 0,
-  },
-  {
-    category: "HEA Assessor",
-    description:
-      "Assessing applications for Higher Education Academy fellowship",
-    hours: 0,
-  },
-  {
-    category: "Projects",
-    description:
-      "Project work – add a note for each specific project",
-    hours: 0,
-  },
-  {
-    category:
-      "Research, Scholarship and Professional Practice",
-    description:
-      "AP = 75 hours & TA = 150 hours for research and scholarly activity",
-    hours: 75,
-  },
-];
 
 export default function AdminAllocationsEditModal({
   isOpen = true,
   onClose = () => {},
-  onSave = () => {},
-  allocations = defaultAllocations,
+  allocations = [],
   staffMemberName = "Dr. Sarah Johnson",
   capacity = 0, // NEW PROP
+  lecturerId,
 }: AdminAllocationsEditModalProps) {
-  const [formData, setFormData] = useState<AdminAllocation[]>(allocations)
+  // If no allocations, initialize with empty categories (all 0 hours)
+  const [formData, setFormData] = useState<AdminAllocation[]>(
+    allocations.length > 0 ? allocations : []
+  )
   const [errors, setErrors] = useState<{ [key: number]: { post1?: string; post2?: string } }>({})
+  const setAdminAllocations = useMutation(api.admin_allocations.setForLecturer);
 
   const validateForm = () => {
     let hasEmpty = false;
@@ -141,10 +67,36 @@ export default function AdminAllocationsEditModal({
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSave = () => {
+  // Store the initial admin hours sum for delta calculation
+  const initialAdminHours = allocations
+    .filter((allocation) => !allocation.isHeader)
+    .reduce((sum, allocation) => sum + (typeof allocation.hours === "number" ? allocation.hours : 0), 0)
+
+  // Calculate current total admin hours from formData
+  const totalAdminHours = formData
+    .filter((allocation) => !allocation.isHeader)
+    .reduce((sum, allocation) => sum + (typeof allocation.hours === "number" ? allocation.hours : 0), 0)
+
+  // The delta is the change from the initial admin hours
+  const adminDelta = totalAdminHours - initialAdminHours;
+
+  // Remaining available hours is the passed-in capacity minus the delta
+  const remainingAvailableHours = capacity - adminDelta;
+  const isOverAllocated = remainingAvailableHours < 0;
+
+  const handleSave = async () => {
+    if (isOverAllocated) {
+      toast("Cannot save: Over-allocated hours.");
+      return;
+    }
     if (validateForm()) {
-      onSave(formData)
-      onClose()
+      try {
+        await setAdminAllocations({ lecturerId, adminAllocations: formData });
+        toast("Admin allocations saved.");
+        onClose();
+      } catch (err) {
+        toast("Failed to save admin allocations.");
+      }
     }
   }
 
@@ -161,20 +113,16 @@ export default function AdminAllocationsEditModal({
     setFormData(newFormData)
   }
 
-  // Calculate totals
-  const totalPost1Hours = formData
-    .filter((allocation) => !allocation.isHeader)
-    .reduce((sum, allocation) => sum + (typeof allocation.hours === "number" ? allocation.hours : 0), 0)
-
-  const totalPost2Hours = formData
-    .filter((allocation) => !allocation.isHeader)
-    .reduce((sum, allocation) => sum + (typeof allocation.hours === "number" ? allocation.hours : 0), 0)
-
-  const totalHours = totalPost1Hours
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-hidden bg-gray-50">
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={onClose}
+    >
+      <DialogContent 
+        className="max-w-5xl max-h-[90vh] overflow-y-hidden bg-gray-50"
+        onInteractOutside={e => e.preventDefault()}
+        onEscapeKeyDown={e => e.preventDefault()}
+      >
         <DialogHeader className="flex flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center">
@@ -202,12 +150,12 @@ export default function AdminAllocationsEditModal({
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="text-center">
-                  <p className="text-sm text-gray-500 font-medium">Overall Available Hours</p>
-                  <p className="text-2xl font-bold text-gray-900">{capacity}h</p>
+                  <p className="text-sm text-gray-500 font-medium">Remaining Available Hours</p>
+                  <p className={`text-2xl font-bold ${isOverAllocated ? 'text-red-600' : 'text-gray-900'}`}>{remainingAvailableHours}h</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm text-gray-500 font-medium">Current Period Allocated</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalPost1Hours}h</p>
+                  <p className="text-2xl font-bold text-gray-900">{totalAdminHours}h</p>
                 </div>
               </div>
             </CardContent>
@@ -289,13 +237,13 @@ export default function AdminAllocationsEditModal({
           <div className="flex items-center justify-between pt-4">
             <div className="text-sm text-gray-600">
               <span className="font-medium">Total Administrative Hours: </span>
-              <span className="font-bold text-black">{totalHours}h</span>
+              <span className="font-bold text-black">{totalAdminHours}h</span>
             </div>
             <div className="flex items-center gap-4">
               <Button variant="outline" onClick={handleCancel} className="px-6 bg-transparent">
                 Cancel
               </Button>
-              <Button onClick={handleSave} className="bg-black text-white hover:bg-gray-800 px-6">
+              <Button onClick={handleSave} className="bg-black text-white hover:bg-gray-800 px-6" disabled={isOverAllocated}>
                 <Save className="h-4 w-4 mr-2" />
                 Save Changes
               </Button>
