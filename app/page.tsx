@@ -97,14 +97,15 @@ export default function AcademicWorkloadPlanner() {
   const createNotification = useMutation(api.notifications.createNotification);
   const [staffProfileModalOpen, setStaffProfileModalOpen] = useState(false);
   const [selectedLecturer, setSelectedLecturer] = useState<any>(undefined);
-  const [profileModalTab, setProfileModalTab] = useState<TabType>("profile");
+  const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
+  const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
   const handleProfileClick = () => {
-    setProfileModalTab("profile");
-    setStaffProfileModalOpen(true);
+    setUserProfileModalTab("profile");
+    setUserProfileModalOpen(true);
   };
   const handleSettingsClick = () => {
-    setProfileModalTab("general");
-    setStaffProfileModalOpen(true);
+    setUserProfileModalTab("general");
+    setUserProfileModalOpen(true);
   };
   const { user, isLoading } = useUser();
 
@@ -236,7 +237,7 @@ export default function AcademicWorkloadPlanner() {
           onSettingsClick={handleSettingsClick}
         />
       </div>
-      <SettingsModal open={staffProfileModalOpen} onOpenChange={setStaffProfileModalOpen} initialTab={profileModalTab} />
+      <SettingsModal open={userProfileModalOpen} onOpenChange={setUserProfileModalOpen} initialTab={userProfileModalTab} />
 
       <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -340,29 +341,33 @@ export default function AcademicWorkloadPlanner() {
                               <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${dotColor}`} />
                               <div className="flex-1 min-w-0 flex items-center justify-between">
                                 <div>
-                                  {activity.type === "lecturer_created" && activity.details ? (
+                                  {(activity.type === "lecturer_created" || activity.type === "lecturer_edited") && activity.details ? (
                                     <span className="text-sm font-medium text-gray-900">
                                       Lecturer{' '}
                                       <button
                                         className="font-bold underline text-primary hover:text-primary/80"
                                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                                         onClick={e => {
+                                          e.preventDefault();
                                           e.stopPropagation();
                                           handleOpenStaffProfileModal(activity.details.lecturerId);
                                         }}
+                                        tabIndex={0}
+                                        type="button"
                                       >
                                         {activity.details.fullName}
-                                      </button>{' '}
-                                      created
-                                      {activity.formatted.includes(' by ') && (
-                                        <span className="italic text-gray-600">{` by ${activity.formatted.split(' by ')[1]}`}</span>
+                                      </button>
+                                      {activity.formatted.replace(
+                                        new RegExp(`^Lecturer\\s+${activity.details.fullName}`),
+                                        ''
                                       )}
                                     </span>
                                   ) : activity.type === "lecturer_deleted" && activity.details ? (
                                     <span className="text-sm font-medium text-gray-900">
-                                      Lecturer {activity.details.fullName} deleted
-                                      {activity.formatted.includes(' by ') && (
-                                        <span className="italic text-gray-600">{` by ${activity.formatted.split(' by ')[1]}`}</span>
+                                      Lecturer {activity.details.fullName}
+                                      {activity.formatted.replace(
+                                        new RegExp(`^Lecturer\\s+${activity.details.fullName}`),
+                                        ''
                                       )}
                                     </span>
                                   ) : (

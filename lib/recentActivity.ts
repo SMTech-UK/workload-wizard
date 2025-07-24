@@ -24,6 +24,11 @@ export function formatRecentActivity(args: RecentActivityArgs): string {
     const by = args.modifiedBy && args.modifiedBy.length > 0 ? args.modifiedBy[0].name : undefined;
     return `Lecturer ${args.fullName} deleted${by ? ` by ${by}` : ''}`;
   }
+  if (args.type === "lecturer_edited" && args.fullName && args.details && args.details.lecturerId) {
+    const by = args.modifiedBy && args.modifiedBy.length > 0 ? args.modifiedBy[0].name : undefined;
+    const section = args.details.section ? ` (${args.details.section})` : '';
+    return `Lecturer ${args.fullName} edited${section}${by ? ` by ${by}` : ''}`;
+  }
   const entityLabel = args.entity.charAt(0).toUpperCase() + args.entity.slice(1);
   return `${entityLabel} ${args.entityId} ${args.changeType}${args.action ? ` (${args.action})` : ''}`;
 }

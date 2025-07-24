@@ -198,6 +198,22 @@ export default function StaffProfileModal({
         }
       }
       setEditModalOpen(false);
+      // Log recent activity for editing personal details
+      await logRecentActivity({
+        action: "user details edited",
+        changeType: "edit",
+        entity: "lecturer",
+        entityId: lecturer._id,
+        fullName: updatedStaffMember.fullName ?? lecturer.fullName,
+        modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
+        permission: "default",
+        type: "lecturer_edited",
+        details: {
+          fullName: updatedStaffMember.fullName ?? lecturer.fullName,
+          lecturerId: lecturer._id,
+          section: "User Details"
+        }
+      });
     });
   }
   const workloadPercentage = (displayLecturer.totalAllocated / displayLecturer.totalContract) * 100;
