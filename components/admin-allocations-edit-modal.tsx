@@ -23,6 +23,7 @@ interface AdminAllocationsEditModalProps {
   onSave: (allocations: AdminAllocation[]) => void
   allocations: AdminAllocation[]
   staffMemberName: string
+  capacity: number // NEW PROP
 }
 
 const defaultAllocations: AdminAllocation[] = [
@@ -112,6 +113,7 @@ export default function AdminAllocationsEditModal({
   onSave = () => {},
   allocations = defaultAllocations,
   staffMemberName = "Dr. Sarah Johnson",
+  capacity = 0, // NEW PROP
 }: AdminAllocationsEditModalProps) {
   const [formData, setFormData] = useState<AdminAllocation[]>(allocations)
   const [errors, setErrors] = useState<{ [key: number]: { post1?: string; post2?: string } }>({})
@@ -198,18 +200,14 @@ export default function AdminAllocationsEditModal({
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="text-center">
-                  <p className="text-sm text-gray-500 font-medium">Current Period</p>
+                  <p className="text-sm text-gray-500 font-medium">Overall Available Hours</p>
+                  <p className="text-2xl font-bold text-gray-900">{capacity}h</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 font-medium">Current Period Allocated</p>
                   <p className="text-2xl font-bold text-gray-900">{totalPost1Hours}h</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 font-medium">Next Period</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalPost2Hours}h</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-500 font-medium">Total Hours</p>
-                  <p className="text-2xl font-bold text-black">{totalHours}h</p>
                 </div>
               </div>
             </CardContent>

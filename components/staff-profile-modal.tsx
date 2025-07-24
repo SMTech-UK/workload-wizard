@@ -530,6 +530,7 @@ export default function StaffProfileModal({
         onSave={() => {}}
         allocations={adminAllocations}
         staffMemberName={displayLecturer.fullName}
+        capacity={displayLecturer.capacity}
       />
     </>
   )
