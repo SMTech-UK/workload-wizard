@@ -34,6 +34,8 @@ export const createLecturer = mutation({
     totalContract: v.number(),
     allocatedTeachingHours: v.number(),
     allocatedAdminHours: v.number(),
+    family: v.string(),
+    fte: v.number(),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("lecturers", {
@@ -59,6 +61,8 @@ export const updateLecturer = mutation({
     totalContract: v.number(),
     allocatedTeachingHours: v.number(),
     allocatedAdminHours: v.number(),
+    family: v.string(),
+    fte: v.number(),
   },
   handler: async (ctx, args) => {
     const { id, ...fields } = args;
@@ -70,5 +74,13 @@ export const getById = query({
   args: { id: v.id("lecturers") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.id);
+  },
+});
+
+// NEW: Delete lecturer mutation
+export const deleteLecturer = mutation({
+  args: { id: v.id("lecturers") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
   },
 });

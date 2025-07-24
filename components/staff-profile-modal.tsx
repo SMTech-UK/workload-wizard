@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useState, useEffect } from "react"
+import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import StaffEditModal from "./staff-edit-modal"
 import AdminAllocationsEditModal from "./admin-allocations-edit-modal"
@@ -54,6 +55,8 @@ interface lecturer {
   totalContract: number
   allocatedTeachingHours: number
   allocatedAdminHours: number
+  family: string
+  fte: number
 }
 
 interface AdminAllocation {
@@ -123,9 +126,20 @@ export default function StaffProfileModal({
   const [moduleOpen, setModuleOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [adminEditModalOpen, setAdminEditModalOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const updateLecturer = useMutation(api.lecturers.updateLecturer);
+  const deleteLecturer = useMutation(api.lecturers.deleteLecturer);
   const convex = useConvex();
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
+
+  function formatFTEWithFamily(totalContract: number, family: string) {
+    if (!totalContract || !family) return '';
+    const fte = totalContract / 1489;
+    const rounded = Math.round(fte * 100) / 100;
+    // Remove trailing .00 if integer, else show up to 2 decimals
+    const fteStr = Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.00$/, '');
+    return `${fteStr}${family}`;
+  }
 
   // Helper to get the current admin allocations for the lecturer
   const getCurrentAdminAllocations = () => {
@@ -137,6 +151,16 @@ export default function StaffProfileModal({
       : DEFAULT_ADMIN_ALLOCATIONS;
   };
 
+  // Helper to get family initials
+  function getFamilyInitials(family: string) {
+    const map: Record<string, string> = {
+      'Academic Practitioner': 'AP',
+      'Teaching Academic': 'TA',
+      'Research Academic': 'RA',
+    };
+    return map[family] || family;
+  }
+
   function handleSaveLecturer(updatedStaffMember: Partial<lecturer>) {
     if (!lecturer || !lecturer._id) return;
     updateLecturer({
@@ -147,14 +171,16 @@ export default function StaffProfileModal({
       contract: updatedStaffMember.contract ?? lecturer.contract,
       email: updatedStaffMember.email ?? lecturer.email,
       capacity: lecturer.capacity,
-      maxTeachingHours: lecturer.maxTeachingHours,
+      maxTeachingHours: updatedStaffMember.maxTeachingHours ?? lecturer.maxTeachingHours,
       role: updatedStaffMember.role ?? lecturer.role,
       status: lecturer.status,
       teachingAvailability: lecturer.teachingAvailability,
       totalAllocated: lecturer.totalAllocated,
-      totalContract: lecturer.totalContract,
+      totalContract: updatedStaffMember.totalContract ?? lecturer.totalContract,
       allocatedTeachingHours: lecturer.allocatedTeachingHours,
       allocatedAdminHours: lecturer.allocatedAdminHours,
+      family: updatedStaffMember.family ?? lecturer.family,
+      fte: updatedStaffMember.fte ?? lecturer.fte,
     }).then(async () => {
       if (onLecturerUpdate) {
         // Fetch the updated lecturer from Convex
@@ -202,6 +228,14 @@ export default function StaffProfileModal({
     { category: "Research, Scholarship and Professional Practice", description: "", hours: 0 },
   ];
 
+  async function handleDeleteLecturer() {
+    if (!lecturer || !lecturer._id) return;
+    await deleteLecturer({ id: lecturer._id });
+    toast("Staff profile deleted.");
+    setDeleteConfirmOpen(false);
+    onClose();
+  }
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -220,7 +254,7 @@ export default function StaffProfileModal({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="outline" size="icon" onClick={() => { /* TODO: Implement delete handler */ }} className="hover:bg-red-100 rounded-lg" aria-label="Delete profile">
+                    <Button variant="outline" size="icon" onClick={() => setDeleteConfirmOpen(true)} className="hover:bg-red-100 rounded-lg" aria-label="Delete profile">
                       <Trash2 className="h-5 w-5 text-red-600" />
                     </Button>
                   </TooltipTrigger>
@@ -299,7 +333,18 @@ export default function StaffProfileModal({
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Contract</p>
-                    <Badge className="bg-black text-white font-medium">{displayLecturer.contract}</Badge>
+                    <Badge className="bg-black text-white font-medium">
+                      {displayLecturer.contract} | {displayLecturer.totalContract}h
+                    </Badge>
+                    <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-500">
+                      <div>
+                        <span className="font-semibold">FTE:</span> {displayLecturer.fte}
+
+                      </div>
+                      <div>
+                        <span className="font-semibold">Family:</span> {getFamilyInitials(displayLecturer.family)}
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Role</p>
@@ -471,6 +516,27 @@ export default function StaffProfileModal({
           </div>
         </DialogContent>
       </Dialog>
+      {/* Delete Confirmation Modal */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            Are you sure you want to delete this staff profile? This action cannot be undone.
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="bg-red-600 text-white hover:bg-red-700" onClick={() => {
+              handleDeleteLecturer();
+            }}>
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Edit Modal */}
       <StaffEditModal
         isOpen={editModalOpen}
@@ -483,6 +549,9 @@ export default function StaffProfileModal({
           contract: displayLecturer.contract,
           email: displayLecturer.email,
           role: displayLecturer.role,
+          fte: displayLecturer.fte,
+          totalContract: displayLecturer.totalContract,
+          family: displayLecturer.family,
         }}
       />
       <AdminAllocationsEditModal

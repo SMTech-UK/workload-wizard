@@ -17,6 +17,12 @@ interface StaffMember {
   contract: string
   email: string
   role: string
+  fte: number
+  totalContract: number
+  family: string
+  allocatedTeachingHours?: number; // Added for new fields
+  maxTeachingHours?: number;
+  teachingAvailability?: number;
 }
 
 interface StaffEditModalProps {
@@ -27,11 +33,10 @@ interface StaffEditModalProps {
 }
 
 // These must match the values stored in the database for contract and specialism
-const contractTypes = [
-  { value: "1AP", label: "Academic Professional (1AP)" },
-  { value: "AP", label: "Academic Practitioner (AP)" },
-  { value: "TA", label: "Teaching Academic (TA)" },
-  { value: "RA", label: "Research Academic (RA)" },
+const careerFamilies = [
+  { value: "Academic Practitioner", label: "Academic Practitioner (AP)" },
+  { value: "Teaching Academic", label: "Teaching Academic (TA)" },
+  { value: "Research Academic", label: "Research Academic (RA)" },
 ]
 
 const teams = [
@@ -58,25 +63,45 @@ const specialisms = [
 const roles = [
   { value: "Lecturer", label: "Lecturer" },
   { value: "Senior Lecturer", label: "Senior Lecturer" },
-  { value: "Principal Lecturer", label: "Principal Lecturer" },
   { value: "Professional Lead", label: "Professional Lead" },
   { value: "Professor", label: "Professor" },
 ];
 
-const sampleStaffMember: StaffMember = {
-  fullName: "Dr. Sarah Johnson",
-  team: "Computer Science",
-  specialism: "Software Engineering",
-  contract: "1AP",
-  email: "s.johnson@university.edu",
-  role: "Lecturer",
+// Helper to get the label for a family value
+function getFamilyLabel(value: string) {
+  const found = careerFamilies.find(f => f.value === value);
+  return found ? found.label : '';
+}
+
+// Helper to get family initials for contract
+function getFamilyInitialsForContract(family: string) {
+  const map: Record<string, string> = {
+    'Academic Practitioner': 'AP',
+    'Teaching Academic': 'TA',
+    'Research Academic': 'RA',
+  };
+  return map[family] || family;
+}
+
+// Helper to get teaching percentage by family
+function getTeachingPercentage(family: string) {
+  switch (family) {
+    case 'Research Academic':
+      return 0.3;
+    case 'Teaching Academic':
+      return 0.6;
+    case 'Academic Practitioner':
+      return 0.8;
+    default:
+      return 0.6; // fallback
+  }
 }
 
 export default function StaffEditModal({
   isOpen = true,
   onClose = () => {},
   onSave = () => {},
-  staffMember = sampleStaffMember,
+  staffMember,
 }: StaffEditModalProps) {
   const [formData, setFormData] = useState<StaffMember>(staffMember)
   const [errors, setErrors] = useState<Partial<StaffMember>>({})
@@ -84,6 +109,12 @@ export default function StaffEditModal({
   useEffect(() => {
     setFormData(staffMember);
   }, [staffMember]);
+
+  // When FTE changes, update contract hours
+  const handleFteChange = (fte: number) => {
+    const totalContract = Math.round(fte * 1498 * 100) / 100;
+    setFormData({ ...formData, fte, totalContract });
+  };
 
   const validateForm = () => {
     const newErrors: Partial<StaffMember> = {}
@@ -125,7 +156,10 @@ export default function StaffEditModal({
       formData.team === staffMember.team &&
       formData.specialism === staffMember.specialism &&
       formData.contract === staffMember.contract &&
-      formData.role === staffMember.role;
+      formData.role === staffMember.role &&
+      formData.fte === staffMember.fte &&
+      formData.totalContract === staffMember.totalContract &&
+      formData.family === staffMember.family;
 
     if (isUnchanged) {
       toast("No changes detected. Please update at least one field before saving.");
@@ -137,7 +171,24 @@ export default function StaffEditModal({
       return;
     }
 
-    onSave(formData)
+    // Generate contract field as smallform (e.g., 1AP, 0.6TA) and recalculate totalContract
+    const roundedFte = Math.round(formData.fte * 100) / 100;
+    const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
+    const familyInitials = getFamilyInitialsForContract(formData.family);
+    const contractSmallForm = `${fteStr}${familyInitials}`;
+    const newTotalContract = Math.floor(formData.fte * 1498);
+    const teachingPct = getTeachingPercentage(formData.family);
+    const newMaxTeachingHours = Math.floor(newTotalContract * teachingPct);
+    // Use the current allocatedTeachingHours if present, else 0
+    const allocatedTeachingHours = formData.allocatedTeachingHours ?? 0;
+    const newTeachingAvailability = newMaxTeachingHours - allocatedTeachingHours;
+    onSave({
+      ...formData,
+      contract: contractSmallForm,
+      totalContract: newTotalContract,
+      maxTeachingHours: newMaxTeachingHours,
+      teachingAvailability: newTeachingAvailability,
+    })
     onClose()
   }
 
@@ -305,35 +356,60 @@ export default function StaffEditModal({
                       </div>
                     </div>
                   </div>
-                  {/* Contract Type */}
-                  <div className="space-y-2">
-                    <Label htmlFor="contract" className="text-sm font-medium text-gray-700">
-                      Contract Type *
-                    </Label>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Building className="h-5 w-5 text-gray-600" />
-                      </div>
-                      <div className="flex-1">
-                        <Select
-                          value={formData.contract}
-                          onValueChange={value => setFormData({ ...formData, contract: value })}
-                        >
-                          <SelectTrigger className={`w-full flex-1 ${errors.contract ? "border-red-500" : "border-gray-300"}`} id="contract">
-                            <SelectValue placeholder="Select contract type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contractTypes.map(contract => (
-                              <SelectItem key={contract.value} value={contract.value}>
-                                {contract.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.contract && <p className="text-xs text-red-500 mt-1">{errors.contract}</p>}
-                      </div>
+                {/* Career Family */}
+                <div className="space-y-2">
+                  <Label htmlFor="family" className="text-sm font-medium text-gray-700">
+                    Career Family *
+                  </Label>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Building className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <div className="flex-1">
+                      <Select
+                        value={formData.family}
+                        onValueChange={value => setFormData({ ...formData, family: value })}
+                      >
+                        <SelectTrigger className={`w-full flex-1 ${errors.family ? "border-red-500" : "border-gray-300"}`} id="family">
+                          <SelectValue placeholder="Select career family">
+                            {getFamilyLabel(formData.family)}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {careerFamilies.map(family => (
+                            <SelectItem key={family.value} value={family.value}>
+                              {family.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.family && <p className="text-xs text-red-500 mt-1">{errors.family}</p>}
                     </div>
                   </div>
+                  {/* FTE and Contract Hours */}
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                      <Label htmlFor="fte" className="text-xs font-medium text-gray-700">FTE</Label>
+                      <Input
+                        id="fte"
+                        type="number"
+                        min={0.1}
+                        step={0.01}
+                        value={formData.fte}
+                        onChange={e => handleFteChange(Number(e.target.value))}
+                        className="w-full text-xs"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium text-gray-700">Contract Hours</Label>
+                      <Input
+                        value={formData.totalContract}
+                        readOnly
+                        className="w-full text-xs bg-gray-100 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                </div>
                 </div>
             </CardContent>
           </Card>
