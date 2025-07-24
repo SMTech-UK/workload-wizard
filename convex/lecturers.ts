@@ -41,3 +41,34 @@ export const createLecturer = mutation({
     });
   },
 });
+
+export const updateLecturer = mutation({
+  args: {
+    id: v.id("lecturers"),
+    fullName: v.string(),
+    team: v.string(),
+    specialism: v.string(),
+    contract: v.string(),
+    email: v.string(),
+    capacity: v.number(),
+    maxTeachingHours: v.number(),
+    role: v.string(),
+    status: v.string(),
+    teachingAvailability: v.number(),
+    totalAllocated: v.number(),
+    totalContract: v.number(),
+    allocatedTeachingHours: v.number(),
+    allocatedAdminHours: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const { id, ...fields } = args;
+    await ctx.db.patch(id, fields);
+  },
+});
+
+export const getById = query({
+  args: { id: v.id("lecturers") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});

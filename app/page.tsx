@@ -22,6 +22,8 @@ import { useEffect } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
+import StaffProfileModal from "@/components/staff-profile-modal"
+import { useConvex } from "convex/react";
 
 const academicYears = [
   "Academic Year 25/26",
@@ -71,6 +73,7 @@ function AcademicYearSelector({ selected, onSelect }: { selected: string; onSele
 export default function AcademicWorkloadPlanner() {
   const createNotification = useMutation(api.notifications.createNotification);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedLecturer, setSelectedLecturer] = useState<any>(undefined);
   const [profileModalTab, setProfileModalTab] = useState<TabType>("profile");
   const handleProfileClick = () => {
     setProfileModalTab("profile");
@@ -85,10 +88,12 @@ export default function AcademicWorkloadPlanner() {
   // All hooks must be called unconditionally!
   const [activeTab, setActiveTab] = useState("dashboard");
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
+  const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
   const modules = useQuery(api.modules.getAll) ?? [];
   const recentActivity = useQuery(api.recent_activity.getAll) ?? [];
   const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYears[0]);
+  const convex = useConvex();
 
   const totalLecturers = lecturers.length;
   // Example: get last academic year lecturer count (replace with real data if available)
@@ -151,6 +156,40 @@ export default function AcademicWorkloadPlanner() {
       }
     });
   }, [lecturers, updateLecturerStatus]);
+
+  const handleOpenProfileModal = (lecturer: any) => {
+    setSelectedLecturer(lecturer);
+    setProfileModalOpen(true);
+  };
+
+  const handleLecturerUpdate = async (updatedLecturer: any) => {
+    setProfileModalOpen(false);
+    setTimeout(async () => {
+      const freshLecturer = await convex.query(api.lecturers.getById, { id: updatedLecturer._id });
+      if (freshLecturer) {
+        setSelectedLecturer(freshLecturer);
+        setProfileModalOpen(true);
+      }
+    }, 150);
+  };
+
+  const selectedAdminAllocations = selectedLecturer
+    ? (adminAllocations.find((a: any) => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
+    : [];
+
+  const selectedModuleAllocations = selectedLecturer && selectedLecturer.moduleAllocations
+    ? (selectedLecturer.moduleAllocations as any[]).map((alloc: any) => {
+        const module = modules.find((m: any) => m.id === alloc.moduleCode);
+        return {
+          ...alloc,
+          moduleName: module ? module.title : alloc.moduleName,
+          semester: module ? module.semester : alloc.semester,
+          type: module ? (module.status === 'core' ? 'Core' : 'Elective') : alloc.type,
+          credits: module ? module.credits : undefined,
+          teachingHours: module ? module.teachingHours : undefined,
+        };
+      })
+    : [];
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -312,6 +351,17 @@ export default function AcademicWorkloadPlanner() {
             <ReportsSection />
           </TabsContent>
         </Tabs>
+        {selectedLecturer && (
+          <StaffProfileModal
+            key={selectedLecturer._id}
+            isOpen={profileModalOpen}
+            onClose={() => setProfileModalOpen(false)}
+            lecturer={selectedLecturer}
+            adminAllocations={selectedAdminAllocations}
+            moduleAllocations={selectedModuleAllocations}
+            onLecturerUpdate={handleLecturerUpdate}
+          />
+        )}
       </main>
     </div>
   )
