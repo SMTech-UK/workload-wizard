@@ -34,32 +34,126 @@ export default function LecturerManagement() {
   const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
   const modules = useQuery(api.modules.getAll) ?? [];
 
+  // Add careerFamilies and helper for FTE calculation
+  const careerFamilies = [
+    { value: "Academic Practitioner", label: "Academic Practitioner (AP)" },
+    { value: "Teaching Academic", label: "Teaching Academic (TA)" },
+    { value: "Research Academic", label: "Research Academic (RA)" },
+  ];
+
+  function getFamilyLabel(value: string) {
+    const found = careerFamilies.find(f => f.value === value);
+    return found ? found.label : '';
+  }
+
+  function getTeachingPercentage(family: string) {
+    switch (family) {
+      case 'Research Academic':
+        return 0.3;
+      case 'Teaching Academic':
+        return 0.6;
+      case 'Academic Practitioner':
+        return 0.8;
+      default:
+        return 0.6; // fallback
+    }
+  }
+
+  function getFamilyInitialsForContract(family: string) {
+    const map: Record<string, string> = {
+      'Academic Practitioner': 'AP',
+      'Teaching Academic': 'TA',
+      'Research Academic': 'RA',
+    };
+    return map[family] || family;
+  }
+
+  // Add roles array for dropdown
+  const roles = [
+    { value: "Lecturer", label: "Lecturer" },
+    { value: "Senior Lecturer", label: "Senior Lecturer" },
+    { value: "Professional Lead", label: "Professional Lead" },
+    { value: "Professor", label: "Professor" },
+  ];
+
+  // Add teams array for dropdown
+  const teams = [
+    { value: "Simulation", label: "Simulation" },
+    { value: "Post-Registration", label: "Post-Registration" },
+    { value: "Adult", label: "Adult" },
+    { value: "Child/LD", label: "Child/LD" },
+    { value: "Mental Health", label: "Mental Health" },
+  ];
+
   // Add state for form fields
   const [form, setForm] = useState({
     fullName: "",
     email: "",
-    contract: "",
+    contract: "AP", // default to AP, will be set based on family
     team: "",
     specialism: "",
-    capacity: 0,
-    maxTeachingHours: 0,
+    capacity: 0, // will be set on creation
+    maxTeachingHours: 0, // will be set on creation
     role: "Lecturer",
     status: "available",
-    teachingAvailability: 0,
+    teachingAvailability: 0, // will be set on creation
     totalAllocated: 0,
-    totalContract: 0,
+    totalContract: 0, // will be set on creation
     allocatedTeachingHours: 0,
     allocatedAdminHours: 0,
+    family: "",
+    fte: 1,
   })
   const [submitting, setSubmitting] = useState(false)
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { id, value } = e.target
-    setForm((prev) => ({ ...prev, [id]: id === "capacity" || id === "maxTeachingHours" ? Number(value) : value }))
+    setForm((prev) => {
+      let newForm = { ...prev, [id]: value };
+      let fte = id === "fte" ? Number(value) : Number(prev.fte);
+      let family = id === "family" ? value : prev.family;
+      // Calculate contract code (e.g., 1AP, 0.6TA)
+      const familyInitials = getFamilyInitialsForContract(family);
+      const roundedFte = Math.round(fte * 100) / 100;
+      const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
+      newForm.contract = `${fteStr}${familyInitials}`;
+      // Calculate totalContract, maxTeachingHours, teachingAvailability, capacity
+      if (id === "fte" || id === "family") {
+        const teachingPct = getTeachingPercentage(family);
+        const totalContract = Math.floor(fte * 1498);
+        const maxTeachingHours = Math.floor(totalContract * teachingPct);
+        newForm.totalContract = totalContract;
+        newForm.maxTeachingHours = maxTeachingHours;
+        newForm.teachingAvailability = maxTeachingHours;
+        newForm.capacity = maxTeachingHours;
+      }
+      return newForm;
+    })
   }
 
   const handleSelectChange = (value: string) => {
     setForm((prev) => ({ ...prev, contract: value }))
+  }
+
+  const handleFamilyChange = (value: string) => {
+    setForm((prev) => {
+      const teachingPct = getTeachingPercentage(value);
+      const fte = Number(prev.fte);
+      const totalContract = Math.floor(fte * 1498);
+      const maxTeachingHours = Math.floor(totalContract * teachingPct);
+      const familyInitials = getFamilyInitialsForContract(value);
+      const roundedFte = Math.round(fte * 100) / 100;
+      const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
+      return {
+        ...prev,
+        family: value,
+        contract: `${fteStr}${familyInitials}`,
+        totalContract,
+        maxTeachingHours,
+        teachingAvailability: maxTeachingHours,
+        capacity: maxTeachingHours,
+      };
+    });
   }
 
   const handleCreateLecturer = async () => {
@@ -70,7 +164,7 @@ export default function LecturerManagement() {
       setForm({
         fullName: "",
         email: "",
-        contract: "",
+        contract: "AP",
         team: "",
         specialism: "",
         capacity: 0,
@@ -82,6 +176,8 @@ export default function LecturerManagement() {
         totalContract: 0,
         allocatedTeachingHours: 0,
         allocatedAdminHours: 0,
+        family: "",
+        fte: 1,
       })
     } finally {
       setSubmitting(false)
@@ -177,29 +273,56 @@ export default function LecturerManagement() {
                 <Input id="email" type="email" value={form.email} onChange={handleFormChange} placeholder="j.doe@university.edu" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contract">Contract Type</Label>
-                <Select value={form.contract} onValueChange={handleSelectChange}>
+                <Label htmlFor="role">Role</Label>
+                <Select value={form.role} onValueChange={value => setForm(prev => ({ ...prev, role: value }))}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select contract type" />
+                    <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="AP">Academic Practitioner (AP)</SelectItem>
-                    <SelectItem value="TA">Teaching Academic (TA)</SelectItem>
-                    <SelectItem value="RA">Research Academic (RA)</SelectItem>
+                    {roles.map(role => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Removed contract type field, only FTE and Career Family remain */}
+              <div className="space-y-2">
+                <Label htmlFor="family">Career Family</Label>
+                <Select value={form.family} onValueChange={handleFamilyChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select career family">
+                      {getFamilyLabel(form.family)}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {careerFamilies.map(family => (
+                      <SelectItem key={family.value} value={family.value}>
+                        {family.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="capacity">Capacity</Label>
-                <Input id="capacity" type="number" value={form.capacity} onChange={handleFormChange} placeholder="1200" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxTeachingHours">Max Teaching Hours</Label>
-                <Input id="maxTeachingHours" type="number" value={form.maxTeachingHours} onChange={handleFormChange} placeholder="520" />
+                <Label htmlFor="fte">FTE</Label>
+                <Input id="fte" type="number" min={0.01} max={1} step={0.01} value={form.fte} onChange={handleFormChange} placeholder="1.0" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="team">Team</Label>
-                <Input id="team" value={form.team} onChange={handleFormChange} placeholder="Simulation" />
+                <Select value={form.team} onValueChange={value => setForm(prev => ({ ...prev, team: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map(team => (
+                      <SelectItem key={team.value} value={team.value}>
+                        {team.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="specialism">Specialism</Label>
@@ -270,62 +393,70 @@ export default function LecturerManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLecturers.map((lecturer) => {
-                // If assigned and capacity are both 0, treat status as 'n/a'
-                const status = (lecturer.totalAllocated === 0 && lecturer.totalContract === 0) ? 'n/a' : lecturer.status;
-                const handleOpenModal = () => {
-                  setSelectedLecturer(lecturer);
-                  setModalOpen(true);
-                };
-                return (
-                  <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40" onClick={handleOpenModal}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{lecturer.fullName}</div>
-                      <div className="text-sm text-muted-foreground">{lecturer.email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {getContractTypeBadge(lecturer.contract)}
-                      <div className="text-xs text-muted-foreground">FTE: {lecturer.fte.toFixed(1)}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{lecturer.team || lecturer.specialism || '-'}</TableCell>
-                  <TableCell>
-                    <div className="space-y-2 min-w-32">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>{lecturer.capacity}h</span>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-muted-foreground cursor-help">remaining</span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Total Contract: {lecturer.totalContract}h
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <Progress value={lecturer.totalContract ? (lecturer.totalAllocated / lecturer.totalContract) * 100 : 0} className="h-2" />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(status)}
-                      {status === "overloaded" && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenModal(); }}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </div>
+              {filteredLecturers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    No lecturers to show.
                   </TableCell>
                 </TableRow>
-                );
-              })}
+              ) : (
+                filteredLecturers.map((lecturer) => {
+                  // If assigned and capacity are both 0, treat status as 'n/a'
+                  const status = (lecturer.totalAllocated === 0 && lecturer.totalContract === 0) ? 'n/a' : lecturer.status;
+                  const handleOpenModal = () => {
+                    setSelectedLecturer(lecturer);
+                    setModalOpen(true);
+                  };
+                  return (
+                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40" onClick={handleOpenModal}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{lecturer.fullName}</div>
+                        <div className="text-sm text-muted-foreground">{lecturer.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {getContractTypeBadge(lecturer.contract)}
+                        <div className="text-xs text-muted-foreground">FTE: {lecturer.fte.toFixed(1)}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{lecturer.team || lecturer.specialism || '-'}</TableCell>
+                    <TableCell>
+                      <div className="space-y-2 min-w-32">
+                        <div className="flex items-center justify-between text-sm">
+                          <span>{lecturer.capacity}h</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-muted-foreground cursor-help">remaining</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Total Contract: {lecturer.totalContract}h
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <Progress value={lecturer.totalContract ? (lecturer.totalAllocated / lecturer.totalContract) * 100 : 0} className="h-2" />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(status)}
+                        {status === "overloaded" && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenModal(); }}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>
@@ -336,17 +467,6 @@ export default function LecturerManagement() {
         onClose={() => setModalOpen(false)}
         lecturer={selectedLecturer}
         adminAllocations={selectedLecturer ? (adminAllocations.find(a => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? []) : []}
-        moduleAllocations={selectedLecturer && selectedLecturer.moduleAllocations ? selectedLecturer.moduleAllocations.map((alloc: any) => {
-          const module = modules.find((m: any) => m.id === alloc.moduleCode);
-          return {
-            ...alloc,
-            moduleName: module ? module.title : alloc.moduleName,
-            semester: module ? module.semester : alloc.semester,
-            type: module ? (module.status === 'core' ? 'Core' : 'Elective') : alloc.type,
-            credits: module ? module.credits : undefined,
-            teachingHours: module ? module.teachingHours : undefined,
-          };
-        }) : []}
       />
     </div>
   )
