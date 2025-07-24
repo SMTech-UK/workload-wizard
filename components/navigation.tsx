@@ -39,7 +39,7 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 w-full overflow-x-auto">
+        <div className="flex items-center justify-between h-16 w-full">
           <div className="flex items-center gap-4 w-full">
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
