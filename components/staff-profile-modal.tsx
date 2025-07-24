@@ -235,18 +235,20 @@ export default function StaffProfileModal({
             {/* Staff Details Card */}
             <Card className="border border-gray-200 shadow-sm bg-white">
               <CardHeader className="bg-white border-b border-gray-200">
-                <CardTitle className="flex items-center gap-2 text-lg text-gray-900">
-                  <GraduationCap className="h-5 w-5" />
-                  Staff Information
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditModalOpen(true)}
-                      className="hover:bg-gray-50"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
+                <CardTitle className="flex items-center justify-between gap-2 text-lg text-gray-900">
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="h-5 w-5" />
+                    Staff Information
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditModalOpen(true)}
+                    className="hover:bg-gray-50"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
@@ -391,6 +393,18 @@ export default function StaffProfileModal({
                           Administrative Allocations
                         </div>
                         <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAdminEditModalOpen(true)
+                            }}
+                            className="hover:bg-gray-50"
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </Button>
                           <span className="text-sm font-semibold text-gray-600">{totalAdminHours}h total</span>
                           {adminOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </div>

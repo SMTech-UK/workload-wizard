@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
+import { toast } from "sonner"
 
 interface AdminAllocation {
   category: string
   description: string
-  hours: number
+  hours: string | number
   isHeader?: boolean
 }
 
@@ -24,73 +25,117 @@ interface AdminAllocationsEditModalProps {
   staffMemberName: string
 }
 
-const sampleAllocations: AdminAllocation[] = [
-  { category: "SUPERVISION", description: "", hours: 0, isHeader: true },
-  { category: "MSc Supervision", description: "5 hrs 1st supervisor", hours: 25 },
+const defaultAllocations: AdminAllocation[] = [
   {
-    category: "Doctoral Supervision",
-    description: "25hrs 1st supervisor/15hrs 2nd supervisor",
-    hours: 50,
+    category: "Module Leadership",
+    description:
+      "40 hours per 20-credit module; 60 hours for two intakes; bespoke arrangements require a note",
+    hours: 0,
   },
-  { category: "ACADEMIC ADMIN", description: "", hours: 0, isHeader: true },
   {
-    category: "Module leadership",
-    description: "40 per 20 credit mod, 60 for two intakes",
-    hours: 120,
+    category: "AA & ASLT",
+    description:
+      "Academic Assessor and Apprenticeship Support Link Tutor",
+    hours: 150,
   },
-  { category: "AA & ASLT", description: "Assessment & Academic Standards", hours: 150 },
   {
-    category: "Course leadership",
-    description: "1 hour / student + 20 hours for meetings",
-    hours: 45,
+    category: "Course Leadership",
+    description:
+      "1 hour per student plus 20 hours for meetings",
+    hours: 0,
   },
-  { category: "Personal CPD", description: "Continuing Professional Development", hours: 20 },
-  { category: "Personal tutor", description: "1 hour per student", hours: 15 },
-  { category: "FTP", description: "20hrs for all SL who have been trained", hours: 0 },
-  { category: "Lead role", description: "Leadership responsibilities", hours: 40 },
-  { category: "Curriculum development", description: "Course design and updates", hours: 70 },
   {
-    category: "Recruitment interviews",
-    description: "Student recruitment activities",
+    category: "Personal CPD",
+    description:
+      "Continuing Professional Development courses",
+    hours: 0,
+  },
+  {
+    category: "Personal Tutor",
+    description: "1 hour of tutorial support per student",
+    hours: 0,
+  },
+  {
+    category: "FTP",
+    description:
+      "20 hours for all Senior Lecturers who have been trained",
+    hours: 0,
+  },
+  {
+    category: "Lead Role",
+    description:
+      "Team leadership responsibilities and oversight duties",
+    hours: 0,
+  },
+  {
+    category: "Curriculum Development",
+    description:
+      "Creation and review of programme curriculum and learning materials",
+    hours: 70,
+  },
+  {
+    category: "Recruitment Interviews",
+    description:
+      "Conducting interviews with prospective students",
     hours: 76,
   },
   {
-    category: "Recruitment activities",
-    description: "Open days, RPL, school visits",
-    hours: 25,
+    category: "Recruitment Activities",
+    description:
+      "Open days, Recognition of Prior Learning (RPL) sessions, School Visits",
+    hours: 0,
   },
-  { category: "HEA Assessor", description: "Higher Education Academy", hours: 0 },
-  { category: "Projects", description: "Special projects and initiatives", hours: 50 },
   {
-    category: "Research & Consultancy",
-    description: "AP = 75 hrs & TA = 150 hrs",
+    category: "HEA Assessor",
+    description:
+      "Assessing applications for Higher Education Academy fellowship",
+    hours: 0,
+  },
+  {
+    category: "Projects",
+    description:
+      "Project work – add a note for each specific project",
+    hours: 0,
+  },
+  {
+    category:
+      "Research, Scholarship and Professional Practice",
+    description:
+      "AP = 75 hours & TA = 150 hours for research and scholarly activity",
     hours: 75,
   },
-]
+];
 
 export default function AdminAllocationsEditModal({
   isOpen = true,
   onClose = () => {},
   onSave = () => {},
-  allocations = sampleAllocations,
+  allocations = defaultAllocations,
   staffMemberName = "Dr. Sarah Johnson",
 }: AdminAllocationsEditModalProps) {
   const [formData, setFormData] = useState<AdminAllocation[]>(allocations)
   const [errors, setErrors] = useState<{ [key: number]: { post1?: string; post2?: string } }>({})
 
   const validateForm = () => {
+    let hasEmpty = false;
     const newErrors: { [key: number]: { post1?: string; post2?: string } } = {}
 
     formData.forEach((allocation, index) => {
       if (!allocation.isHeader) {
-        // Validate that hours are non-negative numbers
-        if (allocation.hours < 0) {
+        if (allocation.hours === "" || allocation.hours === undefined || allocation.hours === null) {
+          newErrors[index] = { ...newErrors[index], post1: "" }
+          hasEmpty = true;
+        } else if (Number(allocation.hours) < 0) {
           newErrors[index] = { ...newErrors[index], post1: "Hours cannot be negative" }
         }
       }
     })
 
     setErrors(newErrors)
+    if (hasEmpty) {
+      toast("All hours fields are required.");
+      return false;
+    }
     return Object.keys(newErrors).length === 0
   }
 
@@ -108,27 +153,27 @@ export default function AdminAllocationsEditModal({
   }
 
   const updateAllocation = (index: number, field: "hours", value: string) => {
-    const numValue = value === "" ? 0 : Number.parseInt(value) || 0
+    // Allow empty string for input, treat as 0 in calculations
     const newFormData = [...formData]
-    newFormData[index] = { ...newFormData[index], [field]: numValue }
+    newFormData[index] = { ...newFormData[index], [field]: value === "" ? "" : Number(value) }
     setFormData(newFormData)
   }
 
   // Calculate totals
   const totalPost1Hours = formData
     .filter((allocation) => !allocation.isHeader)
-    .reduce((sum, allocation) => sum + allocation.hours, 0)
+    .reduce((sum, allocation) => sum + (typeof allocation.hours === "number" ? allocation.hours : 0), 0)
 
   const totalPost2Hours = formData
     .filter((allocation) => !allocation.isHeader)
-    .reduce((sum, allocation) => sum + allocation.hours, 0)
+    .reduce((sum, allocation) => sum + (typeof allocation.hours === "number" ? allocation.hours : 0), 0)
 
-  const totalHours = totalPost1Hours + totalPost2Hours
+  const totalHours = totalPost1Hours
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-gray-50">
-        <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-hidden bg-gray-50">
+        <DialogHeader className="flex flex-row items-center justify-between space-y-0">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center">
               <BarChart3 className="h-6 w-6 text-white" />
@@ -143,7 +188,7 @@ export default function AdminAllocationsEditModal({
           </Button>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Summary Card */}
           <Card className="border border-gray-200 shadow-sm bg-white">
             <CardHeader className="bg-white border-b border-gray-200">
@@ -178,19 +223,16 @@ export default function AdminAllocationsEditModal({
                 Administrative Allocations
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 max-h-[400px] overflow-y-auto">
               <div className="max-h-96 overflow-y-auto">
                 {/* Table Header */}
                 <div className="sticky top-0 bg-gray-50 border-b border-gray-200 px-6 py-4">
-                  <div className="grid grid-cols-5 gap-4 items-center">
-                    <div className="col-span-2">
+                  <div className="grid grid-cols-3 gap-4 items-center">
+                    <div className="col-span-1">
                       <Label className="text-sm font-semibold text-gray-700">Category & Description</Label>
                     </div>
                     <div className="text-center">
-                      <Label className="text-sm font-semibold text-gray-700">Current Period</Label>
-                    </div>
-                    <div className="text-center">
-                      <Label className="text-sm font-semibold text-gray-700">Next Period</Label>
+                      <Label className="text-sm font-semibold text-gray-700">Hours</Label>
                     </div>
                     <div className="text-center">
                       <Label className="text-sm font-semibold text-gray-700">Total</Label>
@@ -207,54 +249,33 @@ export default function AdminAllocationsEditModal({
                       </div>
                     ) : (
                       <div className="hover:bg-gray-50 border-b border-gray-100 py-4 px-6 transition-colors">
-                        <div className="grid grid-cols-5 gap-4 items-center">
+                        <div className="grid grid-cols-3 gap-4 items-center">
                           {/* Category & Description */}
-                          <div className="col-span-2 space-y-1">
+                          <div className="col-span-1 space-y-1">
                             <div className="font-medium text-gray-900">{allocation.category}</div>
                             {allocation.description && (
                               <div className="text-xs text-gray-500">{allocation.description}</div>
                             )}
                           </div>
 
-                          {/* Current Period Input */}
-                          <div className="text-center">
-                            <div className="space-y-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={allocation.hours}
-                                onChange={(e) => updateAllocation(index, "hours", e.target.value)}
-                                className={`w-20 text-center ${
-                                  errors[index]?.post1 ? "border-red-500" : "border-gray-300"
-                                }`}
-                              />
-                              {errors[index]?.post1 && <p className="text-xs text-red-500">{errors[index].post1}</p>}
-                            </div>
-                          </div>
-
-                          {/* Next Period Input */}
-                          <div className="text-center">
-                            <div className="space-y-1">
-                              <Input
-                                type="number"
-                                min="0"
-                                value={allocation.hours}
-                                onChange={(e) => updateAllocation(index, "hours", e.target.value)}
-                                className={`w-20 text-center ${
-                                  errors[index]?.post2 ? "border-red-500" : "border-gray-300"
-                                }`}
-                              />
-                              {errors[index]?.post2 && <p className="text-xs text-red-500">{errors[index].post2}</p>}
-                            </div>
+                          {/* Hours Input */}
+                          <div className="flex justify-center items-center">
+                            <Input
+                              type="number"
+                              min="0"
+                              value={allocation.hours === "" ? "" : allocation.hours}
+                              onChange={(e) => updateAllocation(index, "hours", e.target.value)}
+                              className={`w-24 text-center ${allocation.hours === "" ? "input-error" : "border-gray-300"}`}
+                            />
                           </div>
 
                           {/* Total */}
-                          <div className="text-center">
+                          <div className="flex justify-center items-center">
                             <Badge
                               variant="outline"
                               className="bg-gray-100 text-gray-700 border-gray-300 font-semibold"
                             >
-                              {allocation.hours}h
+                              {Number(allocation.hours) > 0 ? allocation.hours : 0}h
                             </Badge>
                           </div>
                         </div>

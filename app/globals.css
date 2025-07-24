@@ -108,3 +108,20 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide number input spinners for all browsers */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.input-error {
+  border-color: #fca5a5 !important; /* Tailwind's red-300 */
+  background-color: #fef2f2 !important; /* Tailwind's red-50 */
+  box-shadow: 0 0 0 1.5px #fca5a5 !important;
+  transition: border-color 0.2s, background-color 0.2s;
+}
