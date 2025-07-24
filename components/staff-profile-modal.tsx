@@ -290,6 +290,16 @@ export default function StaffProfileModal({
                       <Badge className="bg-black text-white font-medium">{displayLecturer.contract}</Badge>
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Users className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 font-medium">Role</p>
+                      <p className="font-semibold text-gray-900">{displayLecturer.role}</p>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-gray-200">
