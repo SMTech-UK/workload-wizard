@@ -101,11 +101,22 @@ export default function StaffProfileModal({
     )
   }
 
-  // Add this state if you have a local copy of lecturer for display
-  const [displayLecturer, setDisplayLecturer] = useState(lecturer);
-  useEffect(() => {
-    setDisplayLecturer(lecturer);
-  }, [lecturer]);
+  // Fetch the latest lecturer data from Convex
+  const liveLecturer = useQuery(api.lecturers.getById, { id: lecturer._id });
+  const displayLecturer = liveLecturer || lecturer;
+
+  if (!displayLecturer) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Loading...</DialogTitle>
+          </DialogHeader>
+          <div>Loading staff profile...</div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const [adminOpen, setAdminOpen] = useState(false)
   const [moduleOpen, setModuleOpen] = useState(false)
