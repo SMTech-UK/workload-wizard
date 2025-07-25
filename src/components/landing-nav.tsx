@@ -3,11 +3,9 @@ import { SignInButton } from "@clerk/nextjs";
 import { WandSparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import UserProfileDropdown from "./user-profile-dropdown";
-import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
 import Link from "next/link";
 
 export default function LandingNav() {
-    const { isLoading, isAuthenticated } = useStoreUserEffect();
     return (
         <header className="px-4 lg:px-6 h-16 flex items-center bg-white/30 dark:bg-black/30 backdrop-blur-sm">
             <div className="flex items-center gap-2">
@@ -17,23 +15,17 @@ export default function LandingNav() {
                 <span className="text-xl font-bold text-gray-900 dark:text-white">WorkloadWizard</span>
             </div>
             <nav className="ml-auto flex items-center gap-2">
-            {isLoading ? (
-  <div className="flex items-center gap-2">
-    <Loader2 className="animate-spin h-4 w-4 text-primary" />
-    <span className="text-muted-foreground">Getting things ready...</span>
-  </div>
-) : !isAuthenticated ? (
-        <SignInButton mode="modal">
-          <Button variant="default">Sign In</Button>
-        </SignInButton>
-      ) : (
-        <>
-      <Link href="/dashboard">
-        <Button variant="default" className="px-4 py-2 text-sm font-semibold">Dashboard</Button>
-      </Link>
-      <UserProfileDropdown />
-    </>
-      )}
+            <Unauthenticated>
+                <SignInButton mode="modal">
+                  <Button variant="default">Sign In</Button>
+                </SignInButton>
+            </Unauthenticated>
+            <Authenticated>
+                <Link href="/dashboard">
+                  <Button variant="default" className="px-4 py-2 text-sm font-semibold">Dashboard</Button>
+                </Link>
+                <UserProfileDropdown />
+            </Authenticated>
             </nav>
         </header>
     )

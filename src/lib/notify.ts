@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+// Remove Knock logic from this file. Move to knock-server.ts.
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

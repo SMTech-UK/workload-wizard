@@ -41,9 +41,14 @@ export const store = mutation({
         (patchData as any).settings = { ...(user.settings || {}), theme: args.theme };
       }
       await ctx.db.patch(user._id, patchData);
+      // Knock integration
+      if (process.env.KNOCK_API_KEY) {
+        const { identifyKnockUser } = await import("../src/lib/knock-server");
+        await identifyKnockUser(identity.subject, patchData);
+      }
       return user._id;
     } else {
-      return await ctx.db.insert("users", {
+      const newUser = {
         ...userData,
         jobTitle: args.jobTitle ?? "",
         team: args.team ?? "",
@@ -63,7 +68,14 @@ export const store = mutation({
           sessionDay: "",
           sessionTime: "",
         },
-      });
+      };
+      const id = await ctx.db.insert("users", newUser);
+      // Knock integration
+      if (process.env.KNOCK_API_KEY) {
+        const { identifyKnockUser } = await import("../src/lib/knock-server");
+        await identifyKnockUser(identity.subject, newUser);
+      }
+      return id;
     }
   },
 });
@@ -108,6 +120,12 @@ export const setPreferences = mutation({
       .unique();
     if (!user) throw new Error("User not found");
     await ctx.db.patch(user._id, { preferences: args.preferences });
+    // Knock sync for notification-relevant data changes
+    if (process.env.KNOCK_API_KEY) {
+      const { identifyKnockUser, triggerKnockWorkflow } = await import("../src/lib/knock-server");
+      await identifyKnockUser(identity.subject, { ...user, preferences: args.preferences });
+      await triggerKnockWorkflow('user-preferences-updated', [identity.subject], { preferences: args.preferences });
+    }
     return true;
   }
 });
@@ -131,6 +149,12 @@ export const setSettings = mutation({
       .unique();
     if (!user) throw new Error("User not found");
     await ctx.db.patch(user._id, { settings: args.settings });
+    // Knock sync for notification-relevant data changes
+    if (process.env.KNOCK_API_KEY) {
+      const { identifyKnockUser, triggerKnockWorkflow } = await import("../src/lib/knock-server");
+      await identifyKnockUser(identity.subject, { ...user, settings: args.settings });
+      await triggerKnockWorkflow('user-preferences-updated', [identity.subject], { settings: args.settings });
+    }
     return true;
   }
 });
@@ -169,4 +193,21 @@ export const getSettings = query({
       profilePublic: true,
     };
   },
+});
+
+export const getUserBySubject = query({
+  args: { subject: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.query("users")
+      .filter(q => q.eq(q.field("subject"), args.subject))
+      .unique();
+    if (!user) return null;
+    return {
+      systemRole: user.systemRole ?? null,
+      settings: user.settings ?? null,
+      specialism: user.specialism ?? null,
+      jobTitle: user.jobTitle ?? null,
+      team: user.team ?? null,
+    };
+  }
 });

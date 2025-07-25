@@ -1,7 +1,8 @@
 import { useUser } from "@clerk/clerk-react";
 import { useConvexAuth } from "convex/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
@@ -12,25 +13,43 @@ export function useStoreUserEffect() {
   // has stored the user.
   const [userId, setUserId] = useState<Id<"users"> | null>(null);
   const storeUser = useMutation(api.users.store);
-  // Call the `storeUser` mutation function to store
-  // the current user in the `users` table and return the `Id` value.
+  const prevAuth = useRef(isAuthenticated);
+
+  // Fetch systemRole from Convex for the current user
+  const systemRoleResult = useQuery(api.users.getUserBySubject, user?.id ? { subject: user.id } : "skip");
+
+  // Move createUser outside useEffect
+  const createUser = async (user: any) => {
+    if (!user) return;
+    const id = await storeUser({});
+    setUserId(id);
+    try {
+      await fetch('/api/knock-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          email: user.emailAddresses?.[0]?.emailAddress,
+          name: user.fullName,
+          avatar: user.imageUrl,
+          locale: 'en-GB',
+          timezone: 'Europe/London',
+          systemRole: systemRoleResult?.systemRole ?? undefined,
+        }),
+      });
+    } catch (err) {
+      // Ignore errors for now
+    }
+  };
+
   useEffect(() => {
-    // If the user is not logged in don't do anything
-    if (!isAuthenticated) {
-      return;
+    // Only run on transition from not authenticated to authenticated
+    if (!prevAuth.current && isAuthenticated && user) {
+      createUser(user);
     }
-    // Store the user in the database.
-    // Recall that `storeUser` gets the user information via the `auth`
-    // object on the server. You don't need to pass anything manually here.
-    async function createUser() {
-      const id = await storeUser();
-      setUserId(id);
-    }
-    createUser();
+    prevAuth.current = isAuthenticated;
     return () => setUserId(null);
-    // Make sure the effect reruns if the user logs in with
-    // a different identity
-  }, [isAuthenticated, storeUser, user?.id]);
+  }, [isAuthenticated, storeUser, user]);
   // Combine the local state with the state from context
   return {
     isLoading: isLoading || (isAuthenticated && userId === null),

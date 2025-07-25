@@ -660,6 +660,23 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             });
                             // Also persist theme to Convex user record for login persistence
                             await storeUser({ theme: settingsData.preferences.theme });
+                            // Sync to Knock after saving settings
+                            try {
+                              await fetch('/api/knock-sync', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  id: user?.id,
+                                  email: user?.primaryEmailAddress?.emailAddress,
+                                  name: tempProfileData.name,
+                                  avatar: user?.imageUrl,
+                                  locale: settingsData.preferences.language || 'en-GB',
+                                  timezone: settingsData.preferences.timezone || 'Europe/London',
+                                }),
+                              });
+                            } catch (err) {
+                              toast.error('Failed to sync user to notifications.');
+                            }
                             toast.success("Settings saved!");
                           } catch (err) {
                             toast.error("Failed to save settings.");
