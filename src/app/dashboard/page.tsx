@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +16,6 @@ import { DashboardMetricCard } from "@/components/ui/dashboard-metric-card";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useMutation } from "convex/react";
-import { useEffect } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
@@ -40,28 +39,28 @@ function AcademicYearSelector({ selected, onSelect }: { selected: string; onSele
         <Button
           variant="outline"
           size="sm"
-          className="flex items-center gap-2 border-primary/40 bg-white hover:bg-primary/5 text-primary font-medium shadow-sm px-3 py-2 rounded-md"
+          className="flex items-center gap-2 border-primary/40 bg-white dark:bg-zinc-900 hover:bg-primary/5 dark:hover:bg-zinc-800 text-primary dark:text-white font-medium shadow-sm px-3 py-2 rounded-md"
           aria-label="Select academic year"
         >
-          <Calendar className="w-5 h-5 mr-1" />
-          <span className="hidden sm:inline">{selected}</span>
+          <Calendar className="w-5 h-5 mr-1 text-gray-900 dark:text-white" />
+          <span className="hidden sm:inline text-gray-900 dark:text-white">{selected}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-0 mt-2 border border-primary/20 rounded-md shadow-lg bg-white">
+      <PopoverContent className="w-56 p-0 mt-2 border border-primary/20 rounded-md shadow-lg bg-white dark:bg-zinc-900">
         <div className="py-2">
-          <div className="px-4 pb-2 text-xs text-muted-foreground font-semibold uppercase tracking-wide">Academic Years</div>
+          <div className="px-4 pb-2 text-xs text-muted-foreground font-semibold uppercase tracking-wide dark:text-gray-300">Academic Years</div>
           <ul>
             {academicYears.map((year) => (
               <li key={year}>
                 <button
                   className={cn(
-                    "w-full flex items-center px-4 py-2 text-sm hover:bg-primary/10 transition-colors",
-                    year === selected && "bg-primary/10 font-semibold text-primary"
+                    "w-full flex items-center px-4 py-2 text-sm hover:bg-primary/10 dark:hover:bg-zinc-800 transition-colors text-gray-900 dark:text-white",
+                    year === selected && "bg-primary/10 dark:bg-blue-900 font-semibold text-primary dark:text-blue-400"
                   )}
                   onClick={() => onSelect(year)}
                 >
                   {year}
-                  {year === selected && <Check className="w-4 h-4 ml-auto text-primary" />}
+                  {year === selected && <Check className="w-4 h-4 ml-auto text-primary dark:text-blue-400" />}
                 </button>
               </li>
             ))}
@@ -101,7 +100,22 @@ export default function AcademicWorkloadPlanner() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // All hooks must be called unconditionally!
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined" && window.location.hash) {
+      const hash = window.location.hash.replace('#', '');
+      if (["dashboard", "lecturers", "assignments", "reports"].includes(hash)) {
+        return hash;
+      }
+    }
+    return "dashboard";
+  });
+
+  // Sync tab with URL hash
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.location.hash = activeTab;
+    }
+  }, [activeTab]);
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
   const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
   const modules = useQuery(api.modules.getAll) ?? [];
@@ -222,9 +236,9 @@ export default function AcademicWorkloadPlanner() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white dark:bg-zinc-900">
       {/* Navigation with custom user profile dropdown */}
-      <div className="w-full bg-white">
+      <div className="w-full bg-white dark:bg-zinc-900">
         <Navigation
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -241,10 +255,10 @@ export default function AcademicWorkloadPlanner() {
             <div className="flex items-center justify-between">
               <div className="flex items-center justify-between w-full">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     Academic Workload Dashboard
                   </h1>
-                  <p className="text-gray-600 mt-1">{selectedAcademicYear}</p>
+                  <p className="text-gray-600 dark:text-gray-300 mt-1">{selectedAcademicYear}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <AcademicYearSelector selected={selectedAcademicYear} onSelect={setSelectedAcademicYear} />
@@ -285,7 +299,7 @@ export default function AcademicWorkloadPlanner() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Capacity Overview */}
-              <Card>
+              <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
                 <CardHeader>
                   <CardTitle>Staff Capacity Overview</CardTitle>
                   <CardDescription>Current workload allocation by lecturer</CardDescription>
@@ -314,7 +328,7 @@ export default function AcademicWorkloadPlanner() {
               </Card>
 
               {/* Recent Activity */}
-              <Card>
+              <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
                 <CardHeader>
                   <CardTitle>Recent Activity</CardTitle>
                   <CardDescription>Latest workload management activities</CardDescription>
@@ -406,7 +420,7 @@ export default function AcademicWorkloadPlanner() {
             </div>
 
             {/* Quick Actions */}
-            <Card>
+            <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
                 <CardDescription>Common workload management tasks</CardDescription>

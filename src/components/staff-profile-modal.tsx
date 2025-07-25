@@ -19,6 +19,7 @@ import {
   Printer,
   MoreVertical,
   Edit,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -117,7 +118,12 @@ export default function StaffProfileModal({
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Loading...</DialogTitle>
+            <DialogTitle>
+              <div className="flex items-center gap-2">
+                <Loader2 className="animate-spin h-5 w-5 text-primary" />
+                <span>Loading staff profile, please wait...</span>
+              </div>
+            </DialogTitle>
           </DialogHeader>
           <div>Loading staff profile...</div>
         </DialogContent>

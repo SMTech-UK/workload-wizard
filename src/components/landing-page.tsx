@@ -1,6 +1,9 @@
 import { Badge } from "@/components/ui/badge"
+import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
+import Link from "next/link";
 
 export default function LandingHero() {
+  const { isAuthenticated } = useStoreUserEffect();
   return (
       <main className="flex-1 flex items-center justify-center relative overflow-hidden">
         {/* Animated gradient background */}

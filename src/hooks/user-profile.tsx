@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { Camera, Check, X, User } from "lucide-react"
+import { Camera, Check, X, User, Loader2 } from "lucide-react"
 
 export default function Component() {
   const [open, setOpen] = useState(false);
@@ -130,7 +130,12 @@ export default function Component() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen bg-gray-50">Loading...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
+        <Loader2 className="animate-spin h-8 w-8 text-primary mb-4" />
+        <span className="text-muted-foreground text-lg font-medium">Loading your profile, please wait...</span>
+      </div>
+    );
   }
   if (error) {
     return <div className="flex items-center justify-center min-h-screen bg-gray-50">{error}</div>;

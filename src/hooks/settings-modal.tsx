@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen } from "lucide-react"
+import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useQuery } from "convex/react";
 import { useTheme } from "next-themes";
+import { updateSettings as updateSettingsUtil } from "@/lib/utils";
 
 export type TabType = "profile" | "settings" | "general"
 
@@ -274,15 +275,9 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       .slice(0, 2);
   };
 
-  const updateSettings = (category: keyof typeof settingsData, key: string, value: any) => {
-    setSettingsData((prev) => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        [key]: value,
-      },
-    }))
-  }
+  const handleUpdateSettings = (category: keyof typeof settingsData, key: string, value: any) => {
+    setSettingsData((prev) => updateSettingsUtil(prev, category, key, value));
+  };
 
   if (!isLoaded) {
     return (
@@ -290,7 +285,10 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
         <DialogContent>
           <DialogTitle className="sr-only">Loading</DialogTitle>
           <DialogDescription className="sr-only">Loading user profile...</DialogDescription>
-          Loading...
+          <div className="flex flex-col items-center justify-center py-8">
+            <Loader2 className="animate-spin h-8 w-8 text-primary mb-4" />
+            <span className="text-muted-foreground text-lg font-medium">Just a moment, loading your profile...</span>
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -549,7 +547,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             </div>
                             <Switch
                               checked={settingsData.notifications.email}
-                              onCheckedChange={(checked) => updateSettings("notifications", "email", checked)}
+                              onCheckedChange={(checked) => handleUpdateSettings("notifications", "email", checked)}
                             />
                           </div>
                           <div className="flex items-center justify-between">
@@ -559,7 +557,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             </div>
                             <Switch
                               checked={settingsData.notifications.push}
-                              onCheckedChange={(checked) => updateSettings("notifications", "push", checked)}
+                              onCheckedChange={(checked) => handleUpdateSettings("notifications", "push", checked)}
                             />
                           </div>
                         </div>
@@ -581,7 +579,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             </div>
                             <Switch
                               checked={settingsData.privacy.profileVisible}
-                              onCheckedChange={(checked) => updateSettings("privacy", "profileVisible", checked)}
+                              onCheckedChange={(checked) => handleUpdateSettings("privacy", "profileVisible", checked)}
                             />
                           </div>
                         </div>
@@ -602,7 +600,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                               <Select
                                 value={settingsData.preferences.theme}
                                 onValueChange={(value) => {
-                                  updateSettings("preferences", "theme", value);
+                                  handleUpdateSettings("preferences", "theme", value);
                                   setTheme(value);
                                 }}
                               >
@@ -620,7 +618,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                               <Label>Language</Label>
                               <Select
                                 value={settingsData.preferences.language}
-                                onValueChange={(value) => updateSettings("preferences", "language", value)}
+                                onValueChange={(value) => handleUpdateSettings("preferences", "language", value)}
                               >
                                 <SelectTrigger>
                                   <SelectValue />
@@ -634,7 +632,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                               <Label>Timezone</Label>
                               <Select
                                 value={settingsData.preferences.timezone}
-                                onValueChange={(value) => updateSettings("preferences", "timezone", value)}
+                                onValueChange={(value) => handleUpdateSettings("preferences", "timezone", value)}
                               >
                                 <SelectTrigger>
                                   <SelectValue />

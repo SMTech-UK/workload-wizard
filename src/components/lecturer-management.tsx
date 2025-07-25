@@ -25,7 +25,7 @@ import { Plus, Search, Edit, Eye, AlertTriangle, X } from "lucide-react"
 import StaffProfileModal from "./staff-profile-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLogRecentActivity } from "@/lib/recentActivity";
-import { useUser } from "@auth0/nextjs-auth0";
+import { useUser } from "@clerk/nextjs";
 
 export default function LecturerManagement() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -172,7 +172,7 @@ export default function LecturerManagement() {
         entity: "lecturer",
         entityId: newLecturerId, // use the Convex _id
         fullName: form.fullName, // for formatting
-        modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
+        modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
         permission: "default"
       });
       setModalOpen(false)
@@ -267,17 +267,17 @@ export default function LecturerManagement() {
       entity: "lecturer",
       entityId: lecturer._id,
       fullName: lecturer.fullName,
-      modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
+      modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
       permission: "default"
     });
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white dark:bg-zinc-900 min-h-screen">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Lecturer Management</h1>
-          <p className="text-gray-600 mt-1">Manage academic staff profiles and capacity</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Lecturer Management</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">Manage academic staff profiles and capacity</p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
@@ -286,16 +286,16 @@ export default function LecturerManagement() {
               Add Lecturer
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
             <DialogHeader>
-              <DialogTitle>Add New Lecturer</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-gray-900 dark:text-white">Add New Lecturer</DialogTitle>
+              <DialogDescription className="text-gray-600 dark:text-gray-300">
                 Create a new lecturer profile with contract details and allocations.
               </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="fullName" className="text-gray-900 dark:text-white">Full Name</Label>
                 <Input id="fullName" value={form.fullName} onChange={handleFormChange} placeholder="Dr. John Doe" />
               </div>
               <div className="space-y-2">
@@ -360,7 +360,9 @@ export default function LecturerManagement() {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setModalOpen(false)} disabled={submitting}>Cancel</Button>
+              <DialogClose asChild>
+                <Button variant="outline" disabled={submitting}>Cancel</Button>
+              </DialogClose>
               <Button onClick={handleCreateLecturer} disabled={submitting || !form.fullName || !form.email || !form.contract}>
                 {submitting ? "Creating..." : "Create Lecturer"}
               </Button>
@@ -370,9 +372,9 @@ export default function LecturerManagement() {
       </div>
 
       {/* Search and Filters */}
-      <Card>
+      <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
         <CardHeader>
-          <CardTitle>Search & Filter</CardTitle>
+          <CardTitle className="text-gray-900 dark:text-white">Search & Filter</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
@@ -405,27 +407,27 @@ export default function LecturerManagement() {
       </Card>
 
       {/* Lecturers Table */}
-      <Card>
+      <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
         <CardHeader>
-          <CardTitle>Academic Staff ({filteredLecturers.length})</CardTitle>
-          <CardDescription>Overview of all academic staff and their current workload</CardDescription>
+          <CardTitle className="text-gray-900 dark:text-white">Academic Staff ({filteredLecturers.length})</CardTitle>
+          <CardDescription className="text-gray-600 dark:text-gray-300">Overview of all academic staff and their current workload</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Contract</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Name</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Contract</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Team</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Capacity</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredLecturers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground dark:text-gray-300">
                     No lecturers to show.
                   </TableCell>
                 </TableRow>
@@ -438,11 +440,11 @@ export default function LecturerManagement() {
                     setModalOpen(true);
                   };
                   return (
-                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40" onClick={handleOpenModal}>
+                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800" onClick={handleOpenModal}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{lecturer.fullName}</div>
-                        <div className="text-sm text-muted-foreground">{lecturer.email}</div>
+                        <div className="font-medium text-gray-900 dark:text-white">{lecturer.fullName}</div>
+                        <div className="text-sm text-muted-foreground dark:text-gray-300">{lecturer.email}</div>
                       </div>
                     </TableCell>
                     <TableCell>
