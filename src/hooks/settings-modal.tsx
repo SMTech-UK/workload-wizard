@@ -11,10 +11,14 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Camera, User, Settings, Bell, Shield, Palette, X, Check } from "lucide-react"
+import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useQuery } from "convex/react";
+import { useTheme } from "next-themes";
 
 export type TabType = "profile" | "settings" | "general"
 
@@ -26,7 +30,8 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ open, onOpenChange, initialTab = "profile" }: SettingsModalProps) {
   const { user, isLoaded } = useUser();
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+  const [activeTab, setActiveTab] = useState<TabType | "lecturer-preferences">(initialTab);
+  const { setTheme } = useTheme();
   React.useEffect(() => {
     if (open) setActiveTab(initialTab);
   }, [open, initialTab]);
@@ -35,28 +40,25 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
 
   // Clerk user: only allow editing local fields, display Clerk user info
   const [profileData, setProfileData] = useState({
-    job_title: "",
+    jobTitle: "",
     team: "",
     specialism: "",
-    office_location: "",
   });
   const [tempProfileData, setTempProfileData] = useState({
     name: user?.fullName || user?.username || "",
     email: user?.primaryEmailAddress?.emailAddress || "",
-    job_title: profileData.job_title,
+    jobTitle: profileData.jobTitle,
     team: profileData.team,
     specialism: profileData.specialism,
-    office_location: profileData.office_location,
   });
 
   // Keep custom fields in sync with user.user_metadata when modal opens or user changes
   React.useEffect(() => {
     if (open && user) {
       setProfileData({
-        job_title: "",
+        jobTitle: "",
         team: "",
         specialism: "",
-        office_location: "",
       });
       setTempProfileData(prev => ({
         ...prev,
@@ -115,6 +117,80 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     }
   }, [open]);
 
+  // Lecturer Preferences state
+  const [lecturerPrefs, setLecturerPrefs] = useState({
+    campus: "",
+    teachingTime: "",
+    teachingDay: "",
+    interests: [] as string[],
+    interestInput: "",
+  });
+
+  // Fetch preferences from Convex
+  const preferences = useQuery(api.users.getPreferences);
+  const profileFields = useQuery(api.users.getProfileFields);
+  const userSettings = useQuery(api.users.getSettings);
+
+  // Populate lecturerPrefs from preferences when tab is opened and data is available
+  React.useEffect(() => {
+    if (activeTab === "lecturer-preferences" && preferences) {
+      setLecturerPrefs(p => ({
+        ...p,
+        campus: preferences.sessionCampus || "",
+        teachingTime: preferences.sessionTime || "",
+        teachingDay: preferences.sessionDay || "",
+        interests: preferences.interests || [],
+      }));
+    }
+  }, [activeTab, preferences]);
+
+  // Populate profileData from Convex when profile tab is opened and data is available, or when modal is opened
+  React.useEffect(() => {
+    if (open && activeTab === "profile" && profileFields) {
+      setProfileData(p => ({
+        ...p,
+        jobTitle: profileFields.jobTitle || "",
+        team: profileFields.team || "",
+        specialism: profileFields.specialism || "",
+      }));
+    }
+  }, [open, activeTab, profileFields]);
+
+  // Populate settingsData from Convex when settings tab is opened and data is available
+  React.useEffect(() => {
+    if (activeTab === "settings" && userSettings) {
+      setSettingsData(prev => ({
+        ...prev,
+        notifications: {
+          ...prev.notifications,
+          email: userSettings.notifyEmail ?? true,
+          push: userSettings.notifyPush ?? true,
+        },
+        privacy: {
+          ...prev.privacy,
+          profileVisible: userSettings.profilePublic ?? true,
+        },
+        preferences: {
+          ...prev.preferences,
+          theme: userSettings.theme ?? "system",
+          language: userSettings.language ?? "en",
+          timezone: userSettings.timezone ?? "GMT",
+        },
+      }));
+    }
+  }, [activeTab, userSettings]);
+
+  // Sync theme with user's saved setting when settings are loaded
+  React.useEffect(() => {
+    if (activeTab === "settings" && userSettings && userSettings.theme) {
+      setTheme(userSettings.theme);
+    }
+  }, [activeTab, userSettings, setTheme]);
+
+  const storeUser = useMutation(api.users.store);
+  const setPreferences = useMutation(api.users.setPreferences);
+  const setSettings = useMutation(api.users.setSettings);
+
   const sidebarItems = [
     {
       id: "profile" as TabType,
@@ -156,75 +232,21 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     const hasChanged =
       tempProfileData.name !== (user.fullName || user.username || "") ||
       tempProfileData.email !== (user.primaryEmailAddress?.emailAddress || "") ||
-      avatarUrl !== (user.imageUrl || "/placeholder.svg?height=80&width=80") ||
-      profileData.job_title !== "" ||
+      profileData.jobTitle !== "" ||
       profileData.team !== "" ||
-      profileData.specialism !== "" ||
-      profileData.office_location !== "" ||
-      JSON.stringify(settingsData.notifications) !== JSON.stringify({
-        email: true,
-        push: false,
-        marketing: true,
-      }) ||
-      JSON.stringify(settingsData.privacy) !== JSON.stringify({
-        profileVisible: true,
-        showEmail: false,
-        showLocation: true,
-      }) ||
-      JSON.stringify(settingsData.preferences) !== JSON.stringify({
-        theme: "system",
-        language: "en",
-        timezone: "GMT",
-      });
+      profileData.specialism !== "";
     if (!hasChanged) {
       toast("No changes detected.", { description: "Update some fields before saving." });
       return;
     }
-    // Update Clerk profile (name, email, picture, and user_metadata)
     try {
-      const res = await fetch("/api/clerk-update-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          name: tempProfileData.name,
-          email: tempProfileData.email,
-          picture: avatarUrl,
-          job_title: profileData.job_title,
-          team: profileData.team,
-          specialism: profileData.specialism,
-          office_location: profileData.office_location,
-          notifications: settingsData.notifications,
-          privacy: settingsData.privacy,
-          preferences: settingsData.preferences,
-        }),
+      await storeUser({
+        jobTitle: profileData.jobTitle,
+        team: profileData.team,
+        specialism: profileData.specialism,
       });
-      if (res.ok) {
-        // Refetch the latest user profile from your API
-        const profileRes = await fetch("/api/user-profile");
-        if (profileRes.ok) {
-          const updatedUser = await profileRes.json();
-          setProfileData({
-            job_title: updatedUser.user_metadata?.job_title || "",
-            team: updatedUser.user_metadata?.team || "",
-            specialism: updatedUser.user_metadata?.specialism || "",
-            office_location: updatedUser.user_metadata?.office_location || "",
-          });
-          setTempProfileData({
-            name: updatedUser.fullName || updatedUser.username || "",
-            email: updatedUser.primaryEmailAddress?.emailAddress || "",
-            job_title: updatedUser.user_metadata?.job_title || "",
-            team: updatedUser.user_metadata?.team || "",
-            specialism: updatedUser.user_metadata?.specialism || "",
-            office_location: updatedUser.user_metadata?.office_location || "",
-          });
-          setAvatarUrl(updatedUser.imageUrl || "/placeholder.svg?height=80&width=80");
-        }
-        setIsEditing(false);
-        toast.success("Profile updated successfully!");
-      } else {
-        toast.error("Failed to update profile.");
-      }
+      setIsEditing(false);
+      toast.success("Profile updated successfully!");
     } catch (err) {
       toast.error("Failed to update profile.");
     }
@@ -235,10 +257,9 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       ...prev,
       name: user?.fullName || user?.username || "",
       email: user?.primaryEmailAddress?.emailAddress || "",
-      job_title: profileData.job_title,
+      jobTitle: profileData.jobTitle,
       team: profileData.team,
       specialism: profileData.specialism,
-      office_location: profileData.office_location,
     }));
     setAvatarUrl(user?.imageUrl || "/placeholder.svg?height=80&width=80");
     setIsEditing(false);
@@ -359,6 +380,19 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                     <div className={cn("text-xs", activeTab === 'general' ? "text-primary-foreground/70" : "text-muted-foreground")}>Web app configuration</div>
                   </div>
                 </button>
+                <button
+                  onClick={() => setActiveTab('lecturer-preferences')}
+                  className={cn(
+                    "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
+                    activeTab === 'lecturer-preferences' ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                  )}
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <div>
+                    <div className="font-medium text-sm">Lecturer Preferences</div>
+                    <div className={cn("text-xs", activeTab === 'lecturer-preferences' ? "text-primary-foreground/70" : "text-muted-foreground")}>Teaching & interests</div>
+                  </div>
+                </button>
               </div>
             </div>
 
@@ -407,7 +441,14 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           )}
                         </div>
                         <div>
-                          <h3 className="font-semibold text-lg">{tempProfileData.name}</h3>
+                          <h3 className="font-semibold text-lg flex items-center gap-2">
+                            {tempProfileData.name}
+                            {profileFields?.systemRole && (
+                              <span className="inline-block bg-muted px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide border border-muted-foreground/20">
+                                {profileFields.systemRole.toUpperCase()}
+                              </span>
+                            )}
+                          </h3>
                           <p className="text-muted-foreground">{tempProfileData.email}</p>
                           {isEditing && (
                             <p className="text-sm text-muted-foreground mt-1">
@@ -439,11 +480,11 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="job_title">Job Title</Label>
+                          <Label htmlFor="jobTitle">Job Title</Label>
                           <Input
-                            id="job_title"
-                            value={profileData.job_title}
-                            onChange={(e) => setProfileData({ ...profileData, job_title: e.target.value })}
+                            id="jobTitle"
+                            value={profileData.jobTitle}
+                            onChange={(e) => setProfileData({ ...profileData, jobTitle: e.target.value })}
                             disabled={!isEditing}
                             placeholder="e.g. Senior Lecturer"
                           />
@@ -466,16 +507,6 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             onChange={(e) => setProfileData({ ...profileData, specialism: e.target.value })}
                             disabled={!isEditing}
                             placeholder="e.g. Paramedic"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="office_location">Office Location</Label>
-                          <Input
-                            id="office_location"
-                            value={profileData.office_location}
-                            onChange={(e) => setProfileData({ ...profileData, office_location: e.target.value })}
-                            disabled={!isEditing}
-                            placeholder="e.g. Paragon House"
                           />
                         </div>
                       </div>
@@ -531,16 +562,6 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                               onCheckedChange={(checked) => updateSettings("notifications", "push", checked)}
                             />
                           </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label>Marketing Emails</Label>
-                              <p className="text-sm text-muted-foreground">Receive updates about new features</p>
-                            </div>
-                            <Switch
-                              checked={settingsData.notifications.marketing}
-                              onCheckedChange={(checked) => updateSettings("notifications", "marketing", checked)}
-                            />
-                          </div>
                         </div>
                       </div>
 
@@ -563,26 +584,6 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                               onCheckedChange={(checked) => updateSettings("privacy", "profileVisible", checked)}
                             />
                           </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label>Show Email</Label>
-                              <p className="text-sm text-muted-foreground">Display email on public profile</p>
-                            </div>
-                            <Switch
-                              checked={settingsData.privacy.showEmail}
-                              onCheckedChange={(checked) => updateSettings("privacy", "showEmail", checked)}
-                            />
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Label>Show Location</Label>
-                              <p className="text-sm text-muted-foreground">Display location on public profile</p>
-                            </div>
-                            <Switch
-                              checked={settingsData.privacy.showLocation}
-                              onCheckedChange={(checked) => updateSettings("privacy", "showLocation", checked)}
-                            />
-                          </div>
                         </div>
                       </div>
 
@@ -600,7 +601,10 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                               <Label>Theme</Label>
                               <Select
                                 value={settingsData.preferences.theme}
-                                onValueChange={(value) => updateSettings("preferences", "theme", value)}
+                                onValueChange={(value) => {
+                                  updateSettings("preferences", "theme", value);
+                                  setTheme(value);
+                                }}
                               >
                                 <SelectTrigger>
                                   <SelectValue />
@@ -623,9 +627,6 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="en">English</SelectItem>
-                                  <SelectItem value="es">Spanish</SelectItem>
-                                  <SelectItem value="fr">French</SelectItem>
-                                  <SelectItem value="de">German</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -639,16 +640,34 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="PST">Pacific (PST)</SelectItem>
-                                  <SelectItem value="EST">Eastern (EST)</SelectItem>
-                                  <SelectItem value="GMT">Greenwich (GMT)</SelectItem>
-                                  <SelectItem value="CET">Central European (CET)</SelectItem>
+                                  <SelectItem value="GMT">Europe/London</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                           </div>
                         </div>
                       </div>
+                      <Button
+                        onClick={async () => {
+                          try {
+                            await setSettings({
+                              settings: {
+                                language: settingsData.preferences.language,
+                                notifyEmail: settingsData.notifications.email,
+                                notifyPush: settingsData.notifications.push,
+                                profilePublic: settingsData.privacy.profileVisible,
+                                theme: settingsData.preferences.theme,
+                                timezone: settingsData.preferences.timezone,
+                              }
+                            });
+                            // Also persist theme to Convex user record for login persistence
+                            await storeUser({ theme: settingsData.preferences.theme });
+                            toast.success("Settings saved!");
+                          } catch (err) {
+                            toast.error("Failed to save settings.");
+                          }
+                        }}
+                      >Save Settings</Button>
                     </div>
                   )}
 
@@ -656,6 +675,108 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                     <div className="space-y-6">
                       <h2 className="text-2xl font-semibold">General Settings</h2>
                       <p className="text-muted-foreground">This is a placeholder for web app general settings.</p>
+                    </div>
+                  )}
+
+                  {activeTab === "lecturer-preferences" && (
+                    <div className="space-y-6">
+                      <h2 className="text-2xl font-semibold">Lecturer Preferences</h2>
+                      <p className="text-muted-foreground">Set your preferences relating to working location, teaching, and interests.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label htmlFor="campus">Preferred Campus</Label>
+                          <Input
+                            id="campus"
+                            value={lecturerPrefs.campus}
+                            onChange={e => setLecturerPrefs(p => ({ ...p, campus: e.target.value }))}
+                            placeholder="e.g. Paragon House"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="teachingTime">Preferred Teaching Time</Label>
+                          <Input
+                            id="teachingTime"
+                            value={lecturerPrefs.teachingTime}
+                            onChange={e => setLecturerPrefs(p => ({ ...p, teachingTime: e.target.value }))}
+                            placeholder="e.g. Morning, Afternoon"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="teachingDay">Preferred Teaching Day</Label>
+                          <Input
+                            id="teachingDay"
+                            value={lecturerPrefs.teachingDay}
+                            onChange={e => setLecturerPrefs(p => ({ ...p, teachingDay: e.target.value }))}
+                            placeholder="e.g. Monday, Friday"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Interests</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={lecturerPrefs.interestInput}
+                            onChange={e => setLecturerPrefs(p => ({ ...p, interestInput: e.target.value }))}
+                            placeholder="e.g. Paramedicine, Pre Hospital Care"
+                            onKeyDown={e => {
+                              if (e.key === 'Enter' && lecturerPrefs.interestInput.trim()) {
+                                setLecturerPrefs(p => ({
+                                  ...p,
+                                  interests: [...p.interests, p.interestInput.trim()],
+                                  interestInput: "",
+                                }));
+                                e.preventDefault();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              if (lecturerPrefs.interestInput.trim()) {
+                                setLecturerPrefs(p => ({
+                                  ...p,
+                                  interests: [...p.interests, p.interestInput.trim()],
+                                  interestInput: "",
+                                }));
+                              }
+                            }}
+                          >Add</Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {lecturerPrefs.interests.map((interest, idx) => (
+                            <span key={idx} className="inline-flex items-center bg-muted px-3 py-1 rounded-full text-sm">
+                              {interest}
+                              <button
+                                type="button"
+                                className="ml-2 text-muted-foreground hover:text-destructive"
+                                onClick={() => setLecturerPrefs(p => ({
+                                  ...p,
+                                  interests: p.interests.filter((_, i) => i !== idx),
+                                }))}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <Button
+                        onClick={async () => {
+                          try {
+                            await setPreferences({
+                              preferences: {
+                                interests: lecturerPrefs.interests,
+                                sessionCampus: lecturerPrefs.campus,
+                                sessionDay: lecturerPrefs.teachingDay,
+                                sessionTime: lecturerPrefs.teachingTime,
+                              }
+                            });
+                            toast.success("Lecturer preferences saved!");
+                          } catch (err) {
+                            toast.error("Failed to save preferences.");
+                          }
+                        }}
+                      >Save Preferences</Button>
                     </div>
                   )}
                 </div>

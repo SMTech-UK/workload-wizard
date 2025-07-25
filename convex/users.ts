@@ -1,8 +1,14 @@
-import { mutation } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
+import { v } from "convex/values";
 
 export const store = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    jobTitle: v.optional(v.string()),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
+    theme: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Called storeUser without authentication present");
@@ -26,10 +32,141 @@ export const store = mutation({
     };
 
     if (user) {
-      await ctx.db.patch(user._id, userData);
+      // Only update jobTitle, team, specialism, and theme if provided
+      const patchData = { ...userData };
+      if (args.jobTitle !== undefined) (patchData as any).jobTitle = args.jobTitle;
+      if (args.team !== undefined) (patchData as any).team = args.team;
+      if (args.specialism !== undefined) (patchData as any).specialism = args.specialism;
+      if (args.theme !== undefined) {
+        (patchData as any).settings = { ...(user.settings || {}), theme: args.theme };
+      }
+      await ctx.db.patch(user._id, patchData);
       return user._id;
     } else {
-      return await ctx.db.insert("users", userData);
+      return await ctx.db.insert("users", {
+        ...userData,
+        jobTitle: args.jobTitle ?? "",
+        team: args.team ?? "",
+        specialism: args.specialism ?? "",
+        // Default settings for new users
+        settings: {
+          theme: args.theme ?? "system",
+          language: "en",
+          timezone: "GMT",
+          notifyEmail: true,
+          notifyPush: true,
+          profilePublic: true,
+        },
+        preferences: {
+          interests: [],
+          sessionCampus: "",
+          sessionDay: "",
+          sessionTime: "",
+        },
+      });
     }
+  },
+});
+
+export const getPreferences = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.db.query("users")
+      .filter(q => q.eq(q.field("subject"), identity.subject))
+      .unique();
+    if (!user) return {
+      interests: [],
+      sessionCampus: "",
+      sessionDay: "",
+      sessionTime: "",
+    };
+    return user.preferences ?? {
+      interests: [],
+      sessionCampus: "",
+      sessionDay: "",
+      sessionTime: "",
+    };
+  },
+});
+
+export const setPreferences = mutation({
+  args: {
+    preferences: v.object({
+      interests: v.array(v.string()),
+      sessionCampus: v.string(),
+      sessionDay: v.string(),
+      sessionTime: v.string(),
+    })
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.db.query("users")
+      .filter(q => q.eq(q.field("subject"), identity.subject))
+      .unique();
+    if (!user) throw new Error("User not found");
+    await ctx.db.patch(user._id, { preferences: args.preferences });
+    return true;
+  }
+});
+
+export const setSettings = mutation({
+  args: {
+    settings: v.object({
+      language: v.string(),
+      notifyEmail: v.boolean(),
+      notifyPush: v.boolean(),
+      profilePublic: v.boolean(),
+      theme: v.string(),
+      timezone: v.string(),
+    })
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.db.query("users")
+      .filter(q => q.eq(q.field("subject"), identity.subject))
+      .unique();
+    if (!user) throw new Error("User not found");
+    await ctx.db.patch(user._id, { settings: args.settings });
+    return true;
+  }
+});
+
+export const getProfileFields = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.db.query("users")
+      .filter(q => q.eq(q.field("subject"), identity.subject))
+      .unique();
+    return {
+      jobTitle: user?.jobTitle ?? "",
+      team: user?.team ?? "",
+      specialism: user?.specialism ?? "",
+      systemRole: user?.systemRole ?? "",
+    };
+  },
+});
+
+export const getSettings = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const user = await ctx.db.query("users")
+      .filter(q => q.eq(q.field("subject"), identity.subject))
+      .unique();
+    return user?.settings ?? {
+      theme: "system",
+      language: "en",
+      timezone: "GMT",
+      notifyEmail: true,
+      notifyPush: true,
+      profilePublic: true,
+    };
   },
 });

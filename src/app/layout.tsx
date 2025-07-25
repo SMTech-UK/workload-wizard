@@ -14,6 +14,7 @@ import { neobrutalism } from '@clerk/themes'
 import { ConvexReactClient } from "convex/react";
 import LoadingOverlay from "@/components/loading-overlay";
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { ThemeProvider } from "next-themes";
 
 const geistSans = localFont({
   src: "../fonts/GeistVF.woff",
@@ -71,13 +72,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
       <ClerkProvider appearance={{baseTheme: neobrutalism }}>
-        <LoadingOverlayProvider>
-          <ConvexClientProvider>{children}</ConvexClientProvider>
-          <Toaster position="top-right" richColors closeButton />
-        </LoadingOverlayProvider>
-        </ClerkProvider>
-        <SpeedInsights/>
-        <Analytics/>
+        <ThemeProvider attribute="class">
+          <LoadingOverlayProvider>
+            <ConvexClientProvider>{children}</ConvexClientProvider>
+            <Toaster position="top-right" richColors closeButton />
+          </LoadingOverlayProvider>
+        </ThemeProvider>
+      </ClerkProvider>
+      <SpeedInsights/>
+      <Analytics/>
       </body>
     </html>
   );
