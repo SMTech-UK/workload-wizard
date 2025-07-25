@@ -1,8 +1,8 @@
 
 Todo:
-  ☐ Allow user to view landing page without auth
-  ☐ Set up Clerk backend
-  ☐ Integrate Clerk with Convex for user details (https://clerk.com/docs/integrations/databases/convex)
+  ✔ Allow user to view landing page without auth @done(25-07-25 14:28)
+  ✔ Set up Clerk backend @done(25-07-25 15:13)
+  ✔ Integrate Clerk with Convex for user details (https://clerk.com/docs/integrations/databases/convex) @done(25-07-25 15:13)
   ☐ Implement Clerk user profile using existing theme
   ☐ Integrate Clerk with current user button and dropdown
   ☐ Set up notifications and recent activity using Knock integration

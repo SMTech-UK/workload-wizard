@@ -1,3 +1,5 @@
+"use client"
+
 import { WandSparkles } from "lucide-react"
 import { SignIn } from '@clerk/nextjs'
 
