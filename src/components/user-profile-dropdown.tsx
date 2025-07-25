@@ -11,7 +11,10 @@ import { User, Settings, LogOut, CreditCard, HelpCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useUser } from "@auth0/nextjs-auth0"
+import { useUser } from "@clerk/nextjs"
+import { Authenticated } from "convex/react"
+import SettingsModal, { TabType } from "@/hooks/settings-modal"
+import React from "react"
 
 interface UserProfileDropdownProps {
   onProfileClick?: () => void;
@@ -20,22 +23,30 @@ interface UserProfileDropdownProps {
 
 export default function Component({ onProfileClick, onSettingsClick }: UserProfileDropdownProps) {
   const router = useRouter();
-  const { user: auth0User, isLoading } = useUser();
+  const { user, isLoaded } = useUser();
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [modalTab, setModalTab] = React.useState<TabType>("profile");
 
-  const loggedIn = !!auth0User;
+  if (!isLoaded || !user) return null;
+
+  const handleProfileClick = () => {
+    setModalTab("profile");
+    setModalOpen(true);
+    if (onProfileClick) onProfileClick();
+  };
+
   return (
-    <div className="flex justify-end p-4">
-      {loggedIn ? (
+    <Authenticated>
+      <div className="flex justify-end p-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-gray-300 focus:ring-gray-300 transition-all">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={auth0User?.picture || "/placeholder.svg?height=40&width=40"} alt="Profile" />
+                <AvatarImage src={user.imageUrl || "/placeholder.svg?height=40&width=40"} alt="Profile" />
                 <AvatarFallback>
-                  {auth0User?.name
-                    ?.split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                  {user.firstName && user.lastName
+                    ? `${user.firstName[0]}${user.lastName[0]}`
+                    : user.username?.slice(0, 2) || "U"}
                 </AvatarFallback>
               </Avatar>
             </button>
@@ -43,12 +54,12 @@ export default function Component({ onProfileClick, onSettingsClick }: UserProfi
           <DropdownMenuContent className="w-64" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{auth0User?.name}</p>
-                <p className="text-xs leading-none text-muted-foreground">{auth0User?.email}</p>
+                <p className="text-sm font-medium leading-none">{user.fullName || user.username}</p>
+                <p className="text-xs leading-none text-muted-foreground">{user.primaryEmailAddress?.emailAddress}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onProfileClick}>
+            <DropdownMenuItem onClick={handleProfileClick}>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
@@ -73,9 +84,8 @@ export default function Component({ onProfileClick, onSettingsClick }: UserProfi
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      ) : (
-        <Button variant="outline" onClick={() => router.push('/auth/login')}>Log In</Button>
-      )}
-    </div>
+        <SettingsModal open={modalOpen} onOpenChange={setModalOpen} initialTab={modalTab} />
+      </div>
+    </Authenticated>
   )
 }

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Camera, User, Settings, Bell, Shield, Palette, X, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useUser } from "@auth0/nextjs-auth0";
+import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 
 export type TabType = "profile" | "settings" | "general"
@@ -25,24 +25,24 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ open, onOpenChange, initialTab = "profile" }: SettingsModalProps) {
-  const { user, isLoading } = useUser();
+  const { user, isLoaded } = useUser();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   React.useEffect(() => {
     if (open) setActiveTab(initialTab);
   }, [open, initialTab]);
-  const [avatarUrl, setAvatarUrl] = useState(user?.picture || "/placeholder.svg?height=80&width=80");
+  const [avatarUrl, setAvatarUrl] = useState(user?.imageUrl || "/placeholder.svg?height=80&width=80");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Only bio/location are local fields, name/email/picture come from Auth0
+  // Clerk user: only allow editing local fields, display Clerk user info
   const [profileData, setProfileData] = useState({
-    job_title: (user?.user_metadata?.job_title as string) || "",
-    team: (user?.user_metadata?.team as string) || "",
-    specialism: (user?.user_metadata?.specialism as string) || "",
-    office_location: (user?.user_metadata?.office_location as string) || "",
+    job_title: "",
+    team: "",
+    specialism: "",
+    office_location: "",
   });
   const [tempProfileData, setTempProfileData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
+    name: user?.fullName || user?.username || "",
+    email: user?.primaryEmailAddress?.emailAddress || "",
     job_title: profileData.job_title,
     team: profileData.team,
     specialism: profileData.specialism,
@@ -53,17 +53,15 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   React.useEffect(() => {
     if (open && user) {
       setProfileData({
-        job_title: (user.user_metadata?.job_title as string) || "",
-        team: (user.user_metadata?.team as string) || "",
-        specialism: (user.user_metadata?.specialism as string) || "",
-        office_location: (user.user_metadata?.office_location as string) || "",
+        job_title: "",
+        team: "",
+        specialism: "",
+        office_location: "",
       });
       setTempProfileData(prev => ({
         ...prev,
-        job_title: (user.user_metadata?.job_title as string) || "",
-        team: (user.user_metadata?.team as string) || "",
-        specialism: (user.user_metadata?.specialism as string) || "",
-        office_location: (user.user_metadata?.office_location as string) || "",
+        name: user.fullName || user.username || "",
+        email: user.primaryEmailAddress?.emailAddress || "",
       }));
     }
   }, [open, user]);
@@ -71,22 +69,23 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   // Update avatarUrl if user changes (e.g. after login)
   React.useEffect(() => {
     if (user) {
-      setAvatarUrl(user.picture || "/placeholder.svg?height=80&width=80");
+      setAvatarUrl(user.imageUrl || "/placeholder.svg?height=80&width=80");
     }
   }, [user]);
 
+  // Clerk: settingsData is only local
   const [settingsData, setSettingsData] = useState({
-    notifications: user?.user_metadata?.notifications || {
+    notifications: {
       email: true,
       push: false,
       marketing: true,
     },
-    privacy: user?.user_metadata?.privacy || {
+    privacy: {
       profileVisible: true,
       showEmail: false,
       showLocation: true,
     },
-    preferences: user?.user_metadata?.preferences || {
+    preferences: {
       theme: "system",
       language: "en",
       timezone: "GMT",
@@ -95,26 +94,26 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
 
   // Keep settingsData in sync with user.user_metadata when modal opens
   React.useEffect(() => {
-    if (open && user) {
+    if (open) {
       setSettingsData({
-        notifications: user.user_metadata?.notifications || {
+        notifications: {
           email: true,
           push: false,
           marketing: true,
         },
-        privacy: user.user_metadata?.privacy || {
+        privacy: {
           profileVisible: true,
           showEmail: false,
           showLocation: true,
         },
-        preferences: user.user_metadata?.preferences || {
+        preferences: {
           theme: "system",
           language: "en",
           timezone: "GMT",
         },
       });
     }
-  }, [open, user]);
+  }, [open]);
 
   const sidebarItems = [
     {
@@ -142,6 +141,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     }
   };
 
+  // Remove all Auth0-specific update/save logic, and only allow local editing for Clerk
   const handleSaveProfile = async () => {
     if (!user) {
       toast.error("User not found. Please log in again.");
@@ -154,24 +154,24 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     }
     // Validation: Only submit if something has changed
     const hasChanged =
-      tempProfileData.name !== (user.name || "") ||
-      tempProfileData.email !== (user.email || "") ||
-      avatarUrl !== (user.picture || "/placeholder.svg?height=80&width=80") ||
-      tempProfileData.job_title !== ((user.user_metadata?.job_title as string) || "") ||
-      tempProfileData.team !== ((user.user_metadata?.team as string) || "") ||
-      tempProfileData.specialism !== ((user.user_metadata?.specialism as string) || "") ||
-      tempProfileData.office_location !== ((user.user_metadata?.office_location as string) || "") ||
-      JSON.stringify(settingsData.notifications) !== JSON.stringify(user.user_metadata?.notifications || {
+      tempProfileData.name !== (user.fullName || user.username || "") ||
+      tempProfileData.email !== (user.primaryEmailAddress?.emailAddress || "") ||
+      avatarUrl !== (user.imageUrl || "/placeholder.svg?height=80&width=80") ||
+      profileData.job_title !== "" ||
+      profileData.team !== "" ||
+      profileData.specialism !== "" ||
+      profileData.office_location !== "" ||
+      JSON.stringify(settingsData.notifications) !== JSON.stringify({
         email: true,
         push: false,
         marketing: true,
       }) ||
-      JSON.stringify(settingsData.privacy) !== JSON.stringify(user.user_metadata?.privacy || {
+      JSON.stringify(settingsData.privacy) !== JSON.stringify({
         profileVisible: true,
         showEmail: false,
         showLocation: true,
       }) ||
-      JSON.stringify(settingsData.preferences) !== JSON.stringify(user.user_metadata?.preferences || {
+      JSON.stringify(settingsData.preferences) !== JSON.stringify({
         theme: "system",
         language: "en",
         timezone: "GMT",
@@ -180,20 +180,20 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       toast("No changes detected.", { description: "Update some fields before saving." });
       return;
     }
-    // Update Auth0 profile (name, email, picture, and user_metadata)
+    // Update Clerk profile (name, email, picture, and user_metadata)
     try {
-      const res = await fetch("/api/auth0-update-profile", {
+      const res = await fetch("/api/clerk-update-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user.sub,
+          userId: user.id,
           name: tempProfileData.name,
           email: tempProfileData.email,
           picture: avatarUrl,
-          job_title: tempProfileData.job_title,
-          team: tempProfileData.team,
-          specialism: tempProfileData.specialism,
-          office_location: tempProfileData.office_location,
+          job_title: profileData.job_title,
+          team: profileData.team,
+          specialism: profileData.specialism,
+          office_location: profileData.office_location,
           notifications: settingsData.notifications,
           privacy: settingsData.privacy,
           preferences: settingsData.preferences,
@@ -211,14 +211,14 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
             office_location: updatedUser.user_metadata?.office_location || "",
           });
           setTempProfileData({
-            name: updatedUser.name || "",
-            email: updatedUser.email || "",
+            name: updatedUser.fullName || updatedUser.username || "",
+            email: updatedUser.primaryEmailAddress?.emailAddress || "",
             job_title: updatedUser.user_metadata?.job_title || "",
             team: updatedUser.user_metadata?.team || "",
             specialism: updatedUser.user_metadata?.specialism || "",
             office_location: updatedUser.user_metadata?.office_location || "",
           });
-          setAvatarUrl(updatedUser.picture || "/placeholder.svg?height=80&width=80");
+          setAvatarUrl(updatedUser.imageUrl || "/placeholder.svg?height=80&width=80");
         }
         setIsEditing(false);
         toast.success("Profile updated successfully!");
@@ -233,14 +233,14 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   const handleCancelEdit = () => {
     setTempProfileData(prev => ({
       ...prev,
-      name: user?.name || "",
-      email: user?.email || "",
+      name: user?.fullName || user?.username || "",
+      email: user?.primaryEmailAddress?.emailAddress || "",
       job_title: profileData.job_title,
       team: profileData.team,
       specialism: profileData.specialism,
       office_location: profileData.office_location,
     }));
-    setAvatarUrl(user?.picture || "/placeholder.svg?height=80&width=80");
+    setAvatarUrl(user?.imageUrl || "/placeholder.svg?height=80&width=80");
     setIsEditing(false);
   };
 
@@ -263,7 +263,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     }))
   }
 
-  if (isLoading) {
+  if (!isLoaded) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
@@ -442,8 +442,8 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           <Label htmlFor="job_title">Job Title</Label>
                           <Input
                             id="job_title"
-                            value={tempProfileData.job_title}
-                            onChange={(e) => setTempProfileData({ ...tempProfileData, job_title: e.target.value })}
+                            value={profileData.job_title}
+                            onChange={(e) => setProfileData({ ...profileData, job_title: e.target.value })}
                             disabled={!isEditing}
                             placeholder="e.g. Senior Lecturer"
                           />
@@ -452,8 +452,8 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           <Label htmlFor="team">Team</Label>
                           <Input
                             id="team"
-                            value={tempProfileData.team}
-                            onChange={(e) => setTempProfileData({ ...tempProfileData, team: e.target.value })}
+                            value={profileData.team}
+                            onChange={(e) => setProfileData({ ...profileData, team: e.target.value })}
                             disabled={!isEditing}
                             placeholder="e.g. Simulation"
                           />
@@ -462,8 +462,8 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           <Label htmlFor="specialism">Specialism</Label>
                           <Input
                             id="specialism"
-                            value={tempProfileData.specialism}
-                            onChange={(e) => setTempProfileData({ ...tempProfileData, specialism: e.target.value })}
+                            value={profileData.specialism}
+                            onChange={(e) => setProfileData({ ...profileData, specialism: e.target.value })}
                             disabled={!isEditing}
                             placeholder="e.g. Paramedic"
                           />
@@ -472,8 +472,8 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           <Label htmlFor="office_location">Office Location</Label>
                           <Input
                             id="office_location"
-                            value={tempProfileData.office_location}
-                            onChange={(e) => setTempProfileData({ ...tempProfileData, office_location: e.target.value })}
+                            value={profileData.office_location}
+                            onChange={(e) => setProfileData({ ...profileData, office_location: e.target.value })}
                             disabled={!isEditing}
                             placeholder="e.g. Paragon House"
                           />

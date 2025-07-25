@@ -2,8 +2,11 @@ import { Unauthenticated, Authenticated } from "convex/react";
 import { SignInButton, UserButton } from "@clerk/nextjs";
 import { WandSparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import UserProfileDropdown from "./user-profile-dropdown";
+import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
 
 export default function LandingNav() {
+    const { isLoading, isAuthenticated } = useStoreUserEffect();
     return (
         <header className="px-4 lg:px-6 h-16 flex items-center">
             <div className="flex items-center gap-2">
@@ -13,17 +16,13 @@ export default function LandingNav() {
                 <span className="text-xl font-bold text-gray-900">WorkloadWizard</span>
             </div>
             <nav className="ml-auto flex items-center gap-2">
-                <Authenticated>
-                    <Button variant="outline">
-                        <a href="/dashboard">Dashboard</a>
-                    </Button>
-                    <UserButton/>
-                </Authenticated>
-                <Unauthenticated>
-                    <SignInButton mode="modal">
-                        <Button variant="outline">Sign In</Button>
-                    </SignInButton>
-                </Unauthenticated>
+            {isLoading ? (
+        <>Loading...</>
+      ) : !isAuthenticated ? (
+        <SignInButton mode="modal" />
+      ) : (
+        <UserButton />
+      )}
             </nav>
         </header>
     )
