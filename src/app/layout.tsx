@@ -6,8 +6,6 @@ import ConvexClientProvider from "./ConvexClientProvider";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
-import { Knock } from "@knocklabs/node"
-import { redirect } from "next/navigation";
 import { ClerkProvider, useAuth } from '@clerk/nextjs'
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { neobrutalism } from '@clerk/themes'
@@ -65,10 +63,11 @@ function LoadingOverlayProvider({ children }: { children: React.ReactNode }) {
 
 function KnockProviderWrapper({ children }: { children: React.ReactNode }) {
   const { userId } = useAuth();
+  if (!userId) return null;
   return (
     <KnockProvider
       apiKey={process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY!}
-      {...(userId ? { user: { id: userId } } : {})}
+      user={{ id: userId }}
     >
       {children}
     </KnockProvider>

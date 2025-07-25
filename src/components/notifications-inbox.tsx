@@ -16,6 +16,9 @@ import {
   Info,
   MessageSquare,
   Settings,
+  PlusCircle,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -45,44 +48,6 @@ interface RecentChange {
   changes: string[]
 }
 
-const sampleRecentChanges: RecentChange[] = [
-  {
-    id: "1",
-    type: "staff_update",
-    title: "Staff Profile Updated",
-    description: "Dr. Sarah Johnson updated her specialization and contact details",
-    timestamp: "1 hour ago",
-    user: "Dr. Sarah Johnson",
-    changes: ["Specialization changed to 'AI & Machine Learning'", "Email updated", "Office location updated"],
-  },
-  {
-    id: "2",
-    type: "allocation_change",
-    title: "Administrative Allocation Modified",
-    description: "Module leadership hours adjusted for Computer Science team",
-    timestamp: "3 hours ago",
-    user: "Prof. Williams",
-    changes: ["Module leadership: 120h → 140h", "Research time: 75h → 55h"],
-  },
-  {
-    id: "3",
-    type: "module_assignment",
-    title: "New Module Assignment",
-    description: "CS401 Advanced Programming assigned to Dr. Smith",
-    timestamp: "5 hours ago",
-    user: "Admin User",
-    changes: ["Teaching hours: +87h", "Semester 2 assignment", "Core module designation"],
-  },
-  {
-    id: "4",
-    type: "system_update",
-    title: "System Maintenance",
-    description: "Workload calculation engine updated with new algorithms",
-    timestamp: "1 day ago",
-    user: "System",
-    changes: ["Improved capacity calculations", "Enhanced reporting features", "Bug fixes applied"],
-  },
-]
 
 // Helper to extract a string title from the first block
 function getNotificationTitle(notification: FeedItem) {
@@ -132,11 +97,20 @@ export default function NotificationsInbox() {
   );
   const { items, metadata, loading } = useNotificationStore(feedClient);
 
+  const recentChangesFeedClient = useNotifications(
+    knockClient,
+    process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID!
+  );
+  const { items: recentChangesItems, loading: loadingRecentChanges } = useNotificationStore(recentChangesFeedClient);
+  useEffect(() => { recentChangesFeedClient.fetch(); }, [recentChangesFeedClient]);
+
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   // Change filterType to filterPriority
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
+  // Add state to track the active tab:
+  const [activeTab, setActiveTab] = useState('notifications');
 
   useEffect(() => {
     feedClient.fetch();
@@ -256,29 +230,46 @@ export default function NotificationsInbox() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {unreadCount > 0 && <Badge className="bg-red-500 text-white">{unreadCount} unread</Badge>}
-            {unreadCount > 0 ? (
-              <Button variant="outline" onClick={markAllAsRead} className="hover:bg-gray-50 bg-transparent">
-                <Check className="h-4 w-4 mr-2" />
-                Mark all read
-              </Button>
+            {activeTab === 'notifications' ? (
+              unreadCount > 0 ? (
+                <Button variant="outline" onClick={markAllAsRead} className="hover:bg-gray-50 bg-transparent">
+                  <Check className="h-4 w-4 mr-2" />
+                  Mark all read
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={markAllAsUnread} className="hover:bg-gray-50 bg-transparent">
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  Mark all unread
+                </Button>
+              )
             ) : (
-              <Button variant="outline" onClick={markAllAsUnread} className="hover:bg-gray-50 bg-transparent">
-                <EyeOff className="h-4 w-4 mr-2" />
-                Mark all unread
-              </Button>
+              recentChangesItems.filter(n => !n.read_at).length > 0 ? (
+                <Button variant="outline" onClick={() => recentChangesFeedClient.markAllAsRead()} className="hover:bg-gray-50 bg-transparent">
+                  <Check className="h-4 w-4 mr-2" />
+                  Mark all read
+                </Button>
+              ) : (
+                <Button variant="outline" onClick={() => recentChangesItems.forEach(item => recentChangesFeedClient.markAsUnread(item))} className="hover:bg-gray-50 bg-transparent">
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  Mark all unread
+                </Button>
+              )
             )}
           </div>
         </div>
       </div>
 
-      <Tabs defaultValue="notifications" className="space-y-6">
+      <Tabs defaultValue="notifications" className="space-y-6" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2 bg-white border border-gray-200">
           <TabsTrigger value="notifications" className="data-[state=active]:bg-black data-[state=active]:text-white">
             Notifications
+            {unreadCount > 0 && <Badge className="ml-2 bg-red-500 text-white">{unreadCount}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="recent-changes" className="data-[state=active]:bg-black data-[state=active]:text-white">
             Recent Changes
+            {recentChangesItems.filter(n => !n.read_at).length > 0 && (
+              <Badge className="ml-2 bg-red-500 text-white">{recentChangesItems.filter(n => !n.read_at).length}</Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -490,47 +481,94 @@ export default function NotificationsInbox() {
         </TabsContent>
 
         <TabsContent value="recent-changes" className="space-y-6">
-          {/* Recent Changes List */}
-          <div className="space-y-4">
-            {sampleRecentChanges.map((change) => (
-              <Card key={change.id} className="border border-gray-200 shadow-sm bg-white h-28">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      {getChangeIcon(change.type)}
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{change.title}</h3>
-                          <p className="text-sm text-gray-600">{change.description}</p>
-                        </div>
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {change.timestamp}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                          <User className="h-3 w-3" />
-                          {change.user}
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        {change.changes.map((changeItem, index) => (
-                          <div key={index} className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                            {changeItem}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+          {/* New Knock feed for recent changes */}
+          <div className="space-y-4 mt-6">
+            {loadingRecentChanges ? (
+              <Card className="border border-gray-200 shadow-sm bg-white h-28">
+                <CardContent className="p-12 text-center">
+                  <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading recent changes...</h3>
                 </CardContent>
               </Card>
-            ))}
+            ) : recentChangesItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center min-h-[7rem] border border-dashed border-gray-200 rounded-lg bg-gray-50 text-center">
+                <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-base font-medium text-gray-900 mb-2">No recent changes found</h3>
+              </div>
+            ) : (
+              recentChangesItems.map(notification => {
+                const titleObj = getNotificationTitle(notification);
+                return (
+                  <Card key={notification.id} className={`border shadow-sm ${notification.read_at ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'} h-28`}>
+                    <div
+                      onClick={() => {
+                        if (notification.data && notification.data.entityId) {
+                          window.open(`/entities/${notification.data.entityId}`, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      className={`p-4 h-full flex items-center relative ${(notification.data?.entityId ?? '') ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
+                          ${notification.data?.type === 'create' ? 'bg-green-100 text-green-700' :
+                            notification.data?.type === 'edit' ? 'bg-orange-100 text-orange-700' :
+                            notification.data?.type === 'delete' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-600'}`}
+                        >
+                          {notification.data?.type === 'create' ? <PlusCircle className="h-4 w-4" /> :
+                           notification.data?.type === 'edit' ? <Pencil className="h-4 w-4" /> :
+                           notification.data?.type === 'delete' ? <Trash2 className="h-4 w-4" /> :
+                           getChangeIcon(notification.data?.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-medium text-sm overflow-hidden text-ellipsis whitespace-nowrap text-gray-900">
+                                  {titleObj.isHtml ? (
+                                    <span dangerouslySetInnerHTML={{ __html: titleObj.value }} />
+                                  ) : (
+                                    titleObj.value
+                                  )}
+                                </h3>
+                              </div>
+                              <p className="text-[11px] text-gray-600 mb-2 overflow-hidden text-ellipsis whitespace-nowrap">{notification.data?.description}</p>
+                              <div className="flex items-center gap-4 text-[10px] text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatNotificationTimestamp(notification.inserted_at).showTooltip ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span>{formatNotificationTimestamp(notification.inserted_at).display}</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>{formatNotificationTimestamp(notification.inserted_at).tooltip}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <span>{formatNotificationTimestamp(notification.inserted_at).display}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="absolute top-4 right-4 flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={e => { e.stopPropagation(); notification.read_at ? recentChangesFeedClient.markAsUnread(notification) : recentChangesFeedClient.markAsRead(notification) }}
+                          className="hover:bg-gray-100"
+                        >
+                          {notification.read_at ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })
+            )}
           </div>
         </TabsContent>
       </Tabs>
