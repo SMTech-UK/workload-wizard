@@ -6,9 +6,12 @@ Todo:
   ✔ Implement Clerk user profile using existing theme @started(25-07-25 15:14) @done(25-07-25 16:33) @lasted(1h19m23s)
   ✔ Store user details in Convex database (https://docs.convex.dev/auth/database-auth) @done(25-07-25 16:33)
   ✔ Integrate Clerk with current user button and dropdown @done(25-07-25 18:18)
-  ☐ Set up notifications and recent activity using Knock integration
-  ☐ Connect Clerk, Knock, and Convex for unified user management and notifications
+  ☐ Set up notifications using Knock integration
+  ☐ Set up recent activity using knock integration
+  ✔ Connect Clerk, Knock, and Convex for unified user management and notifications @done(25-07-25 20:08)
   ☐ Complete module allocation feature after auth and notifications are set up
   ☐ Add metadata/seo for site
   ☐ Update Clerk user details and avatar from website
   ☐ Work on styling/colors (https://www.youtube.com/watch?v=vvPklRN0Tco)
+  ☐ Add dropdown for extending notifications
+  ☐ Add notification click URL

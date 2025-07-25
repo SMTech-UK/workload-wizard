@@ -15,6 +15,7 @@ import { ConvexReactClient } from "convex/react";
 import LoadingOverlay from "@/components/loading-overlay";
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { ThemeProvider } from "next-themes";
+import { KnockProvider } from "@knocklabs/react";
 
 const geistSans = localFont({
   src: "../fonts/GeistVF.woff",
@@ -62,6 +63,18 @@ function LoadingOverlayProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+function KnockProviderWrapper({ children }: { children: React.ReactNode }) {
+  const { userId } = useAuth();
+  return (
+    <KnockProvider
+      apiKey={process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY!}
+      {...(userId ? { user: { id: userId } } : {})}
+    >
+      {children}
+    </KnockProvider>
+  );
+}
+
 export default function RootLayout({
   children,
   ...props
@@ -74,7 +87,9 @@ export default function RootLayout({
       <ClerkProvider appearance={{baseTheme: neobrutalism }}>
         <ThemeProvider attribute="class">
           <LoadingOverlayProvider>
-            <ConvexClientProvider>{children}</ConvexClientProvider>
+            <KnockProviderWrapper>
+              <ConvexClientProvider>{children}</ConvexClientProvider>
+            </KnockProviderWrapper>
             <Toaster position="top-right" richColors closeButton />
           </LoadingOverlayProvider>
         </ThemeProvider>

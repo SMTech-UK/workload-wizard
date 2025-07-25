@@ -24,25 +24,16 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useState, useEffect } from "react"
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { timeAgo } from "@/lib/notify";
-import type { Id } from "../../convex/_generated/dataModel";
-
-interface Notification {
-  id: string
-  type: "assignment" | "mention" | "review" | "update" | "alert" | "approval"
-  title: string
-  description: string
-  timestamp: string
-  isRead: boolean
-  isArchived: boolean
-  priority: "low" | "medium" | "high"
-  relatedUser?: string
-  relatedModule?: string
-  actionRequired?: boolean
-}
+import { useState } from "react"
+import {
+  useKnockClient,
+  useNotifications,
+  useNotificationStore,
+} from "@knocklabs/react";
+import { useEffect } from "react";
+import type { FeedItem } from "@knocklabs/client";
+import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface RecentChange {
   id: string
@@ -54,123 +45,102 @@ interface RecentChange {
   changes: string[]
 }
 
-interface NotificationsInboxProps {
-  initialTab?: 'notifications' | 'recent-changes';
-}
-
-const sampleNotifications: Notification[] = [
+const sampleRecentChanges: RecentChange[] = [
   {
     id: "1",
-    type: "assignment",
-    title: "New Module Assignment",
-    description: "You have been assigned to teach CS301 - Software Engineering for Semester 2",
-    timestamp: "2 hours ago",
-    isRead: false,
-    isArchived: false,
-    priority: "high",
-    relatedUser: "Dr. Smith",
-    relatedModule: "CS301",
-    actionRequired: true,
+    type: "staff_update",
+    title: "Staff Profile Updated",
+    description: "Dr. Sarah Johnson updated her specialization and contact details",
+    timestamp: "1 hour ago",
+    user: "Dr. Sarah Johnson",
+    changes: ["Specialization changed to 'AI & Machine Learning'", "Email updated", "Office location updated"],
   },
   {
     id: "2",
-    type: "review",
-    title: "Workload Review Required",
-    description: "Your administrative allocations for next semester require approval",
-    timestamp: "4 hours ago",
-    isRead: false,
-    isArchived: false,
-    priority: "medium",
-    actionRequired: true,
+    type: "allocation_change",
+    title: "Administrative Allocation Modified",
+    description: "Module leadership hours adjusted for Computer Science team",
+    timestamp: "3 hours ago",
+    user: "Prof. Williams",
+    changes: ["Module leadership: 120h → 140h", "Research time: 75h → 55h"],
   },
   {
     id: "3",
-    type: "mention",
-    title: "Mentioned in Discussion",
-    description: "Dr. Johnson mentioned you in a discussion about curriculum development",
-    timestamp: "1 day ago",
-    isRead: true,
-    isArchived: false,
-    priority: "low",
-    relatedUser: "Dr. Johnson",
+    type: "module_assignment",
+    title: "New Module Assignment",
+    description: "CS401 Advanced Programming assigned to Dr. Smith",
+    timestamp: "5 hours ago",
+    user: "Admin User",
+    changes: ["Teaching hours: +87h", "Semester 2 assignment", "Core module designation"],
   },
   {
     id: "4",
-    type: "update",
-    title: "Profile Updated",
-    description: "Your staff profile has been updated with new contact information",
-    timestamp: "2 days ago",
-    isRead: true,
-    isArchived: false,
-    priority: "low",
-  },
-  {
-    id: "5",
-    type: "alert",
-    title: "Capacity Warning",
-    description: "Your workload is approaching maximum capacity (95%)",
-    timestamp: "3 days ago",
-    isRead: false,
-    isArchived: false,
-    priority: "high",
-    actionRequired: true,
-  },
-  {
-    id: "6",
-    type: "approval",
-    title: "Allocation Approved",
-    description: "Your request for additional research hours has been approved",
-    timestamp: "1 week ago",
-    isRead: true,
-    isArchived: false,
-    priority: "medium",
+    type: "system_update",
+    title: "System Maintenance",
+    description: "Workload calculation engine updated with new algorithms",
+    timestamp: "1 day ago",
+    user: "System",
+    changes: ["Improved capacity calculations", "Enhanced reporting features", "Bug fixes applied"],
   },
 ]
 
-// Add a helper function to capitalize each word
-function capitalizeWords(str: string): string {
-  return str.replace(/\b\w/g, (char) => char.toUpperCase());
+// Helper to extract a string title from the first block
+function getNotificationTitle(notification: FeedItem) {
+  const block = notification.blocks[0];
+  if (!block) return { value: "Notification", isHtml: false };
+  if (typeof block === "object") {
+    if ('rendered' in block && typeof block.rendered === 'string') return { value: block.rendered, isHtml: true };
+    if ('text' in block && typeof block.text === 'string') return { value: block.text, isHtml: false };
+    if ('content' in block && typeof block.content === 'string') return { value: block.content, isHtml: false };
+  }
+  return { value: "Notification", isHtml: false };
 }
 
-export default function NotificationsInbox({ initialTab = 'notifications' }: NotificationsInboxProps) {
-  // Fetch notifications from Convex
-  const dbNotifications = useQuery(api.notifications.getNotifications) ?? [];
-  const [selectedNotifications, setSelectedNotifications] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filterType, setFilterType] = useState("all")
-  const [filterStatus, setFilterStatus] = useState("all")
+function formatNotificationTimestamp(timestamp: string) {
+  // timestamp is ISO string
+  const date = typeof timestamp === 'string' ? parseISO(timestamp) : new Date(timestamp);
+  const now = new Date();
+  const hoursAgo = differenceInHours(now, date);
+  if (hoursAgo < 24) {
+    // Show relative time with tooltip
+    return {
+      display: formatDistanceToNow(date, { addSuffix: true }),
+      tooltip: format(date, 'PPpp'),
+      showTooltip: true,
+    };
+  } else {
+    // Show full date, no tooltip
+    return {
+      display: format(date, 'PPpp'),
+      tooltip: '',
+      showTooltip: false,
+    };
+  }
+}
 
-  // Map DB notifications to UI Notification interface
-  const notifications: Notification[] = dbNotifications.map((n: any) => ({
-    id: n._id,
-    type: n.type,
-    title: n.title,
-    description: n.description,
-    timestamp: n.timestamp,
-    isRead: n.isRead,
-    isArchived: n.isArchived,
-    priority: n.priority,
-    relatedUser: n.relatedUser,
-    relatedModule: n.relatedModule,
-    actionRequired: n.actionRequired,
-  }));
+// Add a helper to capitalize the priority string
+function capitalize(str: string) {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
 
-  // Fetch recent activities from Convex
-  const recentActivities = useQuery(api.recent_activity.getAll) ?? [];
-  const isLoadingRecent = recentActivities === undefined;
+export default function NotificationsInbox() {
+  // Knock integration
+  const knockClient = useKnockClient();
+  const feedClient = useNotifications(
+    knockClient,
+    process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID!
+  );
+  const { items, metadata, loading } = useNotificationStore(feedClient);
 
-  // Map Convex recent_activity documents to RecentChange interface
-  const mappedRecentChanges: RecentChange[] = (recentActivities || []).map((activity: any) => ({
-    id: activity._id,
-    type: activity.changeType || "system_update",
-    title: activity.action || activity.entity || "Recent Change",
-    description: activity.formatted || activity.details?.description || activity.entity || "",
-    timestamp: activity.timestamp,
-    user: activity.modifiedBy && activity.modifiedBy.length > 0 ? activity.modifiedBy[0].name : "System",
-    changes: Array.isArray(activity.details?.changes)
-      ? activity.details.changes
-      : (activity.details?.change ? [activity.details.change] : []),
-  }));
+  const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  // Change filterType to filterPriority
+  const [filterPriority, setFilterPriority] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+
+  useEffect(() => {
+    feedClient.fetch();
+  }, [feedClient]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -219,57 +189,58 @@ export default function NotificationsInbox({ initialTab = 'notifications' }: Not
     }
   }
 
-  const filteredNotifications = notifications.filter((notification) => {
+  // Filtering logic for Knock notifications
+  const filteredNotifications = items.filter((notification: FeedItem) => {
+    const title = getNotificationTitle(notification).value.toLowerCase();
     const matchesSearch =
-      notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      notification.description.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = filterType === "all" || notification.type === filterType
+      title.includes(searchQuery.toLowerCase()) ||
+      notification.data?.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    // In the filtering logic, replace matchesType with matchesPriority:
+    const matchesPriority =
+      filterPriority === "all" || (notification.data?.priority?.toLowerCase?.() === filterPriority);
     const matchesStatus =
       filterStatus === "all" ||
-      (filterStatus === "unread" && !notification.isRead) ||
-      (filterStatus === "read" && notification.isRead) ||
-      (filterStatus === "archived" && notification.isArchived)
+      (filterStatus === "unread" && !notification.read_at) ||
+      (filterStatus === "read" && notification.read_at) ||
+      (filterStatus === "archived" && notification.archived_at);
+    return matchesSearch && matchesPriority && matchesStatus && !notification.archived_at;
+  });
 
-    return matchesSearch && matchesType && matchesStatus && !notification.isArchived
-  })
+  const unreadCount = metadata?.unread_count || 0;
 
-  const unreadCount = notifications.filter((n) => !n.isRead && !n.isArchived).length
-
-  // Backend mutations
-  const markNotificationAsRead = useMutation(api.notifications.markNotificationAsRead);
-  const markNotificationAsUnread = useMutation(api.notifications.markNotificationAsUnread);
-  const archiveNotificationMutation = useMutation(api.notifications.archiveNotification);
-  const markAllNotificationsAsRead = useMutation(api.notifications.markAllNotificationsAsRead);
-
-  const markAsRead = async (id: string) => {
-    await markNotificationAsRead({ id: id as Id<'notifications'> });
-  }
-
-  const markAsUnread = async (id: string) => {
-    await markNotificationAsUnread({ id: id as Id<'notifications'> });
-  }
-
-  const archiveNotification = async (id: string) => {
-    await archiveNotificationMutation({ id: id as Id<'notifications'> });
-  }
-
-  const markAllAsRead = async () => {
-    await markAllNotificationsAsRead({});
-  }
-
+  // Knock actions
+  const markAsRead = (item: FeedItem) => {
+    feedClient.markAsRead(item);
+  };
+  const markAsUnread = (item: FeedItem) => {
+    feedClient.markAsUnread(item);
+  };
+  const archiveNotification = (item: FeedItem) => {
+    feedClient.markAsArchived(item);
+  };
+  const markAllAsRead = () => {
+    feedClient.markAllAsRead();
+  };
+  const markAllAsUnread = () => {
+    items.forEach((item) => feedClient.markAsUnread(item));
+  };
   const toggleNotificationSelection = (id: string) => {
-    setSelectedNotifications((prev) => (prev.includes(id) ? prev.filter((nId) => nId !== id) : [...prev, id]))
-  }
-
-  const bulkMarkAsRead = async () => {
-    await Promise.all(selectedNotifications.map(id => markAsRead(id)));
-    setSelectedNotifications([])
-  }
-
-  const bulkArchive = async () => {
-    await Promise.all(selectedNotifications.map(id => archiveNotification(id)));
-    setSelectedNotifications([])
-  }
+    setSelectedNotifications((prev) => (prev.includes(id) ? prev.filter((nId) => nId !== id) : [...prev, id]));
+  };
+  const bulkMarkAsRead = () => {
+    selectedNotifications.forEach((id) => {
+      const item = items.find((n) => n.id === id);
+      if (item) feedClient.markAsRead(item);
+    });
+    setSelectedNotifications([]);
+  };
+  const bulkArchive = () => {
+    selectedNotifications.forEach((id) => {
+      const item = items.find((n) => n.id === id);
+      if (item) feedClient.markAsArchived(item);
+    });
+    setSelectedNotifications([]);
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
@@ -285,23 +256,29 @@ export default function NotificationsInbox({ initialTab = 'notifications' }: Not
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={markAllAsRead} className="hover:bg-gray-50 bg-transparent">
-              <Check className="h-4 w-4 mr-2" />
-              Mark all read
-            </Button>
+            {unreadCount > 0 && <Badge className="bg-red-500 text-white">{unreadCount} unread</Badge>}
+            {unreadCount > 0 ? (
+              <Button variant="outline" onClick={markAllAsRead} className="hover:bg-gray-50 bg-transparent">
+                <Check className="h-4 w-4 mr-2" />
+                Mark all read
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={markAllAsUnread} className="hover:bg-gray-50 bg-transparent">
+                <EyeOff className="h-4 w-4 mr-2" />
+                Mark all unread
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      <Tabs defaultValue={initialTab} className="space-y-6">
+      <Tabs defaultValue="notifications" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 bg-white border border-gray-200">
-          <TabsTrigger value="notifications" className="data-[state=active]:bg-black data-[state=active]:text-white flex items-center gap-2">
+          <TabsTrigger value="notifications" className="data-[state=active]:bg-black data-[state=active]:text-white">
             Notifications
-            {unreadCount > 0 && <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500 text-white">{unreadCount}</span>}
           </TabsTrigger>
-          <TabsTrigger value="recent-changes" className="data-[state=active]:bg-black data-[state=active]:text-white flex items-center gap-2">
+          <TabsTrigger value="recent-changes" className="data-[state=active]:bg-black data-[state=active]:text-white">
             Recent Changes
-            {/* If you want a badge for recent changes, add logic here */}
           </TabsTrigger>
         </TabsList>
 
@@ -322,18 +299,15 @@ export default function NotificationsInbox({ initialTab = 'notifications' }: Not
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Select value={filterType} onValueChange={setFilterType}>
+                  <Select value={filterPriority} onValueChange={setFilterPriority}>
                     <SelectTrigger className="w-40 border-gray-300">
-                      <SelectValue placeholder="Filter by type" />
+                      <SelectValue placeholder="Filter by priority" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="assignment">Assignments</SelectItem>
-                      <SelectItem value="mention">Mentions</SelectItem>
-                      <SelectItem value="review">Reviews</SelectItem>
-                      <SelectItem value="update">Updates</SelectItem>
-                      <SelectItem value="alert">Alerts</SelectItem>
-                      <SelectItem value="approval">Approvals</SelectItem>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -367,101 +341,150 @@ export default function NotificationsInbox({ initialTab = 'notifications' }: Not
 
           {/* Notifications List */}
           <div className="space-y-2">
-            {filteredNotifications.length === 0 ? (
-              <Card className="border border-gray-200 shadow-sm bg-white">
+            {loading ? (
+              <Card className="border border-gray-200 shadow-sm bg-white h-28">
                 <CardContent className="p-12 text-center">
                   <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications found</h3>
-                  <p className="text-gray-600">Try adjusting your filters or search terms</p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading notifications...</h3>
+                  <p className="text-gray-600">Please wait while we fetch the latest notifications.</p>
                 </CardContent>
               </Card>
+            ) : filteredNotifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center min-h-[7rem] border border-dashed border-gray-200 rounded-lg bg-gray-50 text-center">
+                <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-base font-medium text-gray-900 mb-2">No notifications found</h3>
+                <p className="text-gray-600 text-xs">Try adjusting your filters or search terms</p>
+              </div>
             ) : (
-              filteredNotifications.map((notification) => (
-                <Card
-                  key={notification.id}
-                  className={`border shadow-sm transition-colors hover:bg-gray-50 ${
-                    notification.isRead ? "bg-white border-gray-200" : "bg-blue-50 border-blue-200"
-                  }`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      <Checkbox
-                        checked={selectedNotifications.includes(notification.id)}
-                        onCheckedChange={() => toggleNotificationSelection(notification.id)}
-                        className="mt-1"
-                      />
+              filteredNotifications.map(notification => {
+                const titleObj = getNotificationTitle(notification);
+                const priority = notification.data?.priority || 'Low';
+                return (
+                  <Card
+                    key={notification.id}
+                    className={`border shadow-sm transition-colors hover:bg-gray-50 ${
+                      notification.read_at ? "bg-white border-gray-200" : "bg-blue-50 border-blue-200"
+                    } h-28`}
+                  >
+                    <div
+                      onClick={() => {
+                        notification.data?.action_url ? window.open(notification.data.action_url, '_blank', 'noopener,noreferrer') : undefined;
+                      }}
+                      className={`p-4 h-full flex items-center relative ${(notification.data?.action_url ?? '') ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <Checkbox
+                          checked={selectedNotifications.includes(notification.id)}
+                          onCheckedChange={() => toggleNotificationSelection(notification.id)}
+                          onClick={e => e.stopPropagation()}
+                          className="mt-1"
+                        />
 
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          notification.isRead ? "bg-gray-100 text-gray-600" : "bg-blue-100 text-blue-600"
-                        }`}
-                      >
-                        {getNotificationIcon(notification.type)}
-                      </div>
+                        <div
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            notification.read_at ? "bg-gray-100 text-gray-600" : "bg-blue-100 text-blue-600"
+                          }`}
+                        >
+                          {getNotificationIcon(notification.data?.type)}
+                        </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3
-                                className={`font-medium ${notification.isRead ? "text-gray-900" : "text-gray-900 font-semibold"}`}
-                              >
-                                {notification.title}
-                              </h3>
-                              <Badge variant="outline" className={`text-xs ${getPriorityColor(notification.priority)}`}>
-                                {notification.priority}
-                              </Badge>
-                              {notification.actionRequired && (
-                                <Badge className="bg-orange-100 text-orange-800 text-xs">Action Required</Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-600 mb-2">{notification.description}</p>
-                            <div className="flex items-center gap-4 text-xs text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {notification.timestamp}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3
+                                  className={`font-medium text-sm overflow-hidden text-ellipsis whitespace-nowrap ${notification.read_at ? "text-gray-900" : "text-gray-900 font-semibold"}`}
+                                >
+                                  {titleObj.isHtml ? (
+                                    <span dangerouslySetInnerHTML={{ __html: titleObj.value }} />
+                                  ) : (
+                                    titleObj.value
+                                  )}
+                                </h3>
+                                <Badge variant="outline" className={`text-xs ${getPriorityColor(priority)}`}>{capitalize(priority)}</Badge>
+                                {notification.data?.action_required === true && (
+                                  <Badge className="bg-orange-100 text-orange-800 text-xs hover:bg-orange-100 focus:bg-orange-100 active:bg-orange-100">Action Required</Badge>
+                                )}
                               </div>
-                              {notification.relatedUser && (
+                              <p className="text-[11px] text-gray-600 mb-2 overflow-hidden text-ellipsis whitespace-nowrap">{notification.data?.description}</p>
+                              <div className="flex items-center gap-4 text-[10px] text-gray-500">
                                 <div className="flex items-center gap-1">
-                                  <User className="h-3 w-3" />
-                                  {notification.relatedUser}
+                                  <Clock className="h-3 w-3" />
+                                  {formatNotificationTimestamp(notification.inserted_at).showTooltip ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span>{formatNotificationTimestamp(notification.inserted_at).display}</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>{formatNotificationTimestamp(notification.inserted_at).tooltip}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <span>{formatNotificationTimestamp(notification.inserted_at).display}</span>
+                                  )}
                                 </div>
-                              )}
-                              {notification.relatedModule && (
-                                <div className="flex items-center gap-1">
-                                  <BookOpen className="h-3 w-3" />
-                                  {notification.relatedModule}
-                                </div>
-                              )}
+                                {notification.data?.related_user && (
+                                  <div className="flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    {notification.data.related_user}
+                                  </div>
+                                )}
+                                {notification.data?.related_module && (
+                                  <div className="flex items-center gap-1">
+                                    <BookOpen className="h-3 w-3" />
+                                    {notification.data.related_module}
+                                  </div>
+                                )}
+                                {notification.data?.vars?.app_url && (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="ml-2 px-2 py-1 text-xs h-7 mt-1"
+                                  >
+                                    <a href={notification.data.vars.app_url} target="_blank" rel="noopener noreferrer">Open</a>
+                                  </Button>
+                                )}
+                                {notification.data?.actions?.[0]?.url && (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="ml-2 px-2 py-1 text-xs h-7 mt-1"
+                                  >
+                                    <a href={notification.data.actions[0].url} target="_blank" rel="noopener noreferrer">
+                                      {notification.data.actions[0].name || 'Open'}
+                                    </a>
+                                  </Button>
+                                )}
+                              </div>
                             </div>
-                          </div>
 
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() =>
-                                notification.isRead ? markAsUnread(notification.id) : markAsRead(notification.id)
-                              }
-                              className="hover:bg-gray-100"
-                            >
-                              {notification.isRead ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => archiveNotification(notification.id)}
-                              className="hover:bg-gray-100"
-                            >
-                              <Archive className="h-3 w-3" />
-                            </Button>
+                            <div className="absolute top-4 right-4 flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={e => { e.stopPropagation(); notification.read_at ? markAsUnread(notification) : markAsRead(notification) }}
+                                className="hover:bg-gray-100"
+                              >
+                                {notification.read_at ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={e => { e.stopPropagation(); archiveNotification(notification) }}
+                                className="hover:bg-gray-100"
+                              >
+                                <Archive className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
+                  </Card>
+                );
+              })
             )}
           </div>
         </TabsContent>
@@ -469,88 +492,45 @@ export default function NotificationsInbox({ initialTab = 'notifications' }: Not
         <TabsContent value="recent-changes" className="space-y-6">
           {/* Recent Changes List */}
           <div className="space-y-4">
-            {isLoadingRecent ? (
-              <Card className="border border-gray-200 shadow-sm bg-white">
-                <CardContent className="p-12 text-center">
-                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading recent changes...</h3>
-                </CardContent>
-              </Card>
-            ) : mappedRecentChanges.length === 0 ? (
-              <Card className="border border-gray-200 shadow-sm bg-white">
-                <CardContent className="p-12 text-center">
-                  <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No recent changes found</h3>
-                  <p className="text-gray-600">Recent activity will appear here as changes are made</p>
-                </CardContent>
-              </Card>
-            ) : (
-              mappedRecentChanges.map((change: RecentChange) => (
-                <Card key={change.id} className="border border-gray-200 shadow-sm bg-white">
-                  <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        {getChangeIcon(change.type)}
+            {sampleRecentChanges.map((change) => (
+              <Card key={change.id} className="border border-gray-200 shadow-sm bg-white h-28">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      {getChangeIcon(change.type)}
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <div>
+                          <h3 className="font-medium text-gray-900">{change.title}</h3>
+                          <p className="text-sm text-gray-600">{change.description}</p>
+                        </div>
+                        <div className="text-xs text-gray-500 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {change.timestamp}
+                        </div>
                       </div>
 
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between gap-4 mb-2">
-                          <div>
-                            <h3 className="font-medium text-gray-900">{capitalizeWords(change.title)}</h3>
-                            <p className="text-sm text-gray-600">{change.description}</p>
-                          </div>
-                          <div className="text-xs text-gray-500 flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span
-                              title={new Date(change.timestamp).toLocaleString(undefined, {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            >
-                              {(() => {
-                                const date = new Date(change.timestamp);
-                                const now = new Date();
-                                const diffMs = now.getTime() - date.getTime();
-                                const diffHours = diffMs / (1000 * 60 * 60);
-                                if (diffHours < 24) {
-                                  return timeAgo(date.getTime());
-                                } else {
-                                  return date.toLocaleString(undefined, {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  });
-                                }
-                              })()}
-                            </span>
-                          </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          <User className="h-3 w-3" />
+                          {change.user}
                         </div>
+                      </div>
 
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <User className="h-3 w-3" />
-                            {change.user}
+                      <div className="space-y-1">
+                        {change.changes.map((changeItem, index) => (
+                          <div key={index} className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">
+                            {changeItem}
                           </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          {change.changes.map((changeItem: string, index: number) => (
-                            <div key={index} className="text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded">
-                              {changeItem}
-                            </div>
-                          ))}
-                        </div>
+                        ))}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </TabsContent>
       </Tabs>
