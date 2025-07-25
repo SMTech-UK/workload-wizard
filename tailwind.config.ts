@@ -55,7 +55,23 @@ const config: Config = {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
-  		}
+  		},
+      keyframes: {
+        'fade-in': { '0%': { opacity: 0 }, '100%': { opacity: 1 } },
+        'bounce-slow': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
+        'loading-bar': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+      },
+      animation: {
+        'fade-in': 'fade-in 0.6s ease',
+        'bounce-slow': 'bounce-slow 1.4s infinite',
+        'loading-bar': 'loading-bar 1.2s cubic-bezier(0.4,0,0.2,1) infinite',
+      },
   	}
   },
   plugins: [require("tailwindcss-animate")],

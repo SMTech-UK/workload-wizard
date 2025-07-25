@@ -1,34 +1,7 @@
-'use client';
-
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import Image from "next/image"
-import Link from "next/link"
-import { WandSparkles } from "lucide-react"
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs"
 
-export default function WorkloadWizardLanding() {
+export default function LandingHero() {
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-blue-50 to-white">
-      {/* Header */}
-      <header className="px-4 lg:px-6 h-16 flex items-center">
-      <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <WandSparkles className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">WorkloadWizard</span>
-            </div>
-        <nav className="ml-auto">
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-            <SignedOut>
-              <SignInButton />
-            </SignedOut>
-        </nav>
-      </header>
-
-      {/* Hero Section */}
       <main className="flex-1 flex items-center justify-center">
         <section className="w-full py-8 md:py-12 lg:py-16">
           <div className="container px-4 md:px-6 mx-auto">
@@ -49,24 +22,5 @@ export default function WorkloadWizardLanding() {
           </div>
         </section>
       </main>
-
-      {/* Simple Footer */}
-      <footer className="py-6 px-4 border-t bg-white/50">
-        <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center">
-          <p className="text-sm text-gray-500">© {new Date().getFullYear()} WorkloadWizard. All rights reserved.</p>
-          <div className="flex gap-6 mt-2 sm:mt-0">
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-              Privacy
-            </Link>
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-              Terms
-            </Link>
-            <Link href="#" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
-              Contact
-            </Link>
-          </div>
-        </div>
-      </footer>
-    </div>
   )
 }
