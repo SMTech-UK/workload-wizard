@@ -35,7 +35,7 @@ export default function LoadingPage({ progress = 0 }: { progress?: number }) {
 //     },
 //     animation: {
 //       'fade-in': 'fade-in 0.6s ease',
-//       'bounce-slow': 'bounce 1.4s infinite',
+//       'bounce-slow': 'bounce-slow 1.4s infinite',
 //       'loading-bar': 'loading-bar 1.2s cubic-bezier(0.4,0,0.2,1) infinite',
 //     },
 //   },

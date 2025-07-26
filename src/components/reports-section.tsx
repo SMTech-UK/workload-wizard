@@ -171,7 +171,9 @@ export default function ReportsSection({ onViewAllActivity }: { onViewAllActivit
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">3</div>
+            <div className="text-2xl font-bold text-red-600">
+              {departmentSummary.reduce((total, dept) => total + dept.overloadedStaff, 0)}
+            </div>
             <p className="text-xs text-muted-foreground">Requires attention</p>
           </CardContent>
         </Card>

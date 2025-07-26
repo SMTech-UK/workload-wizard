@@ -21,7 +21,7 @@ import { useQuery } from "convex/react";
 import { useTheme } from "next-themes";
 import { updateSettings as updateSettingsUtil } from "@/lib/utils";
 
-export type TabType = "profile" | "settings" | "general"
+export type TabType = "profile" | "settings" | "general" | "lecturer-preferences"
 
 interface SettingsModalProps {
   open: boolean;
@@ -127,66 +127,77 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     interestInput: "",
   });
 
-  // Fetch preferences from Convex
-  const preferences = isLoaded && user ? useQuery(api.users.getPreferences) : null;
-  const profileFields = isLoaded && user ? useQuery(api.users.getProfileFields) : null;
-  const userSettings = isLoaded && user ? useQuery(api.users.getSettings) : null;
+  // Fetch preferences from Convex (call hooks unconditionally)
+  const preferences = useQuery(api.users.getPreferences);
+  const profileFields = useQuery(api.users.getProfileFields);
+  const userSettings = useQuery(api.users.getSettings);
+
+  // Only use the data if isLoaded and user are truthy
+  const safePreferences = isLoaded && user ? preferences : null;
+  const safeProfileFields = isLoaded && user ? profileFields : null;
+  const safeUserSettings = isLoaded && user ? userSettings : null;
 
   // Populate lecturerPrefs from preferences when tab is opened and data is available
   React.useEffect(() => {
-    if (activeTab === "lecturer-preferences" && preferences) {
+    if (activeTab === "lecturer-preferences" && safePreferences) {
       setLecturerPrefs(p => ({
         ...p,
-        campus: preferences.sessionCampus || "",
-        teachingTime: preferences.sessionTime || "",
-        teachingDay: preferences.sessionDay || "",
-        interests: preferences.interests || [],
+        campus: safePreferences.sessionCampus || "",
+        teachingTime: safePreferences.sessionTime || "",
+        teachingDay: safePreferences.sessionDay || "",
+        interests: safePreferences.interests || [],
       }));
     }
-  }, [activeTab, preferences]);
+  }, [activeTab, safePreferences]);
 
   // Populate profileData from Convex when profile tab is opened and data is available, or when modal is opened
   React.useEffect(() => {
-    if (open && activeTab === "profile" && profileFields) {
+    if (open && activeTab === "profile" && safeProfileFields) {
       setProfileData(p => ({
         ...p,
-        jobTitle: profileFields.jobTitle || "",
-        team: profileFields.team || "",
-        specialism: profileFields.specialism || "",
+        jobTitle: safeProfileFields.jobTitle || "",
+        team: safeProfileFields.team || "",
+        specialism: safeProfileFields.specialism || "",
+      }));
+      setTempProfileData(prev => ({
+        ...prev,
+        jobTitle: safeProfileFields.jobTitle || "",
+        team: safeProfileFields.team || "",
+        specialism: safeProfileFields.specialism || "",
       }));
     }
-  }, [open, activeTab, profileFields]);
+  }, [open, activeTab, safeProfileFields]);
 
   // Populate settingsData from Convex when settings tab is opened and data is available
   React.useEffect(() => {
-    if (activeTab === "settings" && userSettings) {
+    if (activeTab === "settings" && safeUserSettings) {
       setSettingsData(prev => ({
         ...prev,
         notifications: {
           ...prev.notifications,
-          email: userSettings.notifyEmail ?? true,
-          push: userSettings.notifyPush ?? true,
+          email: safeUserSettings.notifyEmail ?? true,
+          push: safeUserSettings.notifyPush ?? true,
         },
         privacy: {
           ...prev.privacy,
-          profileVisible: userSettings.profilePublic ?? true,
+          profileVisible: safeUserSettings.profilePublic ?? true,
         },
         preferences: {
           ...prev.preferences,
-          theme: userSettings.theme ?? "system",
-          language: userSettings.language ?? "en",
-          timezone: userSettings.timezone ?? "GMT",
+          theme: safeUserSettings.theme ?? "system",
+          language: safeUserSettings.language ?? "en",
+          timezone: safeUserSettings.timezone ?? "GMT",
         },
       }));
     }
-  }, [activeTab, userSettings]);
+  }, [activeTab, safeUserSettings]);
 
   // Sync theme with user's saved setting when settings are loaded
   React.useEffect(() => {
-    if (activeTab === "settings" && userSettings && userSettings.theme) {
-      setTheme(userSettings.theme);
+    if (activeTab === "settings" && safeUserSettings && safeUserSettings.theme) {
+      setTheme(safeUserSettings.theme);
     }
-  }, [activeTab, userSettings, setTheme]);
+  }, [activeTab, safeUserSettings, setTheme]);
 
   const storeUser = useMutation(api.users.store);
   const setPreferences = useMutation(api.users.setPreferences);
@@ -233,9 +244,9 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     const hasChanged =
       tempProfileData.name !== (user.fullName || user.username || "") ||
       tempProfileData.email !== (user.primaryEmailAddress?.emailAddress || "") ||
-      profileData.jobTitle !== "" ||
-      profileData.team !== "" ||
-      profileData.specialism !== "";
+      tempProfileData.jobTitle !== profileData.jobTitle ||
+      tempProfileData.team !== profileData.team ||
+      tempProfileData.specialism !== profileData.specialism;
     if (!hasChanged) {
       toast("No changes detected.", { description: "Update some fields before saving." });
       return;
@@ -279,6 +290,19 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     setSettingsData((prev) => updateSettingsUtil(prev, category, key, value));
   };
 
+  // Add this function inside SettingsModal
+  const addInterest = () => {
+    setLecturerPrefs(prev => {
+      const trimmed = prev.interestInput.trim();
+      if (!trimmed || prev.interests.includes(trimmed)) return prev;
+      return {
+        ...prev,
+        interests: [...prev.interests, trimmed],
+        interestInput: "",
+      };
+    });
+  };
+
   if (!isLoaded) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -297,8 +321,8 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
-          <DialogTitle className="sr-only">Not Authenticated</DialogTitle>
-          <DialogDescription className="sr-only">You must be logged in to view your profile.</DialogDescription>
+          <DialogTitle className="sr-only">Authentication Required</DialogTitle>
+          <DialogDescription className="sr-only">You must be logged in to view your profile and access this section.</DialogDescription>
           You must be logged in to view your profile.
         </DialogContent>
       </Dialog>
@@ -441,9 +465,9 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                         <div>
                           <h3 className="font-semibold text-lg flex items-center gap-2">
                             {tempProfileData.name}
-                            {profileFields?.systemRole && (
+                            {safeProfileFields && safeProfileFields.systemRole && (
                               <span className="inline-block bg-muted px-2 py-0.5 rounded text-xs font-semibold uppercase tracking-wide border border-muted-foreground/20">
-                                {profileFields.systemRole.toUpperCase()}
+                                {safeProfileFields.systemRole.toUpperCase()}
                               </span>
                             )}
                           </h3>
@@ -662,7 +686,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             await storeUser({ theme: settingsData.preferences.theme });
                             // Sync to Knock after saving settings
                             try {
-                              await fetch('/api/knock-sync', {
+                              const response = await fetch('/api/knock-sync', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -674,6 +698,9 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                                   timezone: settingsData.preferences.timezone || 'Europe/London',
                                 }),
                               });
+                              if (!response.ok) {
+                                throw new Error('Failed to sync user to notifications.');
+                              }
                             } catch (err) {
                               toast.error('Failed to sync user to notifications.');
                             }
@@ -734,27 +761,15 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             onChange={e => setLecturerPrefs(p => ({ ...p, interestInput: e.target.value }))}
                             placeholder="e.g. Paramedicine, Pre Hospital Care"
                             onKeyDown={e => {
-                              if (e.key === 'Enter' && lecturerPrefs.interestInput.trim()) {
-                                setLecturerPrefs(p => ({
-                                  ...p,
-                                  interests: [...p.interests, p.interestInput.trim()],
-                                  interestInput: "",
-                                }));
+                              if (e.key === 'Enter') {
+                                addInterest();
                                 e.preventDefault();
                               }
                             }}
                           />
                           <Button
                             type="button"
-                            onClick={() => {
-                              if (lecturerPrefs.interestInput.trim()) {
-                                setLecturerPrefs(p => ({
-                                  ...p,
-                                  interests: [...p.interests, p.interestInput.trim()],
-                                  interestInput: "",
-                                }));
-                              }
-                            }}
+                            onClick={addInterest}
                           >Add</Button>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">

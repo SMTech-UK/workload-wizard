@@ -10,6 +10,15 @@ interface ClientLayoutWrapperProps {
   children: React.ReactNode;
 }
 
+// Validate environment variable and create Convex client outside component
+const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+if (!CONVEX_URL) {
+  throw new Error("NEXT_PUBLIC_CONVEX_URL environment variable is not defined");
+}
+
+// Create Convex client once outside the component to avoid recreation on every render
+const convex = new ConvexReactClient(CONVEX_URL);
+
 function KnockProviderWrapper({ children }: { children: React.ReactNode }) {
   const { userId } = useAuth();
   if (!userId || !process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY) return <>{children}</>;
@@ -25,9 +34,6 @@ function KnockProviderWrapper({ children }: { children: React.ReactNode }) {
 
 export default function ClientLayoutWrapper({ children }: ClientLayoutWrapperProps) {
   const { userId, isLoaded } = useAuth();
-  
-  // Create Convex client inside the client component
-  const convex = new ConvexReactClient(process.env.NEXT_PUBLIC_CONVEX_URL as string);
   
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>

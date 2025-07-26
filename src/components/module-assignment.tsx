@@ -98,8 +98,104 @@ export default function ModuleAssignment() {
 
     if (!destination) return
 
-    // Handle module assignment logic here
-    console.log("Module assignment:", { destination, source, draggableId })
+    // If dropped in the same place, do nothing
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return
+    }
+
+    // Find the module being dragged
+    const moduleIdx = moduleList.findIndex((m) => m.id === draggableId)
+    if (moduleIdx === -1) return
+    const module = moduleList[moduleIdx]
+
+    // If dropped to 'unassigned' column
+    if (destination.droppableId === "unassigned") {
+      // Find the lecturer who currently has this module (if any)
+      const prevLecturerIdx = lecturerList.findIndex((lect) => lect.modules.includes(module.id))
+      let updatedLecturerList = lecturerList
+      if (prevLecturerIdx !== -1) {
+        const prevLecturer = lecturerList[prevLecturerIdx]
+        updatedLecturerList = lecturerList.map((lect, idx) =>
+          idx === prevLecturerIdx
+            ? {
+                ...lect,
+                modules: lect.modules.filter((mid) => mid !== module.id),
+                assigned: lect.assigned - module.teachingHours,
+              }
+            : lect
+        )
+      }
+      // Update module to unassigned
+      const updatedModuleList = moduleList.map((m, idx) =>
+        idx === moduleIdx
+          ? { ...m, assignedTo: null, status: "unassigned" }
+          : m
+      )
+      setModuleList(updatedModuleList)
+      setLecturerList(updatedLecturerList)
+      return
+    }
+
+    // Dropped to a lecturer column
+    const lecturerIdx = lecturerList.findIndex((lect) => lect.id === destination.droppableId)
+    if (lecturerIdx === -1) return
+    const lecturer = lecturerList[lecturerIdx]
+
+    // Validation: already assigned to this lecturer
+    if (lecturer.modules.includes(module.id)) {
+      return
+    }
+
+    // Validation: check if adding this module would exceed capacity
+    const newAssigned = lecturer.assigned + module.teachingHours
+    if (newAssigned > lecturer.capacity) {
+      // Optionally, show a toast or error here
+      alert(`${lecturer.name} does not have enough capacity for this module.`)
+      return
+    }
+
+    // Placeholder: Scheduling conflict check (not implemented)
+    // e.g., check for overlapping timeslots
+
+    // Remove module from previous lecturer (if any)
+    let updatedLecturerList = lecturerList.map((lect) => {
+      if (lect.modules.includes(module.id)) {
+        return {
+          ...lect,
+          modules: lect.modules.filter((mid) => mid !== module.id),
+          assigned: lect.assigned - module.teachingHours,
+        }
+      }
+      return lect
+    })
+
+    // Add module to new lecturer
+    updatedLecturerList = updatedLecturerList.map((lect, idx) =>
+      idx === lecturerIdx
+        ? {
+            ...lect,
+            modules: [...lect.modules, module.id],
+            assigned: newAssigned,
+          }
+        : lect
+    )
+
+    // Update module assignment
+    const updatedModuleList = moduleList.map((m, idx) =>
+      idx === moduleIdx
+        ? {
+            ...m,
+            assignedTo: lecturer.name,
+            status: newAssigned > lecturer.capacity ? "overloaded" : "assigned",
+          }
+        : m
+    )
+
+    setModuleList(updatedModuleList)
+    setLecturerList(updatedLecturerList)
   }
 
   const getStatusBadge = (status: string) => {

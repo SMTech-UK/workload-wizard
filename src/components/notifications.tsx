@@ -27,16 +27,22 @@ import { useEffect } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { useAuth } from "@clerk/nextjs";
+import DOMPurify from 'dompurify';
+import type { FeedItem } from "@knocklabs/client";
 
 // Add a helper to extract the notification title
-function getNotificationTitle(notification: any) {
-  const block = notification.blocks[0];
-  if (!block) return { value: 'Notification', isHtml: false };
-  if (typeof block === 'object') {
-    if ('rendered' in block && typeof block.rendered === 'string') return { value: block.rendered, isHtml: true };
-    if ('text' in block && typeof block.text === 'string') return { value: block.text, isHtml: false };
-    if ('content' in block && typeof block.content === 'string') return { value: block.content, isHtml: false };
+function getNotificationTitle(notification: FeedItem) {
+  if (!notification || !Array.isArray(notification.blocks) || notification.blocks.length === 0) {
+    return { value: 'Notification', isHtml: false };
   }
+  const block = notification.blocks[0];
+  if (!block || typeof block !== 'object') return { value: 'Notification', isHtml: false };
+  if ('rendered' in block && typeof block.rendered === 'string') {
+    // Sanitize HTML content before returning
+    return { value: DOMPurify.sanitize(block.rendered), isHtml: true };
+  }
+  if ('text' in block && typeof block.text === 'string') return { value: block.text, isHtml: false };
+  if ('content' in block && typeof block.content === 'string') return { value: block.content, isHtml: false };
   return { value: 'Notification', isHtml: false };
 }
 
@@ -131,7 +137,7 @@ export function Notifications() {
                 >
                   <div className="min-w-0 max-w-[250px]">
                     <p className="text-xs font-medium overflow-hidden text-ellipsis whitespace-nowrap" title={titleObj.isHtml ? undefined : titleObj.value}>
-                      {titleObj.isHtml ? <span dangerouslySetInnerHTML={{ __html: titleObj.value }} /> : titleObj.value}
+                      {titleObj.isHtml ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(titleObj.value) }} /> : titleObj.value}
                     </p>
                     <p className="text-[10px] text-gray-500 overflow-hidden text-ellipsis whitespace-nowrap">
                       {formatDistanceToNow(parseISO(notification.inserted_at), { addSuffix: true })}

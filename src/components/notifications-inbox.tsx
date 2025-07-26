@@ -27,27 +27,18 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   useKnockClient,
   useNotifications,
   useNotificationStore,
 } from "@knocklabs/react";
-import { useEffect } from "react";
 import type { FeedItem } from "@knocklabs/client";
 import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useAuth } from "@clerk/nextjs";
 
-interface RecentChange {
-  id: string
-  type: "staff_update" | "allocation_change" | "module_assignment" | "system_update"
-  title: string
-  description: string
-  timestamp: string
-  user: string
-  changes: string[]
-}
+
 
 
 // Helper to extract a string title from the first block
@@ -244,6 +235,36 @@ export default function NotificationsInbox() {
     setSelectedNotifications([]);
   };
 
+  // Helper to render the action button in the header based on activeTab and unread counts
+  function renderActionButton() {
+    if (activeTab === 'notifications') {
+      return unreadCount > 0 ? (
+        <Button variant="outline" onClick={markAllAsRead} className="hover:bg-gray-50 bg-transparent">
+          <Check className="h-4 w-4 mr-2" />
+          Mark all read
+        </Button>
+      ) : (
+        <Button variant="outline" onClick={markAllAsUnread} className="hover:bg-gray-50 bg-transparent">
+          <EyeOff className="h-4 w-4 mr-2" />
+          Mark all unread
+        </Button>
+      );
+    } else {
+      const unreadRecentChanges = recentChangesItems.filter(n => !n.read_at).length;
+      return unreadRecentChanges > 0 ? (
+        <Button variant="outline" onClick={() => recentChangesFeedClient.markAllAsRead()} className="hover:bg-gray-50 bg-transparent">
+          <Check className="h-4 w-4 mr-2" />
+          Mark all read
+        </Button>
+      ) : (
+        <Button variant="outline" onClick={() => recentChangesItems.forEach(item => recentChangesFeedClient.markAsUnread(item))} className="hover:bg-gray-50 bg-transparent">
+          <EyeOff className="h-4 w-4 mr-2" />
+          Mark all unread
+        </Button>
+      );
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
       <div className="mb-8">
@@ -258,31 +279,7 @@ export default function NotificationsInbox() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {activeTab === 'notifications' ? (
-              unreadCount > 0 ? (
-                <Button variant="outline" onClick={markAllAsRead} className="hover:bg-gray-50 bg-transparent">
-                  <Check className="h-4 w-4 mr-2" />
-                  Mark all read
-                </Button>
-              ) : (
-                <Button variant="outline" onClick={markAllAsUnread} className="hover:bg-gray-50 bg-transparent">
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Mark all unread
-                </Button>
-              )
-            ) : (
-              recentChangesItems.filter(n => !n.read_at).length > 0 ? (
-                <Button variant="outline" onClick={() => recentChangesFeedClient.markAllAsRead()} className="hover:bg-gray-50 bg-transparent">
-                  <Check className="h-4 w-4 mr-2" />
-                  Mark all read
-                </Button>
-              ) : (
-                <Button variant="outline" onClick={() => recentChangesItems.forEach(item => recentChangesFeedClient.markAsUnread(item))} className="hover:bg-gray-50 bg-transparent">
-                  <EyeOff className="h-4 w-4 mr-2" />
-                  Mark all unread
-                </Button>
-              )
-            )}
+            {renderActionButton()}
           </div>
         </div>
       </div>

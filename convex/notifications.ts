@@ -5,13 +5,20 @@ import { mutation, query } from './_generated/server';
 // type, title, description, timestamp, priority, relatedUser, relatedModule, actionRequired, isRead, isArchived
 
 export const getNotifications = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 10;
     return await ctx.db
       .query('notifications')
       .filter((q) => q.eq(q.field('isArchived'), false))
       .order('desc')
-      .collect();
+      .paginate({
+        cursor: args.cursor ?? null,
+        numItems: limit,
+      });
   },
 });
 

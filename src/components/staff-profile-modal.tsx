@@ -82,9 +82,8 @@ type AdminAllocation = {
 type StaffProfileModalProps = {
   isOpen: boolean
   onClose: () => void
-  lecturer: lecturer
+  lecturer: lecturer | null
   adminAllocations: AdminAllocation[]
-  moduleAllocations: ModuleAllocation[]
   onLecturerUpdate?: (updatedLecturer: lecturer) => void
 }
 
@@ -94,7 +93,7 @@ export default function StaffProfileModal({
   lecturer,
   adminAllocations,
   onLecturerUpdate,
-}: Omit<StaffProfileModalProps, 'moduleAllocations'>) {
+}: StaffProfileModalProps) {
   // Null check for lecturer
   if (!lecturer) {
     return (
@@ -139,107 +138,14 @@ export default function StaffProfileModal({
   const updateLecturer = useMutation(api.lecturers.updateLecturer);
   const deleteLecturer = useMutation(api.lecturers.deleteLecturer);
   const convex = useConvex();
-  const lecturers = useQuery(api.lecturers.getAll) ?? [];
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
 
   // Fetch module allocations for this lecturer from Convex
   const moduleAllocations = useQuery(api.modules.getByLecturerId, lecturer ? { lecturerId: lecturer._id } : "skip") ?? [];
 
-  function formatFTEWithFamily(totalContract: number, family: string) {
-    if (!totalContract || !family) return '';
-    const fte = totalContract / 1489;
-    const rounded = Math.round(fte * 100) / 100;
-    // Remove trailing .00 if integer, else show up to 2 decimals
-    const fteStr = Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.00$/, '');
-    return `${fteStr}${family}`;
-  }
-
-  // Helper to get the current admin allocations for the lecturer
-  const getCurrentAdminAllocations = () => {
-    const found = (useQuery(api.admin_allocations.getAll) ?? []).find(
-      (a: any) => a.lecturerId === displayLecturer._id
-    );
-    return found && found.adminAllocations && found.adminAllocations.length > 0
-      ? found.adminAllocations
-      : DEFAULT_ADMIN_ALLOCATIONS;
-  };
-
-  // Helper to get family initials
-  function getFamilyInitials(family: string) {
-    const map: Record<string, string> = {
-      'Academic Practitioner': 'AP',
-      'Teaching Academic': 'TA',
-      'Research Academic': 'RA',
-    };
-    return map[family] || family;
-  }
-
-  function handleSaveLecturer(updatedStaffMember: Partial<lecturer>) {
-    if (!lecturer || !lecturer._id) return;
-    updateLecturer({
-      id: lecturer._id,
-      fullName: updatedStaffMember.fullName ?? lecturer.fullName,
-      team: updatedStaffMember.team ?? lecturer.team,
-      specialism: updatedStaffMember.specialism ?? lecturer.specialism,
-      contract: updatedStaffMember.contract ?? lecturer.contract,
-      email: updatedStaffMember.email ?? lecturer.email,
-      capacity: lecturer.capacity,
-      maxTeachingHours: updatedStaffMember.maxTeachingHours ?? lecturer.maxTeachingHours,
-      role: updatedStaffMember.role ?? lecturer.role,
-      status: lecturer.status,
-      teachingAvailability: lecturer.teachingAvailability,
-      totalAllocated: lecturer.totalAllocated,
-      totalContract: updatedStaffMember.totalContract ?? lecturer.totalContract,
-      allocatedTeachingHours: lecturer.allocatedTeachingHours,
-      allocatedAdminHours: lecturer.allocatedAdminHours,
-      family: updatedStaffMember.family ?? lecturer.family,
-      fte: updatedStaffMember.fte ?? lecturer.fte,
-    }).then(async () => {
-      if (onLecturerUpdate) {
-        // Fetch the updated lecturer from Convex
-        const freshLecturer = await convex.query(api.lecturers.getById, { id: lecturer._id });
-        if (freshLecturer) {
-          onLecturerUpdate(freshLecturer);
-        }
-      }
-      setEditModalOpen(false);
-      // Log recent activity for editing personal details
-      await logRecentActivity({
-        action: "user details edited",
-        changeType: "edit",
-        entity: "lecturer",
-        entityId: lecturer._id,
-        fullName: updatedStaffMember.fullName ?? lecturer.fullName,
-        modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
-        permission: "default",
-        type: "lecturer_edited",
-        details: {
-          fullName: updatedStaffMember.fullName ?? lecturer.fullName,
-          lecturerId: lecturer._id,
-          section: "User Details"
-        }
-      });
-    });
-  }
-  const workloadPercentage = (displayLecturer.totalAllocated / displayLecturer.totalContract) * 100;
-  const adminBreakdownPercent = Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours) > 0
-    ? (displayLecturer.allocatedAdminHours / Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours)) * 100
-    : 0;
-  const teachingBreakdownPercent = Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours) > 0
-    ? (displayLecturer.allocatedTeachingHours / Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours)) * 100
-    : 0;
-  const teachingPercentage = (displayLecturer.allocatedTeachingHours / displayLecturer.maxTeachingHours) * 100;
-  const adminPercentage = (displayLecturer.allocatedAdminHours / displayLecturer.totalContract) * 100;
-  const availabilityPercentage = (displayLecturer.totalAllocated / displayLecturer.totalContract) * 100;
-
-  // Calculate total admin hours
-  const totalAdminHours = adminAllocations
-    .filter((allocation) => !allocation.isHeader)
-    .reduce((sum, allocation) => sum + allocation.hours, 0)
-
-  // Calculate total module hours
-  const totalModuleHours = moduleAllocations.reduce((sum, module) => sum + module.hoursAllocated, 0)
+  // Fetch all admin allocations at the top level (fixes hooks rules violation)
+  const allAdminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
 
   // Default admin allocation categories
   const DEFAULT_ADMIN_ALLOCATIONS = [
@@ -322,6 +228,109 @@ export default function StaffProfileModal({
     },
   ];
 
+  function formatFTEWithFamily(totalContract: number, family: string) {
+    if (!totalContract || !family) return '';
+    const fte = totalContract / 1489;
+    const rounded = Math.round(fte * 100) / 100;
+    // Remove trailing .00 if integer, else show up to 2 decimals
+    const fteStr = Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/\.00$/, '');
+    return `${fteStr}${family}`;
+  }
+
+  // Helper to get the current admin allocations for the lecturer
+  const getCurrentAdminAllocations = () => {
+    const found = allAdminAllocations.find(
+      (a: any) => a.lecturerId === displayLecturer._id
+    );
+    return found && found.adminAllocations && found.adminAllocations.length > 0
+      ? found.adminAllocations
+      : DEFAULT_ADMIN_ALLOCATIONS;
+  };
+
+  // Helper to get family initials
+  function getFamilyInitials(family: string) {
+    const map: Record<string, string> = {
+      'Academic Practitioner': 'AP',
+      'Teaching Academic': 'TA',
+      'Research Academic': 'RA',
+    };
+    return map[family] || family;
+  }
+
+  function handleSaveLecturer(updatedStaffMember: Partial<lecturer>) {
+    if (!lecturer || !lecturer._id) return;
+    updateLecturer({
+      id: lecturer._id,
+      fullName: updatedStaffMember.fullName ?? lecturer.fullName,
+      team: updatedStaffMember.team ?? lecturer.team,
+      specialism: updatedStaffMember.specialism ?? lecturer.specialism,
+      contract: updatedStaffMember.contract ?? lecturer.contract,
+      email: updatedStaffMember.email ?? lecturer.email,
+      capacity: lecturer.capacity,
+      maxTeachingHours: updatedStaffMember.maxTeachingHours ?? lecturer.maxTeachingHours,
+      role: updatedStaffMember.role ?? lecturer.role,
+      status: lecturer.status,
+      teachingAvailability: lecturer.teachingAvailability,
+      totalAllocated: lecturer.totalAllocated,
+      totalContract: updatedStaffMember.totalContract ?? lecturer.totalContract,
+      allocatedTeachingHours: lecturer.allocatedTeachingHours,
+      allocatedAdminHours: lecturer.allocatedAdminHours,
+      family: updatedStaffMember.family ?? lecturer.family,
+      fte: updatedStaffMember.fte ?? lecturer.fte,
+    }).then(async () => {
+      if (onLecturerUpdate) {
+        // Fetch the updated lecturer from Convex
+        const freshLecturer = await convex.query(api.lecturers.getById, { id: lecturer._id });
+        if (freshLecturer) {
+          onLecturerUpdate(freshLecturer);
+        }
+      }
+      setEditModalOpen(false);
+      // Log recent activity for editing personal details
+      await logRecentActivity({
+        action: "user details edited",
+        changeType: "edit",
+        entity: "lecturer",
+        entityId: lecturer._id,
+        fullName: updatedStaffMember.fullName ?? lecturer.fullName,
+        modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
+        permission: "default",
+        type: "lecturer_edited",
+        details: {
+          fullName: updatedStaffMember.fullName ?? lecturer.fullName,
+          lecturerId: lecturer._id,
+          section: "User Details"
+        }
+      });
+    });
+  }
+  const workloadPercentage = displayLecturer.totalContract > 0 
+    ? (displayLecturer.totalAllocated / displayLecturer.totalContract) * 100 
+    : 0;
+  const adminBreakdownPercent = Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours) > 0
+    ? (displayLecturer.allocatedAdminHours / Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours)) * 100
+    : 0;
+  const teachingBreakdownPercent = Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours) > 0
+    ? (displayLecturer.allocatedTeachingHours / Calculator.totalAllocated(displayLecturer.allocatedTeachingHours, displayLecturer.allocatedAdminHours)) * 100
+    : 0;
+  const teachingPercentage = displayLecturer.maxTeachingHours > 0 
+    ? (displayLecturer.allocatedTeachingHours / displayLecturer.maxTeachingHours) * 100 
+    : 0;
+  const adminPercentage = displayLecturer.totalContract > 0 
+    ? (displayLecturer.allocatedAdminHours / displayLecturer.totalContract) * 100 
+    : 0;
+  const availabilityPercentage = displayLecturer.totalContract > 0 
+    ? (displayLecturer.totalAllocated / displayLecturer.totalContract) * 100 
+    : 0;
+
+  // Calculate total admin hours
+  const totalAdminHours = adminAllocations
+    .filter((allocation) => !allocation.isHeader)
+    .reduce((sum, allocation) => sum + allocation.hours, 0)
+
+  // Calculate total module hours
+  const totalModuleHours = moduleAllocations.reduce((sum, module) => sum + module.hoursAllocated, 0)
+
   async function handleDeleteLecturer() {
     if (!lecturer || !lecturer._id) return;
     await deleteLecturer({ id: lecturer._id });
@@ -370,17 +379,44 @@ export default function StaffProfileModal({
                       <Trash2 className="h-4 w-4 mr-2 text-red-600" /> Delete profile
                     </Button>
                     {/* Download */}
-                    <Button variant="ghost" className="justify-start w-full" onClick={() => { /* TODO: Implement download handler */ }}>
-                      <Download className="h-4 w-4 mr-2" /> Download profile
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" className="justify-start w-full" disabled>
+                            <Download className="h-4 w-4 mr-2 text-gray-400" /> Download profile
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Download feature coming soon</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     {/* Print */}
-                    <Button variant="ghost" className="justify-start w-full" onClick={() => { /* TODO: Implement print handler */ }}>
-                      <Printer className="h-4 w-4 mr-2" /> Print profile
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" className="justify-start w-full" disabled>
+                            <Printer className="h-4 w-4 mr-2 text-gray-400" /> Print profile
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Print feature coming soon</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     {/* Message */}
-                    <Button variant="ghost" className="justify-start w-full" onClick={() => { /* TODO: Implement message handler */ }}>
-                      <Mail className="h-4 w-4 mr-2" /> Message staff
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" className="justify-start w-full" disabled>
+                            <Mail className="h-4 w-4 mr-2 text-gray-400" /> Message staff
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Messaging feature coming soon</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </PopoverContent>
               </Popover>
@@ -667,15 +703,7 @@ export default function StaffProfileModal({
       <AdminAllocationsEditModal
         isOpen={adminEditModalOpen}
         onClose={() => setAdminEditModalOpen(false)}
-        allocations={(() => {
-          // Find the admin allocations for this lecturer
-          const found = (useQuery(api.admin_allocations.getAll) ?? []).find(
-            (a: any) => a.lecturerId === displayLecturer._id
-          );
-          return found && found.adminAllocations && found.adminAllocations.length > 0
-            ? found.adminAllocations
-            : DEFAULT_ADMIN_ALLOCATIONS;
-        })()}
+        allocations={getCurrentAdminAllocations()}
         staffMemberName={displayLecturer.fullName}
         capacity={displayLecturer.capacity}
         lecturerId={displayLecturer._id}

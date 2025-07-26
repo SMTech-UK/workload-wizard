@@ -220,7 +220,11 @@ function DashboardContent() {
     }
   }
 
-  function calculateLecturerStatus(assigned: number, capacity: number): "overloaded" | "at-capacity" | "near-capacity" | "available" {
+  function calculateLecturerStatus(
+    assigned: number,
+    capacity: number
+  ): "overloaded" | "at-capacity" | "near-capacity" | "available" {
+    if (capacity === 0) return assigned > 0 ? "overloaded" : "available";
     if (assigned > capacity) return "overloaded";
     if (assigned === capacity) return "at-capacity";
     const percent = (assigned / capacity) * 100;
@@ -229,12 +233,24 @@ function DashboardContent() {
   }
 
   useEffect(() => {
-    lecturers.forEach((lecturer: any) => {
-      const newStatus = calculateLecturerStatus(lecturer.totalAllocated, lecturer.totalContract);
-      if (lecturer.status !== newStatus) {
-        updateLecturerStatus({ id: lecturer._id, status: newStatus });
+    const updateStatuses = async () => {
+      const updates = lecturers.map((lecturer: any) => {
+        const newStatus = calculateLecturerStatus(lecturer.totalAllocated, lecturer.totalContract);
+        if (lecturer.status !== newStatus) {
+          // Wrap each call in a promise with error handling
+          return updateLecturerStatus({ id: lecturer._id, status: newStatus })
+            .catch((err: any) => {
+              console.error(`Failed to update status for lecturer ${lecturer._id}:`, err);
+              // Optionally, show a toast or notification here
+            });
+        }
+        return null;
+      }).filter(Boolean);
+      if (updates.length > 0) {
+        await Promise.all(updates);
       }
-    });
+    };
+    updateStatuses();
   }, [lecturers, updateLecturerStatus]);
 
   const handleOpenStaffProfileModal = (lecturerId: string) => {
@@ -288,20 +304,19 @@ function DashboardContent() {
   const { isSignedIn, userId } = useAuth();
   const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
   const knockApiKey = process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY;
-  
-  // Only set up Knock if we have all required environment variables and user is signed in
-  let knockClient: any;
-  let recentChangesFeedClient: any;
+
+  // Always call hooks unconditionally at the top level
+  const knockClient = useKnockClient();
+  const recentChangesFeedClient = useNotifications(
+    knockClient,
+    recentChangesChannelId || ""
+  );
+  const store = useNotificationStore(recentChangesFeedClient);
+
+  // Fallback logic after hooks are called
   let recentChangesItems: any[] = [];
   let loadingRecentChanges = false;
-  
   try {
-    knockClient = useKnockClient();
-    recentChangesFeedClient = useNotifications(
-      knockClient,
-      recentChangesChannelId || ""
-    );
-    const store = useNotificationStore(recentChangesFeedClient);
     recentChangesItems = store.items;
     loadingRecentChanges = store.loading;
   } catch (error) {
@@ -391,8 +406,8 @@ function DashboardContent() {
                   <CardDescription>Current workload allocation by lecturer</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {lecturers.map((lecturer: any, index: number) => (
-                    <div key={index} className="space-y-2">
+                  {lecturers.map((lecturer: any) => (
+                    <div key={lecturer._id} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{lecturer.fullName}</span>

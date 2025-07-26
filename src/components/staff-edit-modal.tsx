@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
+import { deepEqual, generateContractAndHours, calculateTeachingHours } from "@/lib/utils";
 
 interface StaffMember {
   fullName: string
@@ -48,17 +49,7 @@ const teams = [
   { value: "Health Sciences", label: "Health Sciences" },
 ]
 
-// For specialism, allow free text entry (input instead of dropdown)
-const specialisms = [
-  { value: "Software Engineering", label: "Software Engineering" },
-  { value: "Data Science", label: "Data Science" },
-  { value: "Cybersecurity", label: "Cybersecurity" },
-  { value: "Artificial Intelligence", label: "Artificial Intelligence" },
-  { value: "Web Development", label: "Web Development" },
-  { value: "Database Systems", label: "Database Systems" },
-  { value: "Network Engineering", label: "Network Engineering" },
-  { value: "Mobile Development", label: "Mobile Development" },
-]
+
 
 const roles = [
   { value: "Lecturer", label: "Lecturer" },
@@ -98,28 +89,31 @@ function getTeachingPercentage(family: string) {
 }
 
 export default function StaffEditModal({
-  isOpen = true,
-  onClose = () => {},
-  onSave = () => {},
+  isOpen,
+  onClose,
+  onSave,
   staffMember,
 }: StaffEditModalProps) {
   const [formData, setFormData] = useState<StaffMember>(staffMember)
   const [errors, setErrors] = useState<Partial<Record<keyof StaffMember, string>>>({})
 
   useEffect(() => {
-    setFormData(staffMember);
+    // Ensure fte is always a number
+    setFormData({
+      ...staffMember,
+      fte: staffMember.fte !== undefined && staffMember.fte !== null ? Number(staffMember.fte) : 0,
+    });
   }, [staffMember]);
+
+  // The standard annual contract hours for a full-time staff member (used for FTE calculations)
+  const STANDARD_CONTRACT_HOURS = 1498; // 1498 is the standard annual contract hours for a full-time staff member
 
   // When FTE changes, update contract hours
   const handleFteChange = (fteStr: string) => {
-    // Allow empty string or '0' for editing
-    if (fteStr === "" || fteStr === "0") {
-      setFormData({ ...formData, fte: fteStr as any, totalContract: 0 });
-      return;
-    }
-    const fte = Number(fteStr);
+    // Convert to number, use 0 if invalid
+    const fte = fteStr === "" ? 0 : Number(fteStr);
     if (isNaN(fte)) return;
-    const totalContract = Math.round(fte * 1498 * 100) / 100;
+    const totalContract = Math.round(fte * STANDARD_CONTRACT_HOURS * 100) / 100;
     setFormData({ ...formData, fte, totalContract });
   };
 
@@ -152,16 +146,10 @@ export default function StaffEditModal({
       newErrors.role = "Role is required"
     }
 
-    if (
-      formData.fte === undefined ||
-      formData.fte === null ||
-      (typeof formData.fte === "string" && (formData.fte as string).trim() === "")
-    ) {
-      newErrors.fte = "FTE is required";
-    } else if (
-      typeof formData.fte === "number" && (formData.fte > 1 || formData.fte <= 0)
-    ) {
-      newErrors.fte = "FTE must be greater than 0 and less than or equal to 1";
+    if (formData.fte === undefined || formData.fte === null || formData.fte <= 0) {
+      newErrors.fte = "FTE is required and must be greater than 0";
+    } else if (formData.fte > 1) {
+      newErrors.fte = "FTE must be less than or equal to 1";
     }
 
     setErrors(newErrors)
@@ -169,18 +157,8 @@ export default function StaffEditModal({
   }
 
   const handleSave = () => {
-    const isUnchanged =
-      formData.fullName === staffMember.fullName &&
-      formData.email === staffMember.email &&
-      formData.team === staffMember.team &&
-      formData.specialism === staffMember.specialism &&
-      formData.contract === staffMember.contract &&
-      formData.role === staffMember.role &&
-      formData.fte === staffMember.fte &&
-      formData.totalContract === staffMember.totalContract &&
-      formData.family === staffMember.family;
-
-    if (isUnchanged) {
+    // Use deep equality check for change detection
+    if (deepEqual(formData, staffMember)) {
       toast("No changes detected. Please update at least one field before saving.");
       return;
     }
@@ -190,26 +168,27 @@ export default function StaffEditModal({
       return;
     }
 
-    // Generate contract field as smallform (e.g., 1AP, 0.6TA) and recalculate totalContract
-    const roundedFte = Math.round(formData.fte * 100) / 100;
-    const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
-    const familyInitials = getFamilyInitialsForContract(formData.family);
-    const contractSmallForm = `${fteStr}${familyInitials}`;
-    const newTotalContract = Math.floor(formData.fte * 1498);
-    const teachingPct = getTeachingPercentage(formData.family);
-    const newMaxTeachingHours = Math.floor(newTotalContract * teachingPct);
-    // Use the current allocatedTeachingHours if present, else 0
-    const allocatedTeachingHours = formData.allocatedTeachingHours ?? 0;
-    const newTeachingAvailability = newMaxTeachingHours - allocatedTeachingHours;
+    // Generate contract and total contract hours
+    const { contract, totalContract } = generateContractAndHours({
+      fte: formData.fte,
+      family: formData.family,
+      standardContractHours: STANDARD_CONTRACT_HOURS,
+    });
+    // Calculate teaching hours
+    const { maxTeachingHours, teachingAvailability } = calculateTeachingHours({
+      totalContract,
+      family: formData.family,
+      allocatedTeachingHours: formData.allocatedTeachingHours ?? 0,
+    });
     onSave({
       ...formData,
-      contract: contractSmallForm,
-      totalContract: newTotalContract,
-      maxTeachingHours: newMaxTeachingHours,
-      teachingAvailability: newTeachingAvailability,
-    })
-    onClose()
-  }
+      contract,
+      totalContract,
+      maxTeachingHours,
+      teachingAvailability,
+    });
+    onClose();
+  };
 
   const handleCancel = () => {
     setFormData(staffMember) // Reset to original data
@@ -415,7 +394,7 @@ export default function StaffEditModal({
                         min={0.01}
                         max={1}
                         step={0.01}
-                        value={formData.fte == 0 ? "0" : formData.fte ?? ""}
+                        value={formData.fte === 0 ? "" : formData.fte}
                         onChange={e => handleFteChange(e.target.value)}
                         className="w-full text-xs"
                       />

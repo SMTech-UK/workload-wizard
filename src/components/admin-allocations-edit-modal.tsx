@@ -18,7 +18,7 @@ import { useUser } from "@auth0/nextjs-auth0";
 interface AdminAllocation {
   category: string
   description: string
-  hours: string | number
+  hours: number // strictly a number now
   isHeader?: boolean
 }
 
@@ -41,7 +41,7 @@ export default function AdminAllocationsEditModal({
 }: AdminAllocationsEditModalProps) {
   // If no allocations, initialize with empty categories (all 0 hours)
   const [formData, setFormData] = useState<AdminAllocation[]>(
-    allocations.length > 0 ? allocations : []
+    allocations.length > 0 ? allocations.map(a => ({ ...a, hours: typeof a.hours === "number" && !isNaN(a.hours) ? a.hours : 0 })) : []
   )
   const [errors, setErrors] = useState<{ [key: number]: { post1?: string; post2?: string } }>({})
   const setAdminAllocations = useMutation(api.admin_allocations.setForLecturer);
@@ -49,37 +49,51 @@ export default function AdminAllocationsEditModal({
   const { user } = useUser();
 
   const validateForm = () => {
-    let hasEmpty = false;
     const newErrors: { [key: number]: { post1?: string; post2?: string } } = {}
+    let hasErrors = false;
 
     formData.forEach((allocation, index) => {
       if (!allocation.isHeader) {
-        if (allocation.hours === "" || allocation.hours === undefined || allocation.hours === null) {
-          newErrors[index] = { ...newErrors[index], post1: "" }
-          hasEmpty = true;
-        } else if (Number(allocation.hours) < 0) {
-          newErrors[index] = { ...newErrors[index], post1: "Hours cannot be negative" }
+        if (allocation.hours === undefined) {
+          newErrors[index] = { ...newErrors[index], post1: "Hours are required" };
+          hasErrors = true;
+        } else if (isNaN(allocation.hours)) {
+          newErrors[index] = { ...newErrors[index], post1: "Hours must be a number" };
+          hasErrors = true;
+        } else if (allocation.hours < 0) {
+          newErrors[index] = { ...newErrors[index], post1: "Hours cannot be negative" };
+          hasErrors = true;
         }
       }
-    })
+    });
 
-    setErrors(newErrors)
-    if (hasEmpty) {
-      toast("All hours fields are required.");
+    setErrors(newErrors);
+    if (hasErrors) {
+      toast("Please correct the errors in the form.");
       return false;
     }
-    return Object.keys(newErrors).length === 0
+    // Check for any non-empty error messages
+    const hasAnyError = Object.values(newErrors).some(
+      (err) => Object.values(err).some((msg) => msg && msg.length > 0)
+    );
+    return !hasAnyError;
   }
 
   // Store the initial admin hours sum for delta calculation
   const initialAdminHours = allocations
     .filter((allocation) => !allocation.isHeader)
-    .reduce((sum, allocation) => sum + (typeof allocation.hours === "number" ? allocation.hours : 0), 0)
+    .reduce((sum, allocation) => {
+      const hours = typeof allocation.hours === "number" && !isNaN(allocation.hours) ? allocation.hours : 0;
+      return sum + hours;
+    }, 0)
 
   // Calculate current total admin hours from formData
   const totalAdminHours = formData
     .filter((allocation) => !allocation.isHeader)
-    .reduce((sum, allocation) => sum + (typeof allocation.hours === "number" ? allocation.hours : 0), 0)
+    .reduce((sum, allocation) => {
+      const hours = typeof allocation.hours === "number" && !isNaN(allocation.hours) ? allocation.hours : 0;
+      return sum + hours;
+    }, 0)
 
   // The delta is the change from the initial admin hours
   const adminDelta = totalAdminHours - initialAdminHours;
@@ -90,9 +104,11 @@ export default function AdminAllocationsEditModal({
 
   // --- NEW: Per-allocation delta calculation ---
   const getAllocationDelta = (index: number) => {
-    const original = allocations[index]?.hours ?? 0;
-    const current = formData[index]?.hours ?? 0;
-    return Number(current) - Number(original);
+    const originalRaw = allocations[index]?.hours;
+    const currentRaw = formData[index]?.hours;
+    const original = typeof originalRaw === "number" && !isNaN(originalRaw) ? originalRaw : 0;
+    const current = typeof currentRaw === "number" && !isNaN(currentRaw) ? currentRaw : 0;
+    return current - original;
   };
 
   const handleSave = async () => {
@@ -102,6 +118,7 @@ export default function AdminAllocationsEditModal({
     }
     if (validateForm()) {
       try {
+        // No need to convert null hours to 0 anymore
         await setAdminAllocations({ lecturerId, adminAllocations: formData });
         toast("Admin allocations saved.");
         // Log recent activity for editing admin allocations
@@ -128,15 +145,15 @@ export default function AdminAllocationsEditModal({
   }
 
   const handleCancel = () => {
-    setFormData(allocations) // Reset to original data
+    setFormData(allocations.map(a => ({ ...a, hours: typeof a.hours === "number" && !isNaN(a.hours) ? a.hours : 0 }))) // Reset to original data
     setErrors({})
     onClose()
   }
 
   const updateAllocation = (index: number, field: "hours", value: string) => {
-    // Allow empty string for input, treat as 0 in calculations
+    // Convert empty string to 0, otherwise parse as number
     const newFormData = [...formData]
-    newFormData[index] = { ...newFormData[index], [field]: value === "" ? "" : Number(value) }
+    newFormData[index] = { ...newFormData[index], [field]: value === "" ? 0 : Number(value) }
     setFormData(newFormData)
   }
 
@@ -252,9 +269,9 @@ export default function AdminAllocationsEditModal({
                             <Input
                               type="number"
                               min="0"
-                              value={allocation.hours === "" ? "" : allocation.hours}
+                              value={allocation.hours === 0 ? "" : allocation.hours.toString()}
                               onChange={(e) => updateAllocation(index, "hours", e.target.value)}
-                              className={`w-24 text-center ${allocation.hours === "" ? "input-error" : "border-gray-300"}`}
+                              className={`w-24 text-center ${isNaN(Number(allocation.hours)) ? "input-error" : "border-gray-300"}`}
                             />
                           </div>
 
@@ -265,7 +282,10 @@ export default function AdminAllocationsEditModal({
                                 variant="outline"
                                 className="bg-gray-100 text-gray-700 border-gray-300 font-semibold z-10"
                               >
-                                {Number(allocation.hours) > 0 ? allocation.hours : 0}h
+                                {(() => {
+                                  const hours = typeof allocation.hours === 'number' && !isNaN(allocation.hours) && allocation.hours > 0 ? allocation.hours : 0;
+                                  return `${hours}h`;
+                                })()}
                               </Badge>
                             </div>
                             {/* Show per-row delta if changed, absolutely positioned to the right of the badge */}

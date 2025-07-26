@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogClose,
+  DialogFooter,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -26,10 +27,34 @@ import StaffProfileModal from "./staff-profile-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
+import type { Id } from "../../convex/_generated/dataModel";
+
+// Define the Lecturer interface at the top for type safety
+export interface Lecturer {
+  _id: Id<'lecturers'>;
+  fullName: string;
+  team: string;
+  specialism: string;
+  contract: string;
+  email: string;
+  capacity: number;
+  id: string;
+  maxTeachingHours: number;
+  moduleAllocations?: any[]; // Replace 'any' with a more specific type if available
+  role: string;
+  status: string;
+  teachingAvailability: number;
+  totalAllocated: number;
+  totalContract: number;
+  allocatedTeachingHours: number;
+  allocatedAdminHours: number;
+  family: string;
+  fte: number;
+}
 
 export default function LecturerManagement() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedLecturer, setSelectedLecturer] = useState<any>(null)
+  const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null)
   const [modalOpen, setModalOpen] = useState(false);
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
   const createLecturer = useMutation(api.lecturers.createLecturer)
@@ -111,29 +136,56 @@ export default function LecturerManagement() {
   })
   const [submitting, setSubmitting] = useState(false)
 
+  // Define a constant for the annual contract hours
+  const ANNUAL_CONTRACT_HOURS = 1498;
+
+  // Helper to calculate contract code (e.g., 1AP, 0.6TA)
+  function getContractCode(fte: number, family: string) {
+    const familyInitials = getFamilyInitialsForContract(family);
+    const roundedFte = Math.round(fte * 100) / 100;
+    const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
+    return `${fteStr}${familyInitials}`;
+  }
+
+  // Helper to calculate total contract hours
+  function getTotalContract(fte: number) {
+    return Math.floor(fte * ANNUAL_CONTRACT_HOURS);
+  }
+
+  // Helper to calculate max teaching hours
+  function getMaxTeachingHours(totalContract: number, family: string) {
+    const teachingPct = getTeachingPercentage(family);
+    return Math.floor(totalContract * teachingPct);
+  }
+
+  // Helper to calculate teaching availability and capacity (same as maxTeachingHours)
+  function getTeachingAvailability(maxTeachingHours: number) {
+    return maxTeachingHours;
+  }
+
+  function getCapacity(maxTeachingHours: number) {
+    return maxTeachingHours;
+  }
+
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { id, value } = e.target
+    const { id, value } = e.target;
     setForm((prev) => {
       let newForm = { ...prev, [id]: value };
       let fte = id === "fte" ? Number(value) : Number(prev.fte);
       let family = id === "family" ? value : prev.family;
-      // Calculate contract code (e.g., 1AP, 0.6TA)
-      const familyInitials = getFamilyInitialsForContract(family);
-      const roundedFte = Math.round(fte * 100) / 100;
-      const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
-      newForm.contract = `${fteStr}${familyInitials}`;
-      // Calculate totalContract, maxTeachingHours, teachingAvailability, capacity
+
+      // Use helpers for calculations
+      newForm.contract = getContractCode(fte, family);
       if (id === "fte" || id === "family") {
-        const teachingPct = getTeachingPercentage(family);
-        const totalContract = Math.floor(fte * 1498);
-        const maxTeachingHours = Math.floor(totalContract * teachingPct);
+        const totalContract = getTotalContract(fte);
+        const maxTeachingHours = getMaxTeachingHours(totalContract, family);
         newForm.totalContract = totalContract;
         newForm.maxTeachingHours = maxTeachingHours;
-        newForm.teachingAvailability = maxTeachingHours;
-        newForm.capacity = maxTeachingHours;
+        newForm.teachingAvailability = getTeachingAvailability(maxTeachingHours);
+        newForm.capacity = getCapacity(maxTeachingHours);
       }
       return newForm;
-    })
+    });
   }
 
   const handleSelectChange = (value: string) => {
@@ -144,7 +196,7 @@ export default function LecturerManagement() {
     setForm((prev) => {
       const teachingPct = getTeachingPercentage(value);
       const fte = Number(prev.fte);
-      const totalContract = Math.floor(fte * 1498);
+      const totalContract = Math.floor(fte * ANNUAL_CONTRACT_HOURS);
       const maxTeachingHours = Math.floor(totalContract * teachingPct);
       const familyInitials = getFamilyInitialsForContract(value);
       const roundedFte = Math.round(fte * 100) / 100;
@@ -162,6 +214,19 @@ export default function LecturerManagement() {
   }
 
   const handleCreateLecturer = async () => {
+    // Validate form
+    if (!form.fullName.trim() || !form.email.trim() || !form.family) {
+      // Show validation error to user
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      // Show email validation error
+      return;
+    }
+
     setSubmitting(true)
     try {
       const newLecturerId = await createLecturer(form);
@@ -194,6 +259,9 @@ export default function LecturerManagement() {
         family: "",
         fte: 1,
       })
+    } catch (error) {
+      console.error('Failed to create lecturer:', error);
+      // Show error message to user
     } finally {
       setSubmitting(false)
     }
@@ -208,24 +276,6 @@ export default function LecturerManagement() {
       statusFilter === 'all' || lecturer.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
-
-  interface lecturer {
-    fullName: string
-    team: string
-    specialism: string
-    contract: string
-    email: string
-    capacity: number
-    id: string
-    maxTeachingHours: number
-    role: string
-    status: string
-    teachingAvailability: number
-    totalAllocated: number
-    totalContract: number
-    allocatedTeachingHours: number
-    allocatedAdminHours: number
-  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -258,7 +308,7 @@ export default function LecturerManagement() {
   }
 
   // Add this function to handle lecturer deletion and log recent activity
-  const handleDeleteLecturer = async (lecturer: any) => {
+  const handleDeleteLecturer = async (lecturer: Lecturer) => {
     if (!lecturer || !lecturer._id) return;
     await deleteLecturer({ id: lecturer._id });
     await logRecentActivity({
@@ -270,6 +320,32 @@ export default function LecturerManagement() {
       modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
       permission: "default"
     });
+  };
+
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [lecturerToDelete, setLecturerToDelete] = useState<Lecturer | null>(null);
+
+  // Updated delete handler to use dialog
+  const confirmDeleteLecturer = (lecturer: Lecturer) => {
+    setLecturerToDelete(lecturer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!lecturerToDelete || !lecturerToDelete._id) return;
+    await deleteLecturer({ id: lecturerToDelete._id });
+    await logRecentActivity({
+      action: "lecturer deleted",
+      changeType: "delete",
+      entity: "lecturer",
+      entityId: lecturerToDelete._id,
+      fullName: lecturerToDelete.fullName,
+      modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
+      permission: "default"
+    });
+    setDeleteDialogOpen(false);
+    setLecturerToDelete(null);
   };
 
   return (
@@ -363,7 +439,7 @@ export default function LecturerManagement() {
               <DialogClose asChild>
                 <Button variant="outline" disabled={submitting}>Cancel</Button>
               </DialogClose>
-              <Button onClick={handleCreateLecturer} disabled={submitting || !form.fullName || !form.email || !form.contract}>
+              <Button onClick={handleCreateLecturer} disabled={submitting || !form.fullName || !form.email || !form.family}>
                 {submitting ? "Creating..." : "Create Lecturer"}
               </Button>
             </div>
@@ -440,7 +516,7 @@ export default function LecturerManagement() {
                     setModalOpen(true);
                   };
                   return (
-                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800" onClick={handleOpenModal}>
+                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800">
                     <TableCell>
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white">{lecturer.fullName}</div>
@@ -483,6 +559,9 @@ export default function LecturerManagement() {
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenModal(); }}>
                           <Eye className="w-4 h-4" />
                         </Button>
+                        <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100 dark:hover:bg-red-900" onClick={e => { e.stopPropagation(); confirmDeleteLecturer(lecturer); }}>
+                          <X className="w-4 h-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -497,9 +576,34 @@ export default function LecturerManagement() {
       <StaffProfileModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        lecturer={selectedLecturer}
-        adminAllocations={selectedLecturer ? (adminAllocations.find(a => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? []) : []}
+        lecturer={selectedLecturer as any} // Type cast to fix type mismatch
+        adminAllocations={
+          selectedLecturer
+            ? (adminAllocations.find(a => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
+            : []
+        }
       />
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this lecturer profile? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button className="bg-red-600 text-white hover:bg-red-700" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

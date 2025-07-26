@@ -1,17 +1,13 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { useUser } from "@auth0/nextjs-auth0"
-import UserProfile from "./user-profile-dropdown"
-import { useState } from "react"
-import { Menu } from "lucide-react"
+import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu } from "lucide-react"
 import { TabType } from "@/hooks/settings-modal";
 import UserProfileDropdown from "./user-profile-dropdown"
 import { Notifications } from "@/components/notifications"
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface NavigationProps {
   activeTab: string
@@ -27,9 +23,9 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { id: "lecturers", label: "Lecturers", icon: Users, href: "/lecturer-management" },
-    { id: "assignments", label: "Assignments", icon: BookOpen, href: "/dashboard" },
-    { id: "reports", label: "Reports", icon: FileText, href: "/dashboard" },
-    { id: "inbox", label: "Inbox", icon: Bell, href: "/inbox" },
+    { id: "assignments", label: "Assignments", icon: BookOpen, href: "/dashboard?tab=assignments" },
+    { id: "reports", label: "Reports", icon: FileText, href: "/dashboard?tab=reports" },
+    { id: "inbox", label: "Inbox", icon: Mail, href: "/inbox" },
   ]
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -42,6 +38,31 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
     setProfileModalTab("settings");
     setProfileModalOpen(true);
   };
+
+  // Reusable NavButton component for navigation items
+  function NavButton({ item, isActive, onClick, className }: {
+    item: typeof navItems[number];
+    isActive: boolean;
+    onClick: () => void;
+    className?: string;
+  }) {
+    return (
+      <Button
+        key={item.id}
+        variant={isActive ? "default" : "ghost"}
+        onClick={onClick}
+        className={cn(
+          "flex items-center gap-2",
+          className,
+          isActive && "bg-blue-600 text-white dark:bg-blue-500 dark:text-white hover:bg-blue-700 dark:hover:bg-blue-600"
+        )}
+      >
+        <item.icon className="w-4 h-4 text-gray-900 dark:text-white" />
+        <span className="text-gray-900 dark:text-white">{item.label}</span>
+      </Button>
+    );
+  }
+
   return (
     <header className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 sticky top-0 z-50">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -58,9 +79,10 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
               {navItems.map((item) => {
                 const isActive = (item.href && pathname === item.href) || (!item.href && activeTab === item.id);
                 return (
-                  <Button
+                  <NavButton
                     key={item.id}
-                    variant={isActive ? "default" : "ghost"}
+                    item={item}
+                    isActive={isActive}
                     onClick={() => {
                       if (item.href) {
                         router.push(item.href);
@@ -68,14 +90,7 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
                         setActiveTab(item.id);
                       }
                     }}
-                    className={cn(
-                      "flex items-center gap-2",
-                      isActive && "bg-blue-600 text-white dark:bg-blue-500 dark:text-white hover:bg-blue-700 dark:hover:bg-blue-600"
-                    )}
-                  >
-                    <item.icon className="w-4 h-4 text-gray-900 dark:text-white" />
-                    <span className="text-gray-900 dark:text-white">{item.label}</span>
-                  </Button>
+                  />
                 );
               })}
             </nav>
@@ -111,9 +126,10 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
             {navItems.map((item) => {
               const isActive = (item.href && pathname === item.href) || (!item.href && activeTab === item.id);
               return (
-                <Button
+                <NavButton
                   key={item.id}
-                  variant={isActive ? "default" : "ghost"}
+                  item={item}
+                  isActive={isActive}
                   onClick={() => {
                     if (item.href) {
                       router.push(item.href);
@@ -122,14 +138,8 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
                     }
                     setMobileMenuOpen(false);
                   }}
-                  className={cn(
-                    "flex items-center gap-2 w-full justify-start",
-                    isActive && "bg-blue-600 text-white dark:bg-blue-500 dark:text-white hover:bg-blue-700 dark:hover:bg-blue-600"
-                  )}
-                >
-                  <item.icon className="w-4 h-4 text-gray-900 dark:text-white" />
-                  <span className="text-gray-900 dark:text-white">{item.label}</span>
-                </Button>
+                  className="w-full justify-start"
+                />
               );
             })}
           </nav>

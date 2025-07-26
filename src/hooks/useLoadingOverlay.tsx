@@ -20,7 +20,7 @@ export function LoadingOverlayProvider({ children }: { children: React.ReactNode
   useEffect(() => {
     // Buffer: keep overlay for 300ms after hydration
     const buffer = 300;
-    const shortTimeout = setTimeout(() => setLoading(false), 300 + buffer); // 200ms + buffer
+    const shortTimeout = setTimeout(() => setLoading(false), 300 + buffer); // 300ms + buffer = 600ms total
     const fallbackTimeout = setTimeout(() => setLoading(false), 2000); // Fallback in case of issues
     return () => {
       clearTimeout(shortTimeout);

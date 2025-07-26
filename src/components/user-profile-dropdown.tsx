@@ -15,7 +15,7 @@ import { useUser } from "@clerk/nextjs"
 import { useClerk } from "@clerk/nextjs"
 import { Authenticated } from "convex/react"
 import SettingsModal, { TabType } from "@/hooks/settings-modal"
-import React from "react"
+import React, { useState } from "react"
 import { useTheme } from "next-themes";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex/react";
@@ -30,19 +30,19 @@ interface UserProfileDropdownProps {
   setModalTab?: (tab: TabType) => void;
 }
 
-export default function Component({ onProfileClick, onSettingsClick, modalOpen: controlledModalOpen, setModalOpen: setControlledModalOpen, modalTab: controlledModalTab, setModalTab: setControlledModalTab }: UserProfileDropdownProps) {
+export default function UserProfileDropdown({ onProfileClick, onSettingsClick, modalOpen: controlledModalOpen, setModalOpen: setControlledModalOpen, modalTab: controlledModalTab, setModalTab: setControlledModalTab }: UserProfileDropdownProps) {
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
-  const [uncontrolledModalOpen, setUncontrolledModalOpen] = React.useState(false);
-  const [uncontrolledModalTab, setUncontrolledModalTab] = React.useState<TabType>("profile");
+  const [uncontrolledModalOpen, setUncontrolledModalOpen] = useState(false);
+  const [uncontrolledModalTab, setUncontrolledModalTab] = useState<TabType>("profile");
   const modalOpen = controlledModalOpen !== undefined ? controlledModalOpen : uncontrolledModalOpen;
   const setModalOpen = setControlledModalOpen || setUncontrolledModalOpen;
   const modalTab = controlledModalTab !== undefined ? controlledModalTab : uncontrolledModalTab;
   const setModalTab = setControlledModalTab || setUncontrolledModalTab;
   const { setTheme, theme } = useTheme();
   const setSettings = useMutation(api.users.setSettings);
-  const userSettings = isLoaded && user ? useQuery(api.users.getSettings) : null;
+  const userSettings = useQuery(api.users.getSettings);
 
   if (!isLoaded || !user) return null;
 
