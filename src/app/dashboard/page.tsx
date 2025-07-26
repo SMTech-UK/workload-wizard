@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { Users, BookOpen, Clock, AlertTriangle, FileText, Settings, Calendar, Check } from "lucide-react"
+import { Users, AlertTriangle, FileText, Calendar, Check } from "lucide-react"
 import Navigation from "@/components/navigation"
 import SettingsModal, { TabType } from "@/hooks/settings-modal"
-import LecturerManagement from "@/components/lecturer-management"
+
 import ModuleAssignment from "@/components/module-assignment"
 import ReportsSection from "@/components/reports-section"
 import { DashboardMetricCard } from "@/components/ui/dashboard-metric-card";
@@ -23,8 +23,11 @@ import StaffProfileModal from "@/components/staff-profile-modal"
 import { useConvex } from "convex/react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { timeAgo } from "@/lib/notify";
-import NotificationsInbox from "@/components/notifications-inbox";
 import { useRouter } from "next/navigation";
+import { useKnockClient, useNotifications, useNotificationStore } from "@knocklabs/react";
+import { useAuth } from "@clerk/nextjs";
+import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
+import { PlusCircle, Pencil, Trash2, User, BarChart3, BookOpen, Settings, Clock } from "lucide-react";
 
 const academicYears = [
   "Academic Year 25/26",
@@ -92,7 +95,56 @@ function formatActivityTimestamp(timestamp: string) {
   }
 }
 
-export default function AcademicWorkloadPlanner() {
+// Helper to extract a string title from the first block
+function getNotificationTitle(notification: any) {
+  const block = notification.blocks[0];
+  if (!block) return { value: "Notification", isHtml: false };
+  if (typeof block === "object") {
+    if ('rendered' in block && typeof block.rendered === 'string') return { value: block.rendered, isHtml: true };
+    if ('text' in block && typeof block.text === 'string') return { value: block.text, isHtml: false };
+    if ('content' in block && typeof block.content === 'string') return { value: block.content, isHtml: false };
+  }
+  return { value: "Notification", isHtml: false };
+}
+
+function formatNotificationTimestamp(timestamp: string) {
+  // timestamp is ISO string
+  const date = typeof timestamp === 'string' ? parseISO(timestamp) : new Date(timestamp);
+  const now = new Date();
+  const hoursAgo = differenceInHours(now, date);
+  if (hoursAgo < 24) {
+    // Show relative time with tooltip
+    return {
+      display: formatDistanceToNow(date, { addSuffix: true }),
+      tooltip: format(date, 'PPpp'),
+      showTooltip: true,
+    };
+  } else {
+    // Show full date, no tooltip
+    return {
+      display: format(date, 'PPpp'),
+      tooltip: '',
+      showTooltip: false,
+    };
+  }
+}
+
+const getChangeIcon = (type: string) => {
+  switch (type) {
+    case "staff_update":
+      return <User className="h-4 w-4" />
+    case "allocation_change":
+      return <BarChart3 className="h-4 w-4" />
+    case "module_assignment":
+      return <BookOpen className="h-4 w-4" />
+    case "system_update":
+      return <Settings className="h-4 w-4" />
+    default:
+      return <Clock className="h-4 w-4" />
+  }
+}
+
+function DashboardContent() {
   const createNotification = useMutation(api.notifications.createNotification);
   const [staffProfileModalOpen, setStaffProfileModalOpen] = useState(false);
   const [selectedLecturer, setSelectedLecturer] = useState<any>(undefined);
@@ -103,7 +155,7 @@ export default function AcademicWorkloadPlanner() {
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window !== "undefined" && window.location.hash) {
       const hash = window.location.hash.replace('#', '');
-      if (["dashboard", "lecturers", "assignments", "reports"].includes(hash)) {
+      if (["dashboard", "assignments", "reports"].includes(hash)) {
         return hash;
       }
     }
@@ -119,7 +171,6 @@ export default function AcademicWorkloadPlanner() {
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
   const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
   const modules = useQuery(api.modules.getAll) ?? [];
-  const recentActivity = useQuery(api.recent_activity.getAll) ?? [];
   const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYears[0]);
   const convex = useConvex();
@@ -233,6 +284,41 @@ export default function AcademicWorkloadPlanner() {
       })
     : [];
 
+  // Knock feed setup for recent changes
+  const { isSignedIn, userId } = useAuth();
+  const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
+  const knockApiKey = process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY;
+  
+  // Only set up Knock if we have all required environment variables and user is signed in
+  let knockClient: any;
+  let recentChangesFeedClient: any;
+  let recentChangesItems: any[] = [];
+  let loadingRecentChanges = false;
+  
+  try {
+    knockClient = useKnockClient();
+    recentChangesFeedClient = useNotifications(
+      knockClient,
+      recentChangesChannelId || ""
+    );
+    const store = useNotificationStore(recentChangesFeedClient);
+    recentChangesItems = store.items;
+    loadingRecentChanges = store.loading;
+  } catch (error) {
+    console.warn('Knock client not available:', error);
+    // Fallback to empty state
+  }
+  
+  useEffect(() => { 
+    if (isSignedIn && recentChangesChannelId && knockApiKey && recentChangesFeedClient) {
+      try {
+        recentChangesFeedClient.fetch(); 
+      } catch (error) {
+        console.warn('Failed to fetch recent changes:', error);
+      }
+    }
+  }, [recentChangesFeedClient, isSignedIn, recentChangesChannelId, knockApiKey]);
+
   const router = useRouter();
 
   return (
@@ -337,81 +423,69 @@ export default function AcademicWorkloadPlanner() {
                   <ScrollArea className="max-h-64">
                     <div className="space-y-4 pr-2">
                       <TooltipProvider>
-                        {recentActivity
-                          .slice()
-                          .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                        {loadingRecentChanges ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+                          <span className="ml-2 text-sm text-gray-600">Loading...</span>
+                        </div>
+                      ) : recentChangesItems.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-600">No recent activity</p>
+                        </div>
+                      ) : (
+                        recentChangesItems
                           .slice(0, 5)
-                          .map((activity: any) => {
-                          let dotColor = "bg-blue-500";
-                          if (activity.changeType === "create") dotColor = "bg-green-500";
-                          else if (activity.changeType === "edit") dotColor = "bg-yellow-400";
-                          else if (activity.changeType === "delete") dotColor = "bg-red-500";
-                          return (
-                            <div key={activity.id} className="flex items-start gap-3 pb-1 border-b border-gray-200 last:border-b-0">
-                              <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${dotColor}`} />
-                              <div className="flex-1 min-w-0 flex items-center justify-between">
-                                <div>
-                                  {(activity.type === "lecturer_created" || activity.type === "lecturer_edited") && activity.details ? (
-                                    <span className="text-sm font-medium text-gray-900">
-                                      Lecturer{' '}
-                                      <button
-                                        className="font-bold underline text-primary hover:text-primary/80"
-                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                                        onClick={e => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          handleOpenStaffProfileModal(activity.details.lecturerId);
-                                        }}
-                                        tabIndex={0}
-                                        type="button"
-                                      >
-                                        {activity.details.fullName}
-                                      </button>
-                                      {activity.formatted.replace(
-                                        new RegExp(`^Lecturer\\s+${activity.details.fullName}`),
-                                        ''
-                                      )}
-                                    </span>
-                                  ) : activity.type === "lecturer_deleted" && activity.details ? (
-                                    <span className="text-sm font-medium text-gray-900">
-                                      Lecturer {activity.details.fullName}
-                                      {activity.formatted.replace(
-                                        new RegExp(`^Lecturer\\s+${activity.details.fullName}`),
-                                        ''
-                                      )}
-                                    </span>
-                                  ) : (
-                                    <span className="text-sm font-medium text-gray-900">{activity.formatted}</span>
-                                  )}
+                          .map((notification: any) => {
+                            const titleObj = getNotificationTitle(notification);
+                            return (
+                              <div key={notification.id} className="flex items-start gap-3 pb-1 border-b border-gray-200 last:border-b-0">
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-1
+                                  ${notification.data?.type === 'create' ? 'bg-green-100 text-green-700' :
+                                    notification.data?.type === 'edit' ? 'bg-orange-100 text-orange-700' :
+                                    notification.data?.type === 'delete' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-600'}`}
+                                >
+                                  {notification.data?.type === 'create' ? <PlusCircle className="h-4 w-4" /> :
+                                   notification.data?.type === 'edit' ? <Pencil className="h-4 w-4" /> :
+                                   notification.data?.type === 'delete' ? <Trash2 className="h-4 w-4" /> :
+                                   getChangeIcon(notification.data?.type)}
                                 </div>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="text-xs text-gray-500 cursor-help ml-4 whitespace-nowrap">
-                                      {formatActivityTimestamp(activity.timestamp)}
+                                <div className="flex-1 min-w-0 flex items-center justify-between">
+                                  <div>
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {titleObj.isHtml ? (
+                                        <span dangerouslySetInnerHTML={{ __html: titleObj.value }} />
+                                      ) : (
+                                        titleObj.value
+                                      )}
                                     </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {new Date(activity.timestamp).toLocaleString(undefined, {
-                                      year: 'numeric',
-                                      month: 'long',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      second: '2-digit',
-                                    })}
-                                  </TooltipContent>
-                                </Tooltip>
+                                    {notification.data?.description && (
+                                      <p className="text-xs text-gray-600 mt-1">{notification.data.description}</p>
+                                    )}
+                                  </div>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-xs text-gray-500 cursor-help ml-4 whitespace-nowrap">
+                                        {formatNotificationTimestamp(notification.inserted_at).display}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{formatNotificationTimestamp(notification.inserted_at).tooltip}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                                                     })
+                       )}
                       </TooltipProvider>
                     </div>
                   </ScrollArea>
                   <Button
                     variant="outline"
                     className="w-full mt-2"
-                    onClick={() => router.push("/inbox")}
+                    onClick={() => router.push("/inbox#recent-changes")}
                   >
                     View all activity
                   </Button>
@@ -444,9 +518,7 @@ export default function AcademicWorkloadPlanner() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="lecturers">
-            <LecturerManagement />
-          </TabsContent>
+
 
           <TabsContent value="assignments">
             <ModuleAssignment />
@@ -466,7 +538,63 @@ export default function AcademicWorkloadPlanner() {
             onLecturerUpdate={handleLecturerUpdate}
           />
         )}
+        <SettingsModal
+          open={userProfileModalOpen}
+          onOpenChange={setUserProfileModalOpen}
+          initialTab={userProfileModalTab}
+        />
       </main>
     </div>
   )
+}
+
+export default function AcademicWorkloadPlanner() {
+  const { isSignedIn, userId, isLoaded } = useAuth();
+  const knockApiKey = process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY;
+  
+  // Show loading state while auth is loading
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-900">
+        <div className="w-full bg-white dark:bg-zinc-900">
+          <Navigation 
+            activeTab="dashboard" 
+            setActiveTab={() => {}} 
+            onProfileClick={() => {}} 
+            onSettingsClick={() => {}} 
+            onInboxClick={() => {}}
+          />
+        </div>
+        <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center py-8">
+            <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
+  // Check if Knock is available
+  if (!knockApiKey || !userId || !isSignedIn) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-900">
+        <div className="w-full bg-white dark:bg-zinc-900">
+          <Navigation 
+            activeTab="dashboard" 
+            setActiveTab={() => {}} 
+            onProfileClick={() => {}} 
+            onSettingsClick={() => {}} 
+            onInboxClick={() => {}}
+          />
+        </div>
+        <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center py-8">
+            <p className="text-gray-600 dark:text-gray-300">Please sign in to view recent activity</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
+  return <DashboardContent />;
 }

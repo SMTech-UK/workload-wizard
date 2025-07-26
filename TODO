@@ -10,7 +10,7 @@ Todo:
   ✔ Set up recent activity using knock integration @done(25-07-25 22:18)
   ✔ Connect Clerk, Knock, and Convex for unified user management and notifications @done(25-07-25 22:20)
   ☐ Complete module allocation feature after auth and notifications are set up
-  ☐ Add metadata/seo for site
+  ✔ Add metadata/seo for site @done(25-07-26 08:04)
   ☐ Update Clerk user details and avatar from website
   ☐ Work on styling/colors (https://www.youtube.com/watch?v=vvPklRN0Tco)
   ☐ Add dropdown for extending notifications

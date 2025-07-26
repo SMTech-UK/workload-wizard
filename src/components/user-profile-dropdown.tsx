@@ -42,7 +42,7 @@ export default function Component({ onProfileClick, onSettingsClick, modalOpen: 
   const setModalTab = setControlledModalTab || setUncontrolledModalTab;
   const { setTheme, theme } = useTheme();
   const setSettings = useMutation(api.users.setSettings);
-  const userSettings = useQuery(api.users.getSettings);
+  const userSettings = isLoaded && user ? useQuery(api.users.getSettings) : null;
 
   if (!isLoaded || !user) return null;
 

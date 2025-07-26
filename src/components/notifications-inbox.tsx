@@ -122,11 +122,27 @@ export default function NotificationsInbox() {
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   // Add state to track the active tab:
-  const [activeTab, setActiveTab] = useState('notifications');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Check if there's a hash in the URL to set the initial tab
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const hash = window.location.hash.replace('#', '');
+      if (hash === 'recent-changes') {
+        return 'recent-changes';
+      }
+    }
+    return 'notifications';
+  });
 
   useEffect(() => {
     feedClient.fetch();
   }, [feedClient]);
+
+  // Update URL hash when tab changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.location.hash = activeTab;
+    }
+  }, [activeTab]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -271,7 +287,7 @@ export default function NotificationsInbox() {
         </div>
       </div>
 
-      <Tabs defaultValue="notifications" className="space-y-6" onValueChange={setActiveTab}>
+      <Tabs value={activeTab} className="space-y-6" onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2 bg-white border border-gray-200">
           <TabsTrigger value="notifications" className="data-[state=active]:bg-black data-[state=active]:text-white">
             Notifications

@@ -25,10 +25,10 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
   const router = useRouter();
   const pathname = usePathname();
   const navItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "lecturers", label: "Lecturers", icon: Users },
-    { id: "assignments", label: "Assignments", icon: BookOpen },
-    { id: "reports", label: "Reports", icon: FileText },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+    { id: "lecturers", label: "Lecturers", icon: Users, href: "/lecturer-management" },
+    { id: "assignments", label: "Assignments", icon: BookOpen, href: "/dashboard" },
+    { id: "reports", label: "Reports", icon: FileText, href: "/dashboard" },
     { id: "inbox", label: "Inbox", icon: Bell, href: "/inbox" },
   ]
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -109,13 +109,17 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
         {mobileMenuOpen && (
           <nav className="lg:hidden flex flex-col gap-1 pb-4 animate-in fade-in slide-in-from-top-2">
             {navItems.map((item) => {
-              const isActive = activeTab === item.id;
+              const isActive = (item.href && pathname === item.href) || (!item.href && activeTab === item.id);
               return (
                 <Button
                   key={item.id}
                   variant={isActive ? "default" : "ghost"}
                   onClick={() => {
-                    setActiveTab(item.id);
+                    if (item.href) {
+                      router.push(item.href);
+                    } else {
+                      setActiveTab(item.id);
+                    }
                     setMobileMenuOpen(false);
                   }}
                   className={cn(
