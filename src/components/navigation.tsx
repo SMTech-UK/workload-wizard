@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu } from "lucide-react"
-import { TabType } from "@/hooks/settings-modal";
+import { TabType } from "@/components/settings-modal";
 import UserProfileDropdown from "./user-profile-dropdown"
 import { Notifications } from "@/components/notifications"
 import { useRouter, usePathname } from "next/navigation";

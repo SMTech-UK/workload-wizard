@@ -56,6 +56,8 @@ export default function LecturerManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null)
   const [modalOpen, setModalOpen] = useState(false);
+  
+
   const lecturers = useQuery(api.lecturers.getAll) ?? [];
   const createLecturer = useMutation(api.lecturers.createLecturer)
   const deleteLecturer = useMutation(api.lecturers.deleteLecturer)
@@ -356,96 +358,96 @@ export default function LecturerManagement() {
           <p className="text-gray-600 dark:text-gray-300 mt-1">Manage academic staff profiles and capacity</p>
         </div>
         <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Lecturer
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
-            <DialogHeader>
-              <DialogTitle className="text-gray-900 dark:text-white">Add New Lecturer</DialogTitle>
-              <DialogDescription className="text-gray-600 dark:text-gray-300">
-                Create a new lecturer profile with contract details and allocations.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-gray-900 dark:text-white">Full Name</Label>
-                <Input id="fullName" value={form.fullName} onChange={handleFormChange} placeholder="Dr. John Doe" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={form.email} onChange={handleFormChange} placeholder="j.doe@university.edu" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Role</Label>
-                <Select value={form.role} onValueChange={value => setForm(prev => ({ ...prev, role: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map(role => (
-                      <SelectItem key={role.value} value={role.value}>
-                        {role.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* Removed contract type field, only FTE and Career Family remain */}
-              <div className="space-y-2">
-                <Label htmlFor="family">Career Family</Label>
-                <Select value={form.family} onValueChange={handleFamilyChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select career family">
-                      {getFamilyLabel(form.family)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {careerFamilies.map(family => (
-                      <SelectItem key={family.value} value={family.value}>
-                        {family.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fte">FTE</Label>
-                <Input id="fte" type="number" min={0.01} max={1} step={0.01} value={form.fte} onChange={handleFormChange} placeholder="1.0" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="team">Team</Label>
-                <Select value={form.team} onValueChange={value => setForm(prev => ({ ...prev, team: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teams.map(team => (
-                      <SelectItem key={team.value} value={team.value}>
-                        {team.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="specialism">Specialism</Label>
-                <Input id="specialism" value={form.specialism} onChange={handleFormChange} placeholder="Paramedic" />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <DialogClose asChild>
-                <Button variant="outline" disabled={submitting}>Cancel</Button>
-              </DialogClose>
-              <Button onClick={handleCreateLecturer} disabled={submitting || !form.fullName || !form.email || !form.family}>
-                {submitting ? "Creating..." : "Create Lecturer"}
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Lecturer
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
+              <DialogHeader>
+                <DialogTitle className="text-gray-900 dark:text-white">Add New Lecturer</DialogTitle>
+                <DialogDescription className="text-gray-600 dark:text-gray-300">
+                  Create a new lecturer profile with contract details and allocations.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-gray-900 dark:text-white">Full Name</Label>
+                  <Input id="fullName" value={form.fullName} onChange={handleFormChange} placeholder="Dr. John Doe" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" value={form.email} onChange={handleFormChange} placeholder="j.doe@university.edu" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={form.role} onValueChange={value => setForm(prev => ({ ...prev, role: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map(role => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Removed contract type field, only FTE and Career Family remain */}
+                <div className="space-y-2">
+                  <Label htmlFor="family">Career Family</Label>
+                  <Select value={form.family} onValueChange={handleFamilyChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select career family">
+                        {getFamilyLabel(form.family)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {careerFamilies.map(family => (
+                        <SelectItem key={family.value} value={family.value}>
+                          {family.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fte">FTE</Label>
+                  <Input id="fte" type="number" min={0.01} max={1} step={0.01} value={form.fte} onChange={handleFormChange} placeholder="1.0" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="team">Team</Label>
+                  <Select value={form.team} onValueChange={value => setForm(prev => ({ ...prev, team: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teams.map(team => (
+                        <SelectItem key={team.value} value={team.value}>
+                          {team.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="specialism">Specialism</Label>
+                  <Input id="specialism" value={form.specialism} onChange={handleFormChange} placeholder="Paramedic" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <DialogClose asChild>
+                  <Button variant="outline" disabled={submitting}>Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleCreateLecturer} disabled={submitting || !form.fullName || !form.email || !form.family}>
+                  {submitting ? "Creating..." : "Create Lecturer"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
 
       {/* Search and Filters */}
       <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
@@ -516,7 +518,7 @@ export default function LecturerManagement() {
                     setModalOpen(true);
                   };
                   return (
-                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800">
+                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800" onClick={handleOpenModal}>
                     <TableCell>
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white">{lecturer.fullName}</div>
@@ -575,8 +577,11 @@ export default function LecturerManagement() {
       {/* Replace LecturerDetailsModal with StaffProfileModal */}
       <StaffProfileModal
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        lecturer={selectedLecturer as any} // Type cast to fix type mismatch
+        onClose={() => {
+          setModalOpen(false);
+          setSelectedLecturer(null);
+        }}
+        lecturer={selectedLecturer as any}
         adminAllocations={
           selectedLecturer
             ? (adminAllocations.find(a => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])

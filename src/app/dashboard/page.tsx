@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Users, AlertTriangle, FileText, Calendar, Check } from "lucide-react"
 import Navigation from "@/components/navigation"
-import SettingsModal, { TabType } from "@/hooks/settings-modal"
+import SettingsModal, { TabType } from "@/components/settings-modal"
 
 import ModuleAssignment from "@/components/module-assignment"
 import ReportsSection from "@/components/reports-section"

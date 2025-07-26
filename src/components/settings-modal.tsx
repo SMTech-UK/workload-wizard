@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen, Loader2 } from "lucide-react"
+import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen, Loader2, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
@@ -31,13 +31,18 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ open, onOpenChange, initialTab = "profile" }: SettingsModalProps) {
   const { user, isLoaded } = useUser();
-  const [activeTab, setActiveTab] = useState<TabType | "lecturer-preferences">(initialTab);
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const { setTheme } = useTheme();
   React.useEffect(() => {
     if (open) setActiveTab(initialTab);
   }, [open, initialTab]);
   const [avatarUrl, setAvatarUrl] = useState(user?.imageUrl || "/placeholder.svg?height=80&width=80");
   const [isEditing, setIsEditing] = useState(false);
+
+  // Add loading states for save operations
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Clerk user: only allow editing local fields, display Clerk user info
   const [profileData, setProfileData] = useState({
@@ -220,13 +225,30 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setAvatarUrl(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // File size validation (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      toast.error("File size too large. Please select an image smaller than 5MB.");
+      return;
     }
+
+    // File type validation
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please select a valid image file (JPEG, PNG, GIF, or WebP).");
+      return;
+    }
+
+    // Show message that avatar is managed through Clerk
+    toast.info("Avatar management is handled through your authentication provider (Clerk). Please update your profile picture in your Clerk account settings.", {
+      duration: 6000,
+      description: "This ensures your avatar is consistent across all applications using this authentication system.",
+    });
+
+    // Reset the input
+    event.target.value = '';
   };
 
   // Remove all Auth0-specific update/save logic, and only allow local editing for Clerk
@@ -251,6 +273,10 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       toast("No changes detected.", { description: "Update some fields before saving." });
       return;
     }
+    
+    if (isSavingProfile) return; // Prevent multiple clicks
+    
+    setIsSavingProfile(true);
     try {
       await storeUser({
         jobTitle: profileData.jobTitle,
@@ -259,8 +285,14 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       });
       setIsEditing(false);
       toast.success("Profile updated successfully!");
-    } catch (err) {
-      toast.error("Failed to update profile.");
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      toast.error("Failed to update profile.", {
+        description: "Please check your connection and try again.",
+        duration: 6000,
+      });
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -273,7 +305,6 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       team: profileData.team,
       specialism: profileData.specialism,
     }));
-    setAvatarUrl(user?.imageUrl || "/placeholder.svg?height=80&width=80");
     setIsEditing(false);
   };
 
@@ -338,21 +369,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
             {/* Sidebar */}
             <div className="w-64 bg-muted/30 border-r p-4">
               <div className="space-y-2">
-                {/* In the sidebar, render the 'User Settings' divider at the very top, then the 'User Profile' button, then the 'App Settings' divider, then the 'User Settings' button. */}
-                {/* Example: */}
-                {/* <div className="my-4 flex items-center space-x-2"> */}
-                {/*   <Separator className="flex-1" /> */}
-                {/*   <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">User Settings</span> */}
-                {/*   <Separator className="flex-1" /> */}
-                {/* </div> */}
-                {/* <button>...</button> // User Profile */}
-                {/* <div className="my-4 flex items-center space-x-2"> */}
-                {/*   <Separator className="flex-1" /> */}
-                {/*   <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">App Settings</span> */}
-                {/*   <Separator className="flex-1" /> */}
-                {/* </div> */}
-                {/* <button>...</button> // User Settings */}
-                {/* ... existing code ... */}
+
                 <div className="my-4 flex items-center space-x-2">
                   <Separator className="flex-1" />
                   <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">User Settings</span>
@@ -421,8 +438,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex-1 overflow-y-auto max-h-[calc(80vh-32px)] p-6"> {/* 32px for padding/margins */}
-                <div className="p-6">
-                  {activeTab === "profile" && (
+                {activeTab === "profile" && (
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div>
@@ -449,9 +465,10 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           {isEditing && (
                             <label
                               htmlFor="avatar-upload"
-                              className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-2 cursor-pointer hover:bg-primary/90 transition-colors"
+                              className="absolute -bottom-1 -right-1 bg-muted text-muted-foreground rounded-full p-2 cursor-pointer hover:bg-muted/80 transition-colors"
+                              title="Avatar managed through authentication provider"
                             >
-                              <Camera className="h-4 w-4" />
+                              <Info className="h-4 w-4" />
                               <input
                                 id="avatar-upload"
                                 type="file"
@@ -473,9 +490,14 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           </h3>
                           <p className="text-muted-foreground">{tempProfileData.email}</p>
                           {isEditing && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Click the camera icon to change your avatar
-                            </p>
+                            <div className="mt-1">
+                              <p className="text-sm text-muted-foreground">
+                                Avatar is managed through your authentication provider
+                              </p>
+                              <p className="text-xs text-muted-foreground/70 mt-1">
+                                Click the info icon for more information
+                              </p>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -535,11 +557,27 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
 
                       {isEditing && (
                         <div className="flex space-x-3 pt-4">
-                          <Button onClick={handleSaveProfile} disabled={isSaveDisabled}>
-                            <Check className="h-4 w-4 mr-2" />
-                            Save Changes
+                          <Button 
+                            onClick={handleSaveProfile} 
+                            disabled={isSaveDisabled || isSavingProfile}
+                          >
+                            {isSavingProfile ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Check className="h-4 w-4 mr-2" />
+                                Save Changes
+                              </>
+                            )}
                           </Button>
-                          <Button onClick={handleCancelEdit} variant="outline">
+                          <Button 
+                            onClick={handleCancelEdit} 
+                            variant="outline"
+                            disabled={isSavingProfile}
+                          >
                             <X className="h-4 w-4 mr-2" />
                             Cancel
                           </Button>
@@ -671,7 +709,14 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                       </div>
                       <Button
                         onClick={async () => {
+                          if (isSavingSettings) return; // Prevent multiple clicks
+                          
+                          setIsSavingSettings(true);
+                          let settingsSaved = false;
+                          let userSaved = false;
+                          
                           try {
+                            // Save settings to Convex
                             await setSettings({
                               settings: {
                                 language: settingsData.preferences.language,
@@ -682,8 +727,12 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                                 timezone: settingsData.preferences.timezone,
                               }
                             });
+                            settingsSaved = true;
+                            
                             // Also persist theme to Convex user record for login persistence
                             await storeUser({ theme: settingsData.preferences.theme });
+                            userSaved = true;
+                            
                             // Sync to Knock after saving settings
                             try {
                               const response = await fetch('/api/knock-sync', {
@@ -698,18 +747,49 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                                   timezone: settingsData.preferences.timezone || 'Europe/London',
                                 }),
                               });
+                              
                               if (!response.ok) {
-                                throw new Error('Failed to sync user to notifications.');
+                                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                               }
-                            } catch (err) {
-                              toast.error('Failed to sync user to notifications.');
+                              
+                              toast.success("Settings saved successfully!");
+                            } catch (knockError) {
+                              console.error('Knock sync failed:', knockError);
+                              toast.error("Settings saved but failed to sync with notifications. Your settings are saved locally.", {
+                                description: "You can try again later or contact support if the issue persists.",
+                                duration: 8000,
+                              });
                             }
-                            toast.success("Settings saved!");
-                          } catch (err) {
-                            toast.error("Failed to save settings.");
+                          } catch (convexError) {
+                            console.error('Convex save failed:', convexError);
+                            
+                            // Provide specific error messages based on what failed
+                            if (!settingsSaved) {
+                              toast.error("Failed to save settings to database.", {
+                                description: "Please check your connection and try again.",
+                                duration: 6000,
+                              });
+                            } else if (!userSaved) {
+                              toast.error("Settings partially saved but failed to update user profile.", {
+                                description: "Some settings may not be persisted. Please try again.",
+                                duration: 6000,
+                              });
+                            }
+                          } finally {
+                            setIsSavingSettings(false);
                           }
                         }}
-                      >Save Settings</Button>
+                        disabled={isSavingSettings}
+                      >
+                        {isSavingSettings ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Settings"
+                        )}
+                      </Button>
                     </div>
                   )}
 
@@ -792,6 +872,10 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                       </div>
                       <Button
                         onClick={async () => {
+                          if (isSavingPreferences) return; // Prevent multiple clicks
+                          
+                          setIsSavingPreferences(true);
+                          
                           try {
                             await setPreferences({
                               preferences: {
@@ -801,15 +885,30 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                                 sessionTime: lecturerPrefs.teachingTime,
                               }
                             });
-                            toast.success("Lecturer preferences saved!");
-                          } catch (err) {
-                            toast.error("Failed to save preferences.");
+                            toast.success("Lecturer preferences saved successfully!");
+                          } catch (error) {
+                            console.error('Failed to save lecturer preferences:', error);
+                            toast.error("Failed to save lecturer preferences.", {
+                              description: "Please check your connection and try again.",
+                              duration: 6000,
+                            });
+                          } finally {
+                            setIsSavingPreferences(false);
                           }
                         }}
-                      >Save Preferences</Button>
+                        disabled={isSavingPreferences}
+                      >
+                        {isSavingPreferences ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Preferences"
+                        )}
+                      </Button>
                     </div>
                   )}
-                </div>
               </div>
             </div>
           </div>

@@ -22,7 +22,7 @@ import {
   Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContentWithoutClose, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -41,7 +41,7 @@ import Calculator from "@/lib/calculator";
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@auth0/nextjs-auth0";
 
-interface lecturer {
+interface Lecturer {
   _id: Id<'lecturers'> // Convex document id
   fullName: string
   team: string
@@ -82,9 +82,9 @@ type AdminAllocation = {
 type StaffProfileModalProps = {
   isOpen: boolean
   onClose: () => void
-  lecturer: lecturer | null
+  lecturer: Lecturer | null
   adminAllocations: AdminAllocation[]
-  onLecturerUpdate?: (updatedLecturer: lecturer) => void
+  onLecturerUpdate?: (updatedLecturer: Lecturer) => void
 }
 
 export default function StaffProfileModal({
@@ -94,16 +94,17 @@ export default function StaffProfileModal({
   adminAllocations,
   onLecturerUpdate,
 }: StaffProfileModalProps) {
+  
   // Null check for lecturer
   if (!lecturer) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent>
+        <DialogContentWithoutClose>
           <DialogHeader>
             <DialogTitle>Error</DialogTitle>
           </DialogHeader>
           <div>Lecturer data is missing.</div>
-        </DialogContent>
+        </DialogContentWithoutClose>
       </Dialog>
     )
   }
@@ -115,7 +116,7 @@ export default function StaffProfileModal({
   if (!displayLecturer) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent>
+        <DialogContentWithoutClose>
           <DialogHeader>
             <DialogTitle>
               <div className="flex items-center gap-2">
@@ -125,7 +126,7 @@ export default function StaffProfileModal({
             </DialogTitle>
           </DialogHeader>
           <div>Loading staff profile...</div>
-        </DialogContent>
+        </DialogContentWithoutClose>
       </Dialog>
     );
   }
@@ -257,27 +258,30 @@ export default function StaffProfileModal({
     return map[family] || family;
   }
 
-  function handleSaveLecturer(updatedStaffMember: Partial<lecturer>) {
+  async function handleSaveLecturer(updatedStaffMember: Partial<Lecturer>) {
     if (!lecturer || !lecturer._id) return;
-    updateLecturer({
-      id: lecturer._id,
-      fullName: updatedStaffMember.fullName ?? lecturer.fullName,
-      team: updatedStaffMember.team ?? lecturer.team,
-      specialism: updatedStaffMember.specialism ?? lecturer.specialism,
-      contract: updatedStaffMember.contract ?? lecturer.contract,
-      email: updatedStaffMember.email ?? lecturer.email,
-      capacity: lecturer.capacity,
-      maxTeachingHours: updatedStaffMember.maxTeachingHours ?? lecturer.maxTeachingHours,
-      role: updatedStaffMember.role ?? lecturer.role,
-      status: lecturer.status,
-      teachingAvailability: lecturer.teachingAvailability,
-      totalAllocated: lecturer.totalAllocated,
-      totalContract: updatedStaffMember.totalContract ?? lecturer.totalContract,
-      allocatedTeachingHours: lecturer.allocatedTeachingHours,
-      allocatedAdminHours: lecturer.allocatedAdminHours,
-      family: updatedStaffMember.family ?? lecturer.family,
-      fte: updatedStaffMember.fte ?? lecturer.fte,
-    }).then(async () => {
+    
+    try {
+      await updateLecturer({
+        id: lecturer._id,
+        fullName: updatedStaffMember.fullName ?? lecturer.fullName,
+        team: updatedStaffMember.team ?? lecturer.team,
+        specialism: updatedStaffMember.specialism ?? lecturer.specialism,
+        contract: updatedStaffMember.contract ?? lecturer.contract,
+        email: updatedStaffMember.email ?? lecturer.email,
+        capacity: lecturer.capacity,
+        maxTeachingHours: updatedStaffMember.maxTeachingHours ?? lecturer.maxTeachingHours,
+        role: updatedStaffMember.role ?? lecturer.role,
+        status: lecturer.status,
+        teachingAvailability: lecturer.teachingAvailability,
+        totalAllocated: lecturer.totalAllocated,
+        totalContract: updatedStaffMember.totalContract ?? lecturer.totalContract,
+        allocatedTeachingHours: lecturer.allocatedTeachingHours,
+        allocatedAdminHours: lecturer.allocatedAdminHours,
+        family: updatedStaffMember.family ?? lecturer.family,
+        fte: updatedStaffMember.fte ?? lecturer.fte,
+      });
+
       if (onLecturerUpdate) {
         // Fetch the updated lecturer from Convex
         const freshLecturer = await convex.query(api.lecturers.getById, { id: lecturer._id });
@@ -285,7 +289,9 @@ export default function StaffProfileModal({
           onLecturerUpdate(freshLecturer);
         }
       }
+      
       setEditModalOpen(false);
+      
       // Log recent activity for editing personal details
       await logRecentActivity({
         action: "user details edited",
@@ -302,7 +308,12 @@ export default function StaffProfileModal({
           section: "User Details"
         }
       });
-    });
+
+      toast.success("Staff profile updated successfully.");
+    } catch (error) {
+      console.error("Error updating lecturer:", error);
+      toast.error("Failed to update staff profile. Please try again.");
+    }
   }
   const workloadPercentage = displayLecturer.totalContract > 0 
     ? (displayLecturer.totalAllocated / displayLecturer.totalContract) * 100 
@@ -333,26 +344,33 @@ export default function StaffProfileModal({
 
   async function handleDeleteLecturer() {
     if (!lecturer || !lecturer._id) return;
-    await deleteLecturer({ id: lecturer._id });
-    await logRecentActivity({
-      action: "lecturer deleted",
-      changeType: "delete",
-      entity: "lecturer",
-      entityId: lecturer._id,
-      fullName: lecturer.fullName,
-      modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
-      permission: "default",
-      type: "lecturer_deleted"
-    });
-    toast("Staff profile deleted.");
-    setDeleteConfirmOpen(false);
-    onClose();
+    
+    try {
+      await deleteLecturer({ id: lecturer._id });
+      await logRecentActivity({
+        action: "lecturer deleted",
+        changeType: "delete",
+        entity: "lecturer",
+        entityId: lecturer._id,
+        fullName: lecturer.fullName,
+        modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
+        permission: "default",
+        type: "lecturer_deleted"
+      });
+      toast("Staff profile deleted.");
+      setDeleteConfirmOpen(false);
+      onClose();
+    } catch (error) {
+      console.error("Error deleting lecturer:", error);
+      toast.error("Failed to delete staff profile. Please try again.");
+      setDeleteConfirmOpen(false);
+    }
   }
 
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-[1400px] max-h-[95vh] overflow-y-auto bg-gray-50">
+        <DialogContentWithoutClose className="max-w-[1400px] max-h-[95vh] overflow-y-auto bg-gray-50">
           <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-black rounded-lg flex items-center justify-center">
@@ -660,11 +678,11 @@ export default function StaffProfileModal({
               </div>
             </div>
           </div>
-        </DialogContent>
+        </DialogContentWithoutClose>
       </Dialog>
       {/* Delete Confirmation Modal */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContentWithoutClose className="max-w-md">
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
@@ -681,7 +699,7 @@ export default function StaffProfileModal({
               Delete
             </Button>
           </div>
-        </DialogContent>
+        </DialogContentWithoutClose>
       </Dialog>
       {/* Edit Modal */}
       <StaffEditModal

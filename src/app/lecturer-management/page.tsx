@@ -3,7 +3,7 @@
 import { useState } from "react"
 import LecturerManagement from "@/components/lecturer-management"
 import Navigation from "@/components/navigation"
-import SettingsModal, { TabType } from "@/hooks/settings-modal"
+import SettingsModal, { TabType } from "@/components/settings-modal"
 
 export default function LecturerManagementPage() {
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);

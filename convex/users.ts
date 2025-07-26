@@ -1,6 +1,30 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+// Interface for user patch data with optional fields
+interface UserPatchData {
+  subject: string;
+  name: string;
+  givenName: string;
+  familyName: string;
+  username: string;
+  pictureUrl: string;
+  email: string;
+  updatedAt: string;
+  tokenIdentifier: string;
+  jobTitle?: string;
+  team?: string;
+  specialism?: string;
+  settings?: {
+    theme: string;
+    language: string;
+    timezone: string;
+    notifyEmail: boolean;
+    notifyPush: boolean;
+    profilePublic: boolean;
+  };
+}
+
 export const store = mutation({
   args: {
     jobTitle: v.optional(v.string()),
@@ -33,12 +57,12 @@ export const store = mutation({
 
     if (user) {
       // Only update jobTitle, team, specialism, and theme if provided
-      const patchData = { ...userData };
-      if (args.jobTitle !== undefined) (patchData as any).jobTitle = args.jobTitle;
-      if (args.team !== undefined) (patchData as any).team = args.team;
-      if (args.specialism !== undefined) (patchData as any).specialism = args.specialism;
+      const patchData: UserPatchData = { ...userData };
+      if (args.jobTitle !== undefined) patchData.jobTitle = args.jobTitle;
+      if (args.team !== undefined) patchData.team = args.team;
+      if (args.specialism !== undefined) patchData.specialism = args.specialism;
       if (args.theme !== undefined) {
-        (patchData as any).settings = { ...(user.settings || {}), theme: args.theme };
+        patchData.settings = { ...(user.settings || {}), theme: args.theme };
       }
       await ctx.db.patch(user._id, patchData);
       // Knock integration
@@ -153,7 +177,7 @@ export const setSettings = mutation({
     if (process.env.KNOCK_API_KEY) {
       const { identifyKnockUser, triggerKnockWorkflow } = await import("../src/lib/knock-server");
       await identifyKnockUser(identity.subject, { ...user, settings: args.settings });
-      await triggerKnockWorkflow('user-preferences-updated', [identity.subject], { settings: args.settings });
+      await triggerKnockWorkflow('user-settings-updated', [identity.subject], { settings: args.settings });
     }
     return true;
   }
