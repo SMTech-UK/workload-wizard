@@ -37,6 +37,7 @@ import { useEffect } from "react";
 import type { FeedItem } from "@knocklabs/client";
 import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { useAuth } from "@clerk/nextjs";
 
 interface RecentChange {
   id: string
@@ -89,17 +90,28 @@ function capitalize(str: string) {
 }
 
 export default function NotificationsInbox() {
-  // Knock integration
+  const { isSignedIn } = useAuth();
+  const feedChannelId = process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID;
+  const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
+
+  if (!isSignedIn || !feedChannelId || !recentChangesChannelId || typeof window === 'undefined') {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Notifications not available</p>
+      </div>
+    );
+  }
+
   const knockClient = useKnockClient();
   const feedClient = useNotifications(
     knockClient,
-    process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID!
+    feedChannelId
   );
   const { items, metadata, loading } = useNotificationStore(feedClient);
 
   const recentChangesFeedClient = useNotifications(
     knockClient,
-    process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID!
+    recentChangesChannelId
   );
   const { items: recentChangesItems, loading: loadingRecentChanges } = useNotificationStore(recentChangesFeedClient);
   useEffect(() => { recentChangesFeedClient.fetch(); }, [recentChangesFeedClient]);

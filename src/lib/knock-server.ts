@@ -1,8 +1,10 @@
 import Knock from '@knocklabs/node';
 
-const knockClient = new Knock({
-  apiKey: process.env.KNOCK_API_KEY,
-});
+const knockClient = process.env.KNOCK_API_KEY 
+  ? new Knock({
+      apiKey: process.env.KNOCK_API_KEY,
+    })
+  : null;
 
 /**
  * Identify or update a user in Knock
@@ -10,6 +12,10 @@ const knockClient = new Knock({
  * @param {object} userData - User data to send to Knock
  */
 export async function identifyKnockUser(userId: string, userData: Record<string, any>) {
+  if (!knockClient) {
+    console.warn('Knock client not initialized - skipping user identification');
+    return;
+  }
   try {
     await knockClient.users.update(userId, userData);
   } catch (err) {
@@ -24,6 +30,10 @@ export async function identifyKnockUser(userId: string, userData: Record<string,
  * @param {object} data - Data to pass to the workflow
  */
 export async function triggerKnockWorkflow(workflowKey: string, recipients: string[], data: Record<string, any>) {
+  if (!knockClient) {
+    console.warn('Knock client not initialized - skipping workflow trigger');
+    return;
+  }
   try {
     await knockClient.workflows.trigger(workflowKey, {
       recipients,

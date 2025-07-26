@@ -3,7 +3,7 @@
 import Footer from "@/components/footer";
 import LandingNav from "@/components/landing-nav";
 import LandingHero from "@/components/landing-page";
-import { useLoadingOverlay } from "./layout";
+import { useLoadingOverlay } from "@/hooks/useLoadingOverlay";
 import { useEffect } from "react";
 import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
 

@@ -26,6 +26,7 @@ import {
 import { useEffect } from 'react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import { useAuth } from "@clerk/nextjs";
 
 // Add a helper to extract the notification title
 function getNotificationTitle(notification: any) {
@@ -40,10 +41,21 @@ function getNotificationTitle(notification: any) {
 }
 
 export function Notifications() {
+  const { isSignedIn } = useAuth();
+  const feedChannelId = process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID;
+  
+  if (!isSignedIn || !feedChannelId || typeof window === 'undefined') {
+    return (
+      <Button variant="ghost" size="icon" className="p-2 relative">
+        <Bell width={16} />
+      </Button>
+    );
+  }
+  
   const knockClient = useKnockClient();
   const feedClient = useNotifications(
     knockClient,
-    process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID!
+    feedChannelId
   );
   const { items, metadata, loading } = useNotificationStore(feedClient);
   const router = useRouter();

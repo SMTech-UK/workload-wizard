@@ -24,14 +24,22 @@ import { api } from "../../convex/_generated/api";
 interface UserProfileDropdownProps {
   onProfileClick?: () => void;
   onSettingsClick?: () => void;
+  modalOpen?: boolean;
+  setModalOpen?: (open: boolean) => void;
+  modalTab?: TabType;
+  setModalTab?: (tab: TabType) => void;
 }
 
-export default function Component({ onProfileClick, onSettingsClick }: UserProfileDropdownProps) {
+export default function Component({ onProfileClick, onSettingsClick, modalOpen: controlledModalOpen, setModalOpen: setControlledModalOpen, modalTab: controlledModalTab, setModalTab: setControlledModalTab }: UserProfileDropdownProps) {
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
-  const [modalOpen, setModalOpen] = React.useState(false);
-  const [modalTab, setModalTab] = React.useState<TabType>("profile");
+  const [uncontrolledModalOpen, setUncontrolledModalOpen] = React.useState(false);
+  const [uncontrolledModalTab, setUncontrolledModalTab] = React.useState<TabType>("profile");
+  const modalOpen = controlledModalOpen !== undefined ? controlledModalOpen : uncontrolledModalOpen;
+  const setModalOpen = setControlledModalOpen || setUncontrolledModalOpen;
+  const modalTab = controlledModalTab !== undefined ? controlledModalTab : uncontrolledModalTab;
+  const setModalTab = setControlledModalTab || setUncontrolledModalTab;
   const { setTheme, theme } = useTheme();
   const setSettings = useMutation(api.users.setSettings);
   const userSettings = useQuery(api.users.getSettings);

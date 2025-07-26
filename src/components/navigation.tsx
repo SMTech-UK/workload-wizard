@@ -94,7 +94,14 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
               <Settings className="w-5 h-5 text-gray-900 dark:text-white" />
             </Button>
             <div className="flex items-center gap-2">
-              <UserProfileDropdown onProfileClick={onProfileClick} onSettingsClick={onSettingsClick} />
+              <UserProfileDropdown
+                onProfileClick={onProfileClick}
+                onSettingsClick={onSettingsClick}
+                modalOpen={profileModalOpen}
+                setModalOpen={setProfileModalOpen}
+                modalTab={profileModalTab}
+                setModalTab={setProfileModalTab}
+              />
             </div>
           </div>
         </div>

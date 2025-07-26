@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -131,10 +131,10 @@ export default function AcademicWorkloadPlanner() {
   const showLecturerDelta = typeof lastAcademicYearLecturerCount === 'number';
   const lecturerDelta = showLecturerDelta ? totalLecturers - lastAcademicYearLecturerCount : 0;
   const totalModules = modules.length;
-  const unassignedModules = modules.filter(m => m.status === "unassigned").length;
-  const overloadedStaff = lecturers.filter(l => l.status === "overloaded").length;
-  const totalCapacity = lecturers.reduce((sum, l) => sum + (l.totalContract || 0), 0);
-  const assignedHours = lecturers.reduce((sum, l) => sum + (l.totalAllocated || 0), 0);
+  const unassignedModules = modules.filter((m: any) => m.status === "unassigned").length;
+  const overloadedStaff = lecturers.filter((l: any) => l.status === "overloaded").length;
+  const totalCapacity = lecturers.reduce((sum: number, l: any) => sum + (l.totalContract || 0), 0);
+  const assignedHours = lecturers.reduce((sum: number, l: any) => sum + (l.totalAllocated || 0), 0);
   const capacityUtilization = totalCapacity ? Math.round((assignedHours / totalCapacity) * 100) : 0;
 
   const getStatusColor = (status: string) => {
@@ -247,7 +247,7 @@ export default function AcademicWorkloadPlanner() {
           onInboxClick={() => router.push("/inbox")}
         />
       </div>
-      <SettingsModal open={userProfileModalOpen} onOpenChange={setUserProfileModalOpen} initialTab={userProfileModalTab} />
+      {/* Removed duplicate SettingsModal here */}
 
       <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -305,7 +305,7 @@ export default function AcademicWorkloadPlanner() {
                   <CardDescription>Current workload allocation by lecturer</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {lecturers.map((lecturer, index) => (
+                  {lecturers.map((lecturer: any, index: number) => (
                     <div key={index} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -339,9 +339,9 @@ export default function AcademicWorkloadPlanner() {
                       <TooltipProvider>
                         {recentActivity
                           .slice()
-                          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                          .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                           .slice(0, 5)
-                          .map((activity) => {
+                          .map((activity: any) => {
                           let dotColor = "bg-blue-500";
                           if (activity.changeType === "create") dotColor = "bg-green-500";
                           else if (activity.changeType === "edit") dotColor = "bg-yellow-400";

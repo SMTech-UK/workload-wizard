@@ -1,3 +1,5 @@
+"use client";
+
 import { useUser } from "@clerk/clerk-react";
 import { useConvexAuth } from "convex/react";
 import { useEffect, useState, useRef } from "react";
