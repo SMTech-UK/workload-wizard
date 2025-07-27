@@ -9,6 +9,58 @@ export const getAll = query({
   },
 });
 
+// Query to get a single module by ID
+export const getById = query({
+  args: { id: v.id("modules") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+// Mutation to create a new module
+export const createModule = mutation({
+  args: {
+    code: v.string(),
+    title: v.string(),
+    credits: v.number(),
+    level: v.number(),
+    moduleLeader: v.string(),
+    defaultTeachingHours: v.number(),
+    defaultMarkingHours: v.number(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("modules", args);
+  },
+});
+
+// Mutation to update a module
+export const updateModule = mutation({
+  args: {
+    id: v.id("modules"),
+    code: v.string(),
+    title: v.string(),
+    credits: v.number(),
+    level: v.number(),
+    moduleLeader: v.string(),
+    defaultTeachingHours: v.number(),
+    defaultMarkingHours: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const { id, ...updateData } = args;
+    return await ctx.db.patch(id, updateData);
+  },
+});
+
+// Mutation to delete a module
+export const deleteModule = mutation({
+  args: { id: v.id("modules") },
+  handler: async (ctx, args) => {
+    return await ctx.db.delete(args.id);
+  },
+});
+
+
+
 // Query to get all module allocations
 export const getAllAllocations = query({
   args: {},
