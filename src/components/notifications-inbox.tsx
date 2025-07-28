@@ -1,118 +1,92 @@
 "use client"
 
-import {
-  Bell,
-  Check,
-  Archive,
-  Eye,
-  EyeOff,
-  Search,
-  Clock,
-  User,
-  BookOpen,
-  BarChart3,
-  AlertCircle,
-  CheckCircle,
-  Info,
-  MessageSquare,
-  Settings,
-  PlusCircle,
-  Pencil,
-  Trash2,
-} from "lucide-react"
+import React, { useState, useEffect } from "react"
+import { Bell, MessageSquare, Eye, EyeOff, Info, AlertCircle, CheckCircle, User, BarChart3, BookOpen, Settings, Clock, Plus, Search, Filter, Archive, Check, X, Inbox, Trash2, PlusCircle, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useState, useEffect } from "react"
-import {
-  useKnockClient,
-  useNotifications,
-  useNotificationStore,
-} from "@knocklabs/react";
-import type { FeedItem } from "@knocklabs/client";
-import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { useAuth } from "@clerk/nextjs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useAuth } from "@clerk/nextjs"
+import { useKnockClient, useNotifications, useNotificationStore } from "@knocklabs/react"
+import { formatDistanceToNow, parseISO } from "date-fns"
+// Removed DOMPurify import - using simple text sanitization instead
+import { KnockErrorBoundary } from "./KnockErrorBoundary"
 
-
-
-
-// Helper to extract a string title from the first block
-function getNotificationTitle(notification: FeedItem) {
-  const block = notification.blocks[0];
-  if (!block) return { value: "Notification", isHtml: false };
-  if (typeof block === "object") {
-    if ('rendered' in block && typeof block.rendered === 'string') return { value: block.rendered, isHtml: true };
-    if ('text' in block && typeof block.text === 'string') return { value: block.text, isHtml: false };
-    if ('content' in block && typeof block.content === 'string') return { value: block.content, isHtml: false };
+// Helper function to get notification title
+function getNotificationTitle(notification: any) {
+  if (notification.blocks && notification.blocks.length > 0) {
+    const titleBlock = notification.blocks.find((block: any) => block.type === "text" && block.name === "title")
+    if (titleBlock) {
+      return titleBlock.content || notification.title || "Notification"
+    }
   }
-  return { value: "Notification", isHtml: false };
+  return notification.title || "Notification"
 }
 
+// Helper function to format timestamp
 function formatNotificationTimestamp(timestamp: string) {
-  // timestamp is ISO string
-  const date = typeof timestamp === 'string' ? parseISO(timestamp) : new Date(timestamp);
-  const now = new Date();
-  const hoursAgo = differenceInHours(now, date);
-  if (hoursAgo < 24) {
-    // Show relative time with tooltip
+  try {
+    const date = parseISO(timestamp);
+    const now = new Date();
+    const hoursAgo = Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursAgo < 24) {
+      // Show relative time with tooltip
+      return {
+        display: formatDistanceToNow(date, { addSuffix: true }),
+        tooltip: date.toLocaleString(),
+        showTooltip: true,
+      };
+    } else {
+      // Show full date, no tooltip
+      return {
+        display: date.toLocaleString(),
+        tooltip: '',
+        showTooltip: false,
+      };
+    }
+  } catch (error) {
     return {
-      display: formatDistanceToNow(date, { addSuffix: true }),
-      tooltip: format(date, 'PPpp'),
-      showTooltip: true,
-    };
-  } else {
-    // Show full date, no tooltip
-    return {
-      display: format(date, 'PPpp'),
+      display: "Unknown time",
       tooltip: '',
       showTooltip: false,
     };
   }
 }
 
-// Add a helper to capitalize the priority string
+// Helper function to capitalize first letter
 function capitalize(str: string) {
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  return str.charAt(0).toUpperCase() + str.slice(1)
 }
 
-export default function NotificationsInbox() {
+// Main notifications inbox component wrapped in error boundary
+function NotificationsInboxInner() {
+  // Always call hooks at the top level, before any early returns
   const { isSignedIn } = useAuth();
+  const knockClient = useKnockClient();
   const feedChannelId = process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID;
   const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
-
-  if (!isSignedIn || !feedChannelId || !recentChangesChannelId || typeof window === 'undefined') {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Notifications not available</p>
-      </div>
-    );
-  }
-
-  const knockClient = useKnockClient();
+  
   const feedClient = useNotifications(
     knockClient,
-    feedChannelId
+    feedChannelId || ""
   );
   const { items, metadata, loading } = useNotificationStore(feedClient);
 
   const recentChangesFeedClient = useNotifications(
     knockClient,
-    recentChangesChannelId
+    recentChangesChannelId || ""
   );
   const { items: recentChangesItems, loading: loadingRecentChanges } = useNotificationStore(recentChangesFeedClient);
-  useEffect(() => { recentChangesFeedClient.fetch(); }, [recentChangesFeedClient]);
-
+  
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  // Change filterType to filterPriority
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
-  // Add state to track the active tab:
   const [activeTab, setActiveTab] = useState(() => {
     // Check if there's a hash in the URL to set the initial tab
     if (typeof window !== 'undefined' && window.location.hash) {
@@ -124,8 +98,16 @@ export default function NotificationsInbox() {
     return 'notifications';
   });
 
+  useEffect(() => { 
+    if (recentChangesFeedClient) {
+      recentChangesFeedClient.fetch(); 
+    }
+  }, [recentChangesFeedClient]);
+
   useEffect(() => {
-    feedClient.fetch();
+    if (feedClient) {
+      feedClient.fetch();
+    }
   }, [feedClient]);
 
   // Update URL hash when tab changes
@@ -134,6 +116,15 @@ export default function NotificationsInbox() {
       window.location.hash = activeTab;
     }
   }, [activeTab]);
+
+  // Early return after all hooks are called
+  if (!knockClient || !feedChannelId || !recentChangesChannelId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">Notifications not available</p>
+      </div>
+    );
+  }
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -183,7 +174,7 @@ export default function NotificationsInbox() {
   }
 
   // Filtering logic for Knock notifications
-  const filteredNotifications = items.filter((notification: FeedItem) => {
+  const filteredNotifications = items.filter((notification: any) => {
     const title = getNotificationTitle(notification).value.toLowerCase();
     const matchesSearch =
       title.includes(searchQuery.toLowerCase()) ||
@@ -202,13 +193,13 @@ export default function NotificationsInbox() {
   const unreadCount = metadata?.unread_count || 0;
 
   // Knock actions
-  const markAsRead = (item: FeedItem) => {
+  const markAsRead = (item: any) => {
     feedClient.markAsRead(item);
   };
-  const markAsUnread = (item: FeedItem) => {
+  const markAsUnread = (item: any) => {
     feedClient.markAsUnread(item);
   };
-  const archiveNotification = (item: FeedItem) => {
+  const archiveNotification = (item: any) => {
     feedClient.markAsArchived(item);
   };
   const markAllAsRead = () => {
@@ -411,11 +402,7 @@ export default function NotificationsInbox() {
                                 <h3
                                   className={`font-medium text-sm overflow-hidden text-ellipsis whitespace-nowrap ${notification.read_at ? "text-gray-900" : "text-gray-900 font-semibold"}`}
                                 >
-                                  {titleObj.isHtml ? (
-                                    <span dangerouslySetInnerHTML={{ __html: titleObj.value }} />
-                                  ) : (
-                                    titleObj.value
-                                  )}
+                                  {titleObj}
                                 </h3>
                                 <Badge variant="outline" className={`text-xs ${getPriorityColor(priority)}`}>{capitalize(priority)}</Badge>
                                 {notification.data?.action_required === true && (
@@ -550,11 +537,7 @@ export default function NotificationsInbox() {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="font-medium text-sm overflow-hidden text-ellipsis whitespace-nowrap text-gray-900">
-                                  {titleObj.isHtml ? (
-                                    <span dangerouslySetInnerHTML={{ __html: titleObj.value }} />
-                                  ) : (
-                                    titleObj.value
-                                  )}
+                                  {titleObj}
                                 </h3>
                               </div>
                               <p className="text-[11px] text-gray-600 mb-2 overflow-hidden text-ellipsis whitespace-nowrap">{notification.data?.description}</p>
@@ -599,4 +582,12 @@ export default function NotificationsInbox() {
       </Tabs>
     </div>
   )
+}
+
+export default function NotificationsInbox() {
+  return (
+    <KnockErrorBoundary>
+      <NotificationsInboxInner />
+    </KnockErrorBoundary>
+  );
 }

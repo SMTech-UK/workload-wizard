@@ -849,7 +849,7 @@ export default function ModuleIterations() {
                 </div>
               ) : (
                 <div className="text-center py-4 text-muted-foreground dark:text-gray-300">
-                  No lecturers assigned yet. Click "Add Lecturer" to assign lecturers to this iteration.
+                  No lecturers assigned yet. Click &quot;Add Lecturer&quot; to assign lecturers to this iteration.
                 </div>
               )}
             </div>

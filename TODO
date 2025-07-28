@@ -1,16 +1,26 @@
 
 Todo:
-  ✔ Allow user to view landing page without auth @done(25-07-25 14:28)
-  ✔ Set up Clerk backend @done(25-07-25 15:13)
-  ✔ Integrate Clerk with Convex for user details (https://clerk.com/docs/integrations/databases/convex) @done(25-07-25 15:13)
-  ✔ Implement Clerk user profile using existing theme @started(25-07-25 15:14) @done(25-07-25 16:33) @lasted(1h19m23s)
-  ✔ Store user details in Convex database (https://docs.convex.dev/auth/database-auth) @done(25-07-25 16:33)
-  ✔ Integrate Clerk with current user button and dropdown @done(25-07-25 18:18)
-  ✔ Set up notifications using Knock integration @done(25-07-25 21:56)
-  ✔ Set up recent activity using knock integration @done(25-07-25 22:18)
-  ✔ Connect Clerk, Knock, and Convex for unified user management and notifications @done(25-07-25 22:20)
+  ☐ **DEVTOOLS COMPLETION & TESTING** - Priority: HIGH
+    ☐ Add comprehensive unit tests for all devtools components:
+      - DevToolsPage component tests
+      - DevRouteGuard component tests  
+      - TestDataManager component tests
+      - useDevMode hook tests
+    ☐ Complete API route implementations:
+      - Connect add-test-lecturer to actual Convex mutations
+      - Connect add-test-module to actual Convex mutations
+      - Implement clear-test-data with proper Convex cleanup
+      - Add API route tests for all dev endpoints
+    ☐ Add integration tests for devtools workflow
+    ☐ Implement real-time monitoring in DevToolsPage:
+      - Connect to actual Convex queries for system metrics
+      - Add live database connection status
+      - Implement real API performance monitoring
+    ☐ Add comprehensive error handling and logging to devtools
+    ☐ Ensure all devtools are properly protected by admin authentication
+    ☐ Add test coverage reporting and CI/CD integration
+
   ☐ Complete module allocation feature after auth and notifications are set up
-  ✔ Add metadata/seo for site @done(25-07-26 08:04)
   ☐ Update Clerk user details and avatar from website
   ☐ Work on styling/colors (https://www.youtube.com/watch?v=vvPklRN0Tco)
   ☐ Add dropdown for extending notifications

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDevMode } from '@/hooks/useDevMode';
 import { useDevSettings } from '@/hooks/useDevSettings';
 import { useRouter } from 'next/navigation';
@@ -42,10 +42,31 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Error boundary component for dev tools
+function DevToolbarErrorBoundary({ children }: { children: React.ReactNode }) {
+  const [hasError, setHasError] = useState(false);
+
+  if (hasError) {
+    return null; // Don't render anything if there's an error
+  }
+
+  return (
+    <React.Fragment>
+      {React.Children.map(children, (child) => {
+        try {
+          return child;
+        } catch (error) {
+          console.warn('Dev toolbar error:', error);
+          setHasError(true);
+          return null;
+        }
+      })}
+    </React.Fragment>
+  );
+}
+
 export default function FloatingDevToolbar() {
-  const { shouldShowDevTools, devMode } = useDevMode();
-  const { openDevSettings } = useDevSettings();
-  const router = useRouter();
+  const [isClient, setIsClient] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [testResults, setTestResults] = useState<{
@@ -53,6 +74,49 @@ export default function FloatingDevToolbar() {
     failed: number;
     total: number;
   } | null>(null);
+
+  // Ensure we're on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Don't render anything until we're on the client
+  if (!isClient) {
+    return null;
+  }
+
+  return (
+    <DevToolbarErrorBoundary>
+      <FloatingDevToolbarContent 
+        isExpanded={isExpanded}
+        setIsExpanded={setIsExpanded}
+        isRunningTests={isRunningTests}
+        setIsRunningTests={setIsRunningTests}
+        testResults={testResults}
+        setTestResults={setTestResults}
+      />
+    </DevToolbarErrorBoundary>
+  );
+}
+
+function FloatingDevToolbarContent({
+  isExpanded,
+  setIsExpanded,
+  isRunningTests,
+  setIsRunningTests,
+  testResults,
+  setTestResults
+}: {
+  isExpanded: boolean;
+  setIsExpanded: (expanded: boolean) => void;
+  isRunningTests: boolean;
+  setIsRunningTests: (running: boolean) => void;
+  testResults: { passed: number; failed: number; total: number } | null;
+  setTestResults: (results: { passed: number; failed: number; total: number } | null) => void;
+}) {
+  const { shouldShowDevTools, devMode } = useDevMode();
+  const { openDevSettings } = useDevSettings();
+  const router = useRouter();
 
   // Don't render if dev mode is not enabled
   if (!shouldShowDevTools) {

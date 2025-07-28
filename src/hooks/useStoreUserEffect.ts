@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/clerk-react";
 import { useConvexAuth } from "convex/react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -39,36 +39,26 @@ export function useStoreUserEffect() {
   // Fetch systemRole from Convex for the current user
   const systemRoleResult = useQuery(api.users.getUserBySubject, user?.id ? { subject: user.id } : "skip") as UserBySubjectResult;
 
-  // Helper function to get dynamic locale and timezone
-  const getLocaleAndTimezone = () => {
-    // Try to get from user settings first
-    if (systemRoleResult?.settings?.language && systemRoleResult?.settings?.timezone) {
-      return {
-        locale: systemRoleResult.settings.language === 'en' ? 'en-GB' : systemRoleResult.settings.language,
-        timezone: systemRoleResult.settings.timezone
-      };
-    }
-    
-    // Fallback to browser environment
-    try {
-      const browserLocale = navigator.language || 'en-GB';
-      const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London';
-      
-      return {
-        locale: browserLocale,
-        timezone: browserTimezone
-      };
-    } catch (error) {
-      console.warn('Failed to detect browser locale/timezone, using defaults:', error);
+  // Wrap getLocaleAndTimezone in useCallback to prevent dependency changes
+  const getLocaleAndTimezone = useCallback(() => {
+    if (typeof window === 'undefined') {
       return {
         locale: 'en-GB',
         timezone: 'Europe/London'
       };
     }
-  };
+    
+    const locale = navigator.language || 'en-GB';
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London';
+    
+    return {
+      locale,
+      timezone: 'Europe/London'
+    };
+  }, []);
 
-  // Move createUser outside useEffect
-  const createUser = async (clerkUser: NonNullable<ReturnType<typeof useUser>['user']>) => {
+  // Wrap createUser in useCallback to prevent dependency changes
+  const createUser = useCallback(async (clerkUser: NonNullable<ReturnType<typeof useUser>['user']>) => {
     if (!clerkUser) return;
     
     try {
@@ -87,7 +77,7 @@ export function useStoreUserEffect() {
       // Optionally handle the error more gracefully
       // For now, we'll just log it and let the component handle the failed state
     }
-  };
+  }, [storeUser]);
 
   // Effect 1: Store user in Convex when authenticated
   useEffect(() => {
@@ -96,7 +86,7 @@ export function useStoreUserEffect() {
       createUser(user);
     }
     prevAuth.current = isAuthenticated;
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, createUser]);
 
   // Cleanup effect: Reset userId on unmount
   useEffect(() => {
@@ -105,6 +95,9 @@ export function useStoreUserEffect() {
 
   // Effect 2: Sync with Knock after systemRoleResult is loaded and userId is set
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
     if (
       user &&
       userId &&
@@ -152,7 +145,7 @@ export function useStoreUserEffect() {
       
       syncKnock();
     }
-  }, [user, userId, systemRoleResult]);
+  }, [user, userId, systemRoleResult, getLocaleAndTimezone]);
   
   // Combine the local state with the state from context
   return {

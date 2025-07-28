@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +30,7 @@ import { useAuth } from "@clerk/nextjs";
 import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
 import { PlusCircle, Pencil, Trash2, User, BarChart3, BookOpen, Settings, Clock, CheckCircle, Info } from "lucide-react";
 import CSVImportModal from "@/components/csv-import-modal";
+import { KnockSafeWrapper } from "@/components/KnockErrorBoundary";
 
 const academicYears = [
   "Academic Year 25/26",
@@ -173,12 +174,16 @@ function DashboardContent() {
       window.location.hash = activeTab;
     }
   }, [activeTab]);
-  const lecturers = useQuery(api.lecturers.getAll) ?? [];
+  const lecturersQuery = useQuery(api.lecturers.getAll);
   const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
   const modules = useQuery(api.modules.getAll) ?? [];
   const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYears[0]);
   const convex = useConvex();
+
+  // Memoize lecturers to prevent unnecessary re-renders in useEffect
+  const lecturers = useMemo(() => lecturersQuery ?? [], [lecturersQuery]);
+  const memoizedLecturers = useMemo(() => lecturers, [lecturers]);
 
   const totalLecturers = lecturers.length;
   // Example: get last academic year lecturer count (replace with real data if available)
@@ -239,7 +244,7 @@ function DashboardContent() {
 
   useEffect(() => {
     const updateStatuses = async () => {
-      const updates = lecturers.map((lecturer: any) => {
+      const updates = memoizedLecturers.map((lecturer: any) => {
         const newStatus = calculateLecturerStatus(lecturer.totalAllocated, lecturer.totalContract);
         if (lecturer.status !== newStatus) {
           // Wrap each call in a promise with error handling
@@ -256,7 +261,7 @@ function DashboardContent() {
       }
     };
     updateStatuses();
-  }, [lecturers, updateLecturerStatus]);
+  }, [memoizedLecturers, updateLecturerStatus]);
 
   const handleOpenStaffProfileModal = (lecturerId: string) => {
     if (!lecturerId) return;
@@ -293,13 +298,13 @@ function DashboardContent() {
 
   const selectedModuleAllocations = selectedLecturer && selectedLecturer.moduleAllocations
     ? (selectedLecturer.moduleAllocations as any[]).map((alloc: any) => {
-        const module = modules.find((m: any) => m.id === alloc.moduleCode);
+        const moduleData = modules.find((m: any) => m.id === alloc.moduleCode);
         return {
           ...alloc,
-          moduleName: module ? module.title : alloc.moduleName,
+          moduleName: moduleData ? moduleData.title : alloc.moduleName,
           semester: alloc.semester,
           type: alloc.type,
-          credits: module ? module.credits : undefined,
+          credits: moduleData ? moduleData.credits : undefined,
           teachingHours: alloc.hoursAllocated,
         };
       })
@@ -1030,5 +1035,26 @@ export default function AcademicWorkloadPlanner() {
     );
   }
   
-  return <DashboardContent />;
+  return (
+    <KnockSafeWrapper fallback={
+      <div className="min-h-screen bg-white dark:bg-zinc-900">
+        <div className="w-full bg-white dark:bg-zinc-900">
+          <Navigation 
+            activeTab="dashboard" 
+            setActiveTab={() => {}} 
+            onProfileClick={() => {}} 
+            onSettingsClick={() => {}} 
+            onInboxClick={() => {}}
+          />
+        </div>
+        <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center py-8">
+            <p className="text-gray-600 dark:text-gray-300">Loading dashboard...</p>
+          </div>
+        </main>
+      </div>
+    }>
+      <DashboardContent />
+    </KnockSafeWrapper>
+  );
 }

@@ -109,12 +109,12 @@ export default function ModuleAssignment() {
     // Find the module being dragged
     const moduleIdx = moduleList.findIndex((m) => m.id === draggableId)
     if (moduleIdx === -1) return
-    const module = moduleList[moduleIdx]
+    const moduleData = moduleList[moduleIdx]
 
     // If dropped to 'unassigned' column
     if (destination.droppableId === "unassigned") {
       // Find the lecturer who currently has this module (if any)
-      const prevLecturerIdx = lecturerList.findIndex((lect) => lect.modules.includes(module.id))
+      const prevLecturerIdx = lecturerList.findIndex((lect) => lect.modules.includes(moduleData.id))
       let updatedLecturerList = lecturerList
       if (prevLecturerIdx !== -1) {
         const prevLecturer = lecturerList[prevLecturerIdx]
@@ -122,8 +122,8 @@ export default function ModuleAssignment() {
           idx === prevLecturerIdx
             ? {
                 ...lect,
-                modules: lect.modules.filter((mid) => mid !== module.id),
-                assigned: lect.assigned - module.teachingHours,
+                modules: lect.modules.filter((mid) => mid !== moduleData.id),
+                assigned: lect.assigned - (moduleData as any).teachingHours,
               }
             : lect
         )
@@ -145,12 +145,12 @@ export default function ModuleAssignment() {
     const lecturer = lecturerList[lecturerIdx]
 
     // Validation: already assigned to this lecturer
-    if (lecturer.modules.includes(module.id)) {
+    if (lecturer.modules.includes(moduleData.id)) {
       return
     }
 
     // Validation: check if adding this module would exceed capacity
-    const newAssigned = lecturer.assigned + module.teachingHours
+    const newAssigned = lecturer.assigned + (moduleData as any).teachingHours
     if (newAssigned > lecturer.capacity) {
       // Optionally, show a toast or error here
       alert(`${lecturer.name} does not have enough capacity for this module.`)
@@ -162,11 +162,11 @@ export default function ModuleAssignment() {
 
     // Remove module from previous lecturer (if any)
     let updatedLecturerList = lecturerList.map((lect) => {
-      if (lect.modules.includes(module.id)) {
+      if (lect.modules.includes(moduleData.id)) {
         return {
           ...lect,
-          modules: lect.modules.filter((mid) => mid !== module.id),
-          assigned: lect.assigned - module.teachingHours,
+          modules: lect.modules.filter((mid) => mid !== moduleData.id),
+          assigned: lect.assigned - (moduleData as any).teachingHours,
         }
       }
       return lect
@@ -347,20 +347,20 @@ export default function ModuleAssignment() {
                         ) : (
                           <div className="space-y-2">
                             {lecturer.modules.map((moduleId, index) => {
-                              const module = moduleList.find((m) => m.id === moduleId)
-                              if (!module) return null
+                              const moduleData = moduleList.find((m) => m.id === moduleId)
+                              if (!moduleData) return null
 
                               return (
                                 <div key={moduleId} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                   <div className="flex items-center justify-between">
                                     <div>
-                                      <div className="font-medium text-sm">{module.id}</div>
-                                      <div className="text-sm text-gray-600">{module.title}</div>
+                                      <div className="font-medium text-sm">{moduleData.id}</div>
+                                      <div className="text-sm text-gray-600">{moduleData.title}</div>
                                     </div>
                                     <div className="text-right text-xs text-gray-500">
-                                      <div>{module.teachingHours}h</div>
+                                      <div>{(moduleData as any).teachingHours}h</div>
                                       <div>
-                                        {module.sites.reduce((total, site) => total + site.students, 0)} students
+                                        {moduleData.sites.reduce((total, site) => total + site.students, 0)} students
                                       </div>
                                     </div>
                                   </div>

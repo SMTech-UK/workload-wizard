@@ -87,20 +87,47 @@ jest.mock('@knocklabs/react', () => ({
   KnockProvider: ({ children }) => children,
 }))
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-})
+// Mock window.matchMedia - only define if not already defined
+if (!window.matchMedia) {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(), // deprecated
+      removeListener: jest.fn(), // deprecated
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  })
+}
+
+// Proper timer mocks for Jest environment
+// Store original timer functions
+const originalSetTimeout = global.setTimeout;
+const originalClearTimeout = global.clearTimeout;
+const originalSetInterval = global.setInterval;
+const originalClearInterval = global.clearInterval;
+
+// Mock timer functions properly
+global.setTimeout = jest.fn((callback, delay) => {
+  return originalSetTimeout(callback, delay);
+});
+
+global.clearTimeout = jest.fn((id) => {
+  return originalClearTimeout(id);
+});
+
+global.setInterval = jest.fn((callback, delay) => {
+  return originalSetInterval(callback, delay);
+});
+
+global.clearInterval = jest.fn((id) => {
+  return originalClearInterval(id);
+});
 
 // Mock ResizeObserver
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
@@ -122,7 +149,9 @@ beforeAll(() => {
   console.error = (...args) => {
     if (
       typeof args[0] === 'string' &&
-      args[0].includes('Warning: ReactDOM.render is no longer supported')
+      (args[0].includes('Warning: ReactDOM.render is no longer supported') ||
+       args[0].includes('Warning: An update to') ||
+       args[0].includes('Warning: React does not recognize'))
     ) {
       return
     }

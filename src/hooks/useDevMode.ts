@@ -8,37 +8,50 @@ import { api } from '../../convex/_generated/api';
 export function useDevMode() {
   const { user, isLoaded } = useUser();
   const [devMode, setDevMode] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   
-  // Get user profile to check system role - only when user is loaded and authenticated
-  const profileFields = isLoaded && user 
-    ? useQuery(api.users.getProfileFields)
-    : undefined;
+  // Ensure we're on the client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
-  // Check if user is admin
-  const isAdmin = profileFields?.systemRole === 'admin' || profileFields?.systemRole === 'administrator';
+  // Always call useQuery, but handle the case where it might not be available
+  const profileFields = useQuery(api.users.getProfileFields);
+  
+  // Check if user is admin - only if we have valid data
+  const isAdmin = isLoaded && user && profileFields && 
+    (profileFields.systemRole === 'admin' || profileFields.systemRole === 'administrator');
   
   // Load dev mode from localStorage (only for admins)
   useEffect(() => {
-    if (isLoaded && isAdmin) {
-      const savedDevMode = localStorage.getItem('devMode') === 'true';
-      setDevMode(savedDevMode);
+    if (isLoaded && isAdmin && isClient) {
+      try {
+        const savedDevMode = localStorage.getItem('devMode') === 'true';
+        setDevMode(savedDevMode);
+      } catch (error) {
+        console.warn('Failed to load dev mode from localStorage:', error);
+      }
     }
-  }, [isLoaded, isAdmin]);
+  }, [isLoaded, isAdmin, isClient]);
   
   // Toggle dev mode with immediate state update
   const toggleDevMode = useCallback((enabled: boolean) => {
-    if (isAdmin) {
-      setDevMode(enabled);
-      localStorage.setItem('devMode', enabled.toString());
-      // Force a re-render by triggering a state update
-      setTimeout(() => {
+    if (isAdmin && isClient) {
+      try {
         setDevMode(enabled);
-      }, 0);
+        localStorage.setItem('devMode', enabled.toString());
+        // Force a re-render by triggering a state update
+        setTimeout(() => {
+          setDevMode(enabled);
+        }, 0);
+      } catch (error) {
+        console.warn('Failed to save dev mode to localStorage:', error);
+      }
     }
-  }, [isAdmin]);
+  }, [isAdmin, isClient]);
   
   // Check if dev tools should be shown
-  const shouldShowDevTools = isAdmin && devMode;
+  const shouldShowDevTools = isAdmin && devMode && isClient;
   
   return {
     devMode,

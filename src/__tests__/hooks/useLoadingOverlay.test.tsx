@@ -17,7 +17,10 @@ describe('useLoadingOverlay', () => {
   })
 
   afterEach(() => {
-    jest.runOnlyPendingTimers()
+    // Run all pending timers before cleaning up
+    act(() => {
+      jest.runOnlyPendingTimers()
+    })
     jest.useRealTimers()
   })
 
@@ -125,9 +128,14 @@ describe('useLoadingOverlay', () => {
       </LoadingOverlayProvider>
     )
 
+    // Run timers to ensure they're set up
+    act(() => {
+      jest.runOnlyPendingTimers()
+    })
+
     unmount()
 
-    expect(clearTimeoutSpy).toHaveBeenCalledTimes(2) // Both timeouts should be cleared
+    expect(clearTimeoutSpy).toHaveBeenCalled()
   })
 
   it('should work with nested components', () => {

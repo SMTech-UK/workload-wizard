@@ -5,6 +5,7 @@ import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkle
 import { TabType } from "@/components/settings-modal";
 import UserProfileDropdown from "./user-profile-dropdown"
 import { Notifications } from "@/components/notifications"
+import { KnockSafeWrapper } from "@/components/KnockErrorBoundary"
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -130,7 +131,13 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
             </button>
           </div>
           <div className="flex items-center gap-4 flex-shrink-0 overflow-visible">
-            <Notifications />
+            <KnockSafeWrapper fallback={
+              <Button variant="ghost" size="icon" className="p-2 relative">
+                <Bell width={16} />
+              </Button>
+            }>
+              <Notifications />
+            </KnockSafeWrapper>
             {shouldShowDevTools && (
              <DropdownMenu>
                <DropdownMenuTrigger asChild>

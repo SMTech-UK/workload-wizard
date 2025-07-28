@@ -108,7 +108,7 @@ export default function TestDataManager() {
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               These actions will add or remove test data from your development environment. 
-              Test data is marked with "test-" prefix and can be safely cleared.
+              Test data is marked with &quot;test-&quot; prefix and can be safely cleared.
             </AlertDescription>
           </Alert>
 
@@ -196,10 +196,10 @@ export default function TestDataManager() {
           <div className="bg-muted p-4 rounded-lg">
             <h4 className="font-medium mb-2">Test Data Information</h4>
             <div className="text-sm text-muted-foreground space-y-1">
-              <p>• Test data is prefixed with "test-" for easy identification</p>
+              <p>• Test data is prefixed with &quot;test-&quot; for easy identification</p>
               <p>• Test lecturers include sample teaching preferences and interests</p>
               <p>• Test modules include sample learning outcomes and assessment methods</p>
-              <p>• Clearing test data removes all records with "test-" prefix</p>
+              <p>• Clearing test data removes all records with &quot;test-&quot; prefix</p>
               <p>• This action only affects development/test environment</p>
             </div>
           </div>

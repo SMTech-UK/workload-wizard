@@ -1,10 +1,20 @@
 import Knock from '@knocklabs/node';
 
-const knockClient = process.env.KNOCK_API_KEY 
+// Check for server-side API key
+const knockApiKey = process.env.KNOCK_API_KEY;
+const knockClient = knockApiKey 
   ? new Knock({
-      apiKey: process.env.KNOCK_API_KEY,
+      apiKey: knockApiKey,
     })
   : null;
+
+// Log initialization status
+if (!knockApiKey) {
+  console.warn('⚠️  KNOCK_API_KEY not found in environment variables');
+  console.warn('   This is required for server-side Knock operations (user identification, workflow triggers)');
+  console.warn('   Get your server-side API key from: https://app.knock.app/settings/api-keys');
+  console.warn('   Add it to your .env.local file as: KNOCK_API_KEY=sk_test_...');
+}
 
 /**
  * Identify or update a user in Knock
@@ -14,10 +24,12 @@ const knockClient = process.env.KNOCK_API_KEY
 export async function identifyKnockUser(userId: string, userData: Record<string, any>) {
   if (!knockClient) {
     console.warn('Knock client not initialized - skipping user identification');
+    console.warn('To fix this, add KNOCK_API_KEY=sk_test_... to your .env.local file');
     return;
   }
   try {
     await knockClient.users.update(userId, userData);
+    console.log(`✅ Knock user identified: ${userId}`);
   } catch (err) {
     console.error('Knock identify error:', err);
   }
@@ -32,6 +44,7 @@ export async function identifyKnockUser(userId: string, userData: Record<string,
 export async function triggerKnockWorkflow(workflowKey: string, recipients: string[], data: Record<string, any>) {
   if (!knockClient) {
     console.warn('Knock client not initialized - skipping workflow trigger');
+    console.warn('To fix this, add KNOCK_API_KEY=sk_test_... to your .env.local file');
     return;
   }
   try {
@@ -39,6 +52,7 @@ export async function triggerKnockWorkflow(workflowKey: string, recipients: stri
       recipients,
       data,
     });
+    console.log(`✅ Knock workflow triggered: ${workflowKey} for ${recipients.length} recipients`);
   } catch (err) {
     console.error('Knock workflow trigger error:', err);
   }

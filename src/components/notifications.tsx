@@ -1,74 +1,63 @@
 'use client';
 
-import { useState } from 'react';
-import { Bell, CheckIcon, Mail, Eye, Inbox } from 'lucide-react';
-import { useMutation, useQuery } from 'convex/react';
+import React from "react"
+import { Bell, Inbox, Mail, Eye } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@clerk/nextjs"
+import { useKnockClient, useNotifications, useNotificationStore } from "@knocklabs/react"
+import { formatDistanceToNow, parseISO } from "date-fns"
+// Removed DOMPurify import - using simple text sanitization instead
+import { KnockErrorBoundary } from "./KnockErrorBoundary"
 
-import { api } from '../../convex/_generated/api';
-
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { timeAgo } from '@/lib/notify';
-import { toast } from 'sonner';
-import Link from 'next/link';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  useKnockClient,
-  useNotifications,
-  useNotificationStore,
-} from '@knocklabs/react';
-import { useEffect } from 'react';
-import { formatDistanceToNow, parseISO } from 'date-fns';
-import { useRouter } from 'next/navigation';
-import { useAuth } from "@clerk/nextjs";
-import DOMPurify from 'dompurify';
-import type { FeedItem } from "@knocklabs/client";
-
-// Add a helper to extract the notification title
-function getNotificationTitle(notification: FeedItem) {
-  if (!notification || !Array.isArray(notification.blocks) || notification.blocks.length === 0) {
-    return { value: 'Notification', isHtml: false };
+// Helper function to get notification title
+function getNotificationTitle(notification: any) {
+  if (notification.blocks && notification.blocks.length > 0) {
+    const titleBlock = notification.blocks.find((block: any) => block.type === "text" && block.name === "title")
+    if (titleBlock) {
+      return titleBlock.content || notification.title || "Notification"
+    }
   }
-  const block = notification.blocks[0];
-  if (!block || typeof block !== 'object') return { value: 'Notification', isHtml: false };
-  if ('rendered' in block && typeof block.rendered === 'string') {
-    // Sanitize HTML content before returning
-    return { value: DOMPurify.sanitize(block.rendered), isHtml: true };
-  }
-  if ('text' in block && typeof block.text === 'string') return { value: block.text, isHtml: false };
-  if ('content' in block && typeof block.content === 'string') return { value: block.content, isHtml: false };
-  return { value: 'Notification', isHtml: false };
+  return notification.title || "Notification"
 }
 
-export function Notifications() {
-  const { isSignedIn } = useAuth();
+// Main notifications component wrapped in error boundary
+function NotificationsInner() {
+  // Always call hooks at the top level, before any early returns
+  const knockClient = useKnockClient();
   const feedChannelId = process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID;
-  
-  if (!isSignedIn || !feedChannelId || typeof window === 'undefined') {
+  const router = useRouter();
+  const { isSignedIn } = useAuth();
+
+  // Always call these hooks, but handle the case where they might not work
+  const feedClient = useNotifications(
+    knockClient,
+    feedChannelId || ""
+  );
+  const { items, metadata, loading } = useNotificationStore(feedClient);
+
+  React.useEffect(() => {
+    if (feedClient) {
+      try {
+        feedClient.fetch();
+      } catch (error) {
+        console.warn('Failed to fetch notifications:', error);
+      }
+    }
+  }, [feedClient]);
+
+  // Early return after all hooks are called
+  if (!knockClient || !feedChannelId || !isSignedIn) {
     return (
       <Button variant="ghost" size="icon" className="p-2 relative">
         <Bell width={16} />
       </Button>
     );
   }
-  
-  const knockClient = useKnockClient();
-  const feedClient = useNotifications(
-    knockClient,
-    feedChannelId
-  );
-  const { items, metadata, loading } = useNotificationStore(feedClient);
-  const router = useRouter();
-
-  useEffect(() => {
-    feedClient.fetch();
-  }, [feedClient]);
 
   const unreadCount = metadata?.unread_count || 0;
   // Before slicing for compactNotifications, filter items to only those where !notification.read_at
@@ -136,8 +125,8 @@ export function Notifications() {
                   className="flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-gray-50 flex-nowrap"
                 >
                   <div className="min-w-0 max-w-[250px]">
-                    <p className="text-xs font-medium overflow-hidden text-ellipsis whitespace-nowrap" title={titleObj.isHtml ? undefined : titleObj.value}>
-                      {titleObj.isHtml ? <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(titleObj.value) }} /> : titleObj.value}
+                    <p className="text-xs font-medium overflow-hidden text-ellipsis whitespace-nowrap" title={titleObj}>
+                      {titleObj}
                     </p>
                     <p className="text-[10px] text-gray-500 overflow-hidden text-ellipsis whitespace-nowrap">
                       {formatDistanceToNow(parseISO(notification.inserted_at), { addSuffix: true })}
@@ -156,21 +145,20 @@ export function Notifications() {
             })}
           </div>
         </ScrollArea>
-        {unreadCount > 0 && (
-          <>
-            <Separator />
-            <div className="pt-2">
-              <Button
-                variant="outline"
-                className="w-full text-xs h-7"
-                onClick={() => feedClient.markAllAsRead()}
-              >
-                Mark all as read
-              </Button>
-            </div>
-          </>
-        )}
       </PopoverContent>
     </Popover>
+  );
+}
+
+// Export the component wrapped in error boundary
+export function Notifications() {
+  return (
+    <KnockErrorBoundary fallback={
+      <Button variant="ghost" size="icon" className="p-2 relative">
+        <Bell width={16} />
+      </Button>
+    }>
+      <NotificationsInner />
+    </KnockErrorBoundary>
   );
 }

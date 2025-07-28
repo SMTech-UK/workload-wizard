@@ -94,25 +94,29 @@ export default function StaffProfileModal({
   adminAllocations,
   onLecturerUpdate,
 }: StaffProfileModalProps) {
-  
-  // Null check for lecturer
-  if (!lecturer) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContentWithoutClose>
-          <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
-          </DialogHeader>
-          <div>Lecturer data is missing.</div>
-        </DialogContentWithoutClose>
-      </Dialog>
-    )
-  }
+  // Always call hooks at the top level, before any early returns
+  const [adminOpen, setAdminOpen] = useState(false)
+  const [moduleOpen, setModuleOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [adminEditModalOpen, setAdminEditModalOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const updateLecturer = useMutation(api.lecturers.updateLecturer);
+  const deleteLecturer = useMutation(api.lecturers.deleteLecturer);
+  const convex = useConvex();
+  const logRecentActivity = useLogRecentActivity();
+  const { user } = useUser();
 
   // Fetch the latest lecturer data from Convex
-  const liveLecturer = useQuery(api.lecturers.getById, { id: lecturer._id });
+  const liveLecturer = useQuery(api.lecturers.getById, lecturer ? { id: lecturer._id } : "skip");
   const displayLecturer = liveLecturer || lecturer;
 
+  // Fetch module allocations for this lecturer from Convex
+  const moduleAllocations = useQuery(api.modules.getByLecturerId, lecturer ? { lecturerId: lecturer._id } : "skip") ?? [];
+
+  // Fetch all admin allocations at the top level (fixes hooks rules violation)
+  const allAdminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
+
+  // Early return after all hooks are called
   if (!displayLecturer) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -130,23 +134,6 @@ export default function StaffProfileModal({
       </Dialog>
     );
   }
-
-  const [adminOpen, setAdminOpen] = useState(false)
-  const [moduleOpen, setModuleOpen] = useState(false)
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [adminEditModalOpen, setAdminEditModalOpen] = useState(false)
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-  const updateLecturer = useMutation(api.lecturers.updateLecturer);
-  const deleteLecturer = useMutation(api.lecturers.deleteLecturer);
-  const convex = useConvex();
-  const logRecentActivity = useLogRecentActivity();
-  const { user } = useUser();
-
-  // Fetch module allocations for this lecturer from Convex
-  const moduleAllocations = useQuery(api.modules.getByLecturerId, lecturer ? { lecturerId: lecturer._id } : "skip") ?? [];
-
-  // Fetch all admin allocations at the top level (fixes hooks rules violation)
-  const allAdminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
 
   // Default admin allocation categories
   const DEFAULT_ADMIN_ALLOCATIONS = [

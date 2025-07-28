@@ -460,9 +460,9 @@ ${component.props.slice(0, 3).map(prop => `  ${prop}="value"`).join('\n')}
                   <div className="bg-gray-100 dark:bg-gray-900 p-4 rounded">
                     <h4 className="font-medium mb-2">Test Commands</h4>
                     <div className="space-y-2 text-sm font-mono">
-                      <div>npm test -- --testNamePattern="{component.name}"</div>
-                      <div>npm run test:coverage -- --testNamePattern="{component.name}"</div>
-                      <div>npm run test:watch -- --testNamePattern="{component.name}"</div>
+                      <div>npm test -- --testNamePattern=&quot;{component.name}&quot;</div>
+                      <div>npm run test:coverage -- --testNamePattern=&quot;{component.name}&quot;</div>
+                      <div>npm run test:watch -- --testNamePattern=&quot;{component.name}&quot;</div>
                     </div>
                   </div>
                 </div>

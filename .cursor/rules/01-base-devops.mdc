@@ -1,6 +1,6 @@
 ---
 description: Standards for implementing AI-driven DevOps pipelines and automation
-globs: ["**/*.{yml,yaml,json,ts,js}", ".github/**/*", "Dockerfile*"]
+globs: ["**/*.{yml,yaml,json,ts,js}", ".github/**/*", "Dockerfile*"],
 priority: 15
 ---
 
