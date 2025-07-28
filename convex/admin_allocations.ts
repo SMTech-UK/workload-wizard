@@ -11,11 +11,11 @@ export const getAll = query({
 
 export const setForLecturer = mutation({
   args: {
-    lecturerId: v.string(),
+    lecturerId: v.id("lecturers"),
     adminAllocations: v.array(v.object({
       category: v.string(),
-      description: v.optional(v.string()),
-      hours: v.union(v.string(), v.number()),
+      description: v.string(),
+      hours: v.number(),
       isHeader: v.optional(v.boolean()),
     })),
   },
@@ -35,10 +35,10 @@ export const setForLecturer = mutation({
     // Sum all hours from adminAllocations
     const totalAdminHours = args.adminAllocations
       .filter(a => !a.isHeader)
-      .reduce((sum, a) => sum + (typeof a.hours === "number" ? a.hours : Number(a.hours) || 0), 0);
+      .reduce((sum, a) => sum + a.hours, 0);
     // Find the lecturer by id and update allocatedAdminHours
     const lecturers = await ctx.db.query("lecturers").collect();
-    const lecturer = lecturers.find(l => l._id === args.lecturerId || l.id === args.lecturerId);
+    const lecturer = lecturers.find(l => l._id === args.lecturerId);
     if (lecturer) {
       await ctx.db.patch(lecturer._id, { allocatedAdminHours: totalAdminHours });
       // Calculate and update capacity (remaining hours)

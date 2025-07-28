@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import ModuleIterations from "@/components/module-iterations"
 import Navigation from "@/components/navigation"
 import SettingsModal, { TabType } from "@/components/settings-modal"
@@ -31,7 +31,9 @@ export default function ModuleIterationsPage() {
         />
       </div>
       <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <ModuleIterations />
+        <Suspense fallback={<div>Loading...</div>}>
+          <ModuleIterations />
+        </Suspense>
       </main>
       <SettingsModal
         open={userProfileModalOpen}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import ModuleAllocations from "@/components/module-allocations"
 import Navigation from "@/components/navigation"
 import SettingsModal, { TabType } from "@/components/settings-modal"
@@ -31,7 +31,9 @@ export default function ModuleAllocationsPage() {
         />
       </div>
       <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <ModuleAllocations />
+        <Suspense fallback={<div>Loading...</div>}>
+          <ModuleAllocations />
+        </Suspense>
       </main>
       <SettingsModal
         open={userProfileModalOpen}

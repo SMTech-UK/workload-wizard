@@ -1,13 +1,23 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu, GraduationCap, Calendar, Share2 } from "lucide-react"
+import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu, GraduationCap, Calendar, Share2, TestTube, Bug, Code, Database, Monitor } from "lucide-react"
 import { TabType } from "@/components/settings-modal";
 import UserProfileDropdown from "./user-profile-dropdown"
 import { Notifications } from "@/components/notifications"
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useDevMode } from "@/hooks/useDevMode";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 interface NavigationProps {
   activeTab: string
@@ -20,16 +30,27 @@ interface NavigationProps {
 export default function Navigation({ activeTab, setActiveTab, onProfileClick, onSettingsClick }: NavigationProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const navItems = [
+  const { shouldShowDevTools } = useDevMode();
+  
+  const baseNavItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { id: "lecturers", label: "Lecturers", icon: Users, href: "/lecturer-management" },
     { id: "modules", label: "Modules", icon: GraduationCap, href: "/module-management" },
     { id: "iterations", label: "Iterations", icon: Calendar, href: "/module-iterations" },
     { id: "allocations", label: "Allocations", icon: Share2, href: "/module-allocations" },
-    { id: "assignments", label: "Assignments", icon: BookOpen, href: "/dashboard?tab=assignments" },
-    { id: "reports", label: "Reports", icon: FileText, href: "/dashboard?tab=reports" },
     { id: "inbox", label: "Inbox", icon: Mail, href: "/inbox" },
-  ]
+  ];
+
+  const devNavItems = [
+    { id: "dev-tools", label: "Dev Tools", icon: Bug, href: "/dev-tools" },
+    { id: "tests", label: "Tests", icon: TestTube, href: "/dev-tools?tab=test-dashboard" },
+    { id: "api-tester", label: "API", icon: Code, href: "/dev-tools?tab=api-tester" },
+    { id: "database", label: "Database", icon: Database, href: "/dev-tools?tab=database" },
+    { id: "system-monitor", label: "System Monitor", icon: Monitor, href: "/dev-tools?tab=monitoring" },
+    { id: "logs", label: "Logs", icon: FileText, href: "/dev-tools?tab=logs" },
+  ];
+
+  const navItems = baseNavItems;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileModalTab, setProfileModalTab] = useState<TabType>("profile");
@@ -72,10 +93,12 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
         <div className="flex items-center justify-between h-16 w-full">
           <div className="flex items-center gap-4 w-full">
             <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <WandSparkles className="w-5 h-5 text-white" />
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${shouldShowDevTools ? 'bg-yellow-500' : 'bg-blue-600'}`}>
+                <WandSparkles className="w-5 h-5 text-white" data-testid="wand-sparkles" />
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">WorkloadWizard</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">
+                WorkloadWizard{shouldShowDevTools && <span className="text-yellow-600 dark:text-yellow-400"> Dev</span>}
+              </span>
             </div>
             {/* Desktop nav */}
             <nav className="hidden lg:flex items-center gap-1 ml-8">
@@ -108,6 +131,37 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
           </div>
           <div className="flex items-center gap-4 flex-shrink-0 overflow-visible">
             <Notifications />
+            {shouldShowDevTools && (
+             <DropdownMenu>
+               <DropdownMenuTrigger asChild>
+                 <Button 
+                   variant="ghost" 
+                   size="icon" 
+                   className="p-2 bg-yellow-500 hover:bg-yellow-600"
+                   title="Dev Tools"
+                 >
+                   <Bug className="w-5 h-5 text-black font-bold drop-shadow-sm" />
+                 </Button>
+               </DropdownMenuTrigger>
+               <DropdownMenuContent align="end" className="w-56">
+                 <DropdownMenuLabel className="flex items-center gap-2">
+                   <Bug className="w-4 h-4 drop-shadow-sm" />
+                   Development Tools
+                   <Badge className="ml-auto bg-yellow-500 hover:bg-yellow-600 text-black font-bold border-black">DEV</Badge>
+                 </DropdownMenuLabel>
+                 <DropdownMenuSeparator />
+                 {devNavItems.map((item) => (
+                   <DropdownMenuItem 
+                     key={item.id}
+                     onClick={() => router.push(item.href)}
+                   >
+                     <item.icon className="w-4 h-4 mr-2" />
+                     {item.label}
+                   </DropdownMenuItem>
+                 ))}
+               </DropdownMenuContent>
+             </DropdownMenu>
+            )}
             <Button variant="ghost" size="icon" onClick={onSettingsClick}>
               <Settings className="w-5 h-5 text-gray-900 dark:text-white" />
             </Button>
@@ -145,6 +199,31 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
                 />
               );
             })}
+            {/* Dev items in mobile menu */}
+            {shouldShowDevTools && (
+              <>
+                <div className="pt-2 pb-1">
+                  <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 px-3 py-1">
+                    Development
+                  </div>
+                </div>
+                {devNavItems.map((item) => {
+                  const isActive = Boolean(item.href && pathname === item.href);
+                  return (
+                    <NavButton
+                      key={item.id}
+                      item={item}
+                      isActive={isActive}
+                      onClick={() => {
+                        router.push(item.href);
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full justify-start"
+                    />
+                  );
+                })}
+              </>
+            )}
           </nav>
         )}
       </div>

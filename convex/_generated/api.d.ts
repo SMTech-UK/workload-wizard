@@ -16,11 +16,9 @@ import type {
 import type * as admin_allocations from "../admin_allocations.js";
 import type * as cohorts from "../cohorts.js";
 import type * as dept_summary from "../dept_summary.js";
-import type * as lecturer_profile from "../lecturer_profile.js";
 import type * as lecturers from "../lecturers.js";
 import type * as module_iterations from "../module_iterations.js";
 import type * as modules from "../modules.js";
-import type * as notifications from "../notifications.js";
 import type * as recent_activity from "../recent_activity.js";
 import type * as users from "../users.js";
 
@@ -36,11 +34,9 @@ declare const fullApi: ApiFromModules<{
   admin_allocations: typeof admin_allocations;
   cohorts: typeof cohorts;
   dept_summary: typeof dept_summary;
-  lecturer_profile: typeof lecturer_profile;
   lecturers: typeof lecturers;
   module_iterations: typeof module_iterations;
   modules: typeof modules;
-  notifications: typeof notifications;
   recent_activity: typeof recent_activity;
   users: typeof users;
 }>;

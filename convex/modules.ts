@@ -120,6 +120,8 @@ export const setForLecturer = mutation({
         hoursAllocated: v.number(),
         type: v.string(),
         semester: v.string(),
+        groupNumber: v.number(),
+        siteName: v.string(),
       })
     ),
   },

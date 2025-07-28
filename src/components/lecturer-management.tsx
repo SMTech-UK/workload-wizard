@@ -514,7 +514,7 @@ export default function LecturerManagement() {
                   // If assigned and capacity are both 0, treat status as 'n/a'
                   const status = (lecturer.totalAllocated === 0 && lecturer.totalContract === 0) ? 'n/a' : lecturer.status;
                   const handleOpenModal = () => {
-                    setSelectedLecturer(lecturer);
+                    setSelectedLecturer(lecturer as any);
                     setModalOpen(true);
                   };
                   return (
@@ -561,7 +561,7 @@ export default function LecturerManagement() {
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenModal(); }}>
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100 dark:hover:bg-red-900" onClick={e => { e.stopPropagation(); confirmDeleteLecturer(lecturer); }}>
+                        <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100 dark:hover:bg-red-900" onClick={e => { e.stopPropagation(); confirmDeleteLecturer(lecturer as any); }}>
                           <X className="w-4 h-4" />
                         </Button>
                       </div>

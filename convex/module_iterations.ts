@@ -34,19 +34,20 @@ export const createIteration = mutation({
   args: {
     moduleCode: v.string(),
     title: v.string(),
-    semester: v.number(),
+    semester: v.float64(),
     cohortId: v.string(),
     teachingStartDate: v.string(),
-    teachingHours: v.number(),
-    markingHours: v.number(),
-    assignedLecturerIds: v.array(v.string()),
+    teachingHours: v.float64(),
+    markingHours: v.float64(),
+    assignedLecturerId: v.string(),
+    assignedLecturerIds: v.array(v.id("lecturers")),
     assignedStatus: v.string(),
-    notes: v.optional(v.string()),
+    notes: v.string(),
     assessments: v.array(
       v.object({
         title: v.string(),
         type: v.string(),
-        weighting: v.number(),
+        weighting: v.float64(),
         submissionDate: v.string(),
         marksDueDate: v.string(),
         isSecondAttempt: v.boolean(),
@@ -58,8 +59,8 @@ export const createIteration = mutation({
       v.object({
         name: v.string(),
         deliveryTime: v.string(),
-        students: v.number(),
-        groups: v.number(),
+        students: v.float64(),
+        groups: v.float64(),
       })
     ),
   },
@@ -74,19 +75,20 @@ export const updateIteration = mutation({
     id: v.id("module_iterations"),
     moduleCode: v.string(),
     title: v.string(),
-    semester: v.number(),
+    semester: v.float64(),
     cohortId: v.string(),
     teachingStartDate: v.string(),
-    teachingHours: v.number(),
-    markingHours: v.number(),
-    assignedLecturerIds: v.array(v.string()),
+    teachingHours: v.float64(),
+    markingHours: v.float64(),
+    assignedLecturerId: v.string(),
+    assignedLecturerIds: v.array(v.id("lecturers")),
     assignedStatus: v.string(),
-    notes: v.optional(v.string()),
+    notes: v.string(),
     assessments: v.array(
       v.object({
         title: v.string(),
         type: v.string(),
-        weighting: v.number(),
+        weighting: v.float64(),
         submissionDate: v.string(),
         marksDueDate: v.string(),
         isSecondAttempt: v.boolean(),
@@ -98,8 +100,8 @@ export const updateIteration = mutation({
       v.object({
         name: v.string(),
         deliveryTime: v.string(),
-        students: v.number(),
-        groups: v.number(),
+        students: v.float64(),
+        groups: v.float64(),
       })
     ),
   },
@@ -123,7 +125,7 @@ export const batchSaveAllocations = mutation({
     allocations: v.array(
       v.object({
         moduleIterationId: v.id("module_iterations"),
-        assignedLecturerIds: v.array(v.string()),
+        assignedLecturerIds: v.array(v.id("lecturers")),
         assignedStatus: v.string(),
       })
     ),
@@ -197,12 +199,13 @@ export const bulkImport = mutation({
       v.object({
         moduleCode: v.string(),
         title: v.string(),
-        semester: v.number(),
+        semester: v.float64(),
         cohortId: v.string(),
         teachingStartDate: v.string(),
-        teachingHours: v.number(),
-        markingHours: v.number(),
-        assignedLecturerIds: v.optional(v.array(v.string())),
+        teachingHours: v.float64(),
+        markingHours: v.float64(),
+        assignedLecturerId: v.optional(v.string()),
+        assignedLecturerIds: v.optional(v.array(v.id("lecturers"))),
         assignedStatus: v.optional(v.string()),
         notes: v.optional(v.string()),
         assessments: v.optional(v.array(
@@ -235,6 +238,7 @@ export const bulkImport = mutation({
         // Set default values for optional fields
         const dataToInsert = {
           ...iterationData,
+          assignedLecturerId: iterationData.assignedLecturerId || "",
           assignedLecturerIds: iterationData.assignedLecturerIds || [],
           assignedStatus: iterationData.assignedStatus || "unassigned",
           notes: iterationData.notes || "",

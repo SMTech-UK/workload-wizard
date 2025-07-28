@@ -77,6 +77,7 @@ export const store = mutation({
         jobTitle: args.jobTitle ?? "",
         team: args.team ?? "",
         specialism: args.specialism ?? "",
+        systemRole: "user", // Default system role
         // Default settings for new users
         settings: {
           theme: args.theme ?? "system",
@@ -85,6 +86,11 @@ export const store = mutation({
           notifyEmail: true,
           notifyPush: true,
           profilePublic: true,
+          keyboardShortcuts: true,
+          showTooltips: true,
+          compactMode: false,
+          landingPage: "dashboard",
+          experimental: false,
         },
         preferences: {
           interests: [],
@@ -163,6 +169,11 @@ export const setSettings = mutation({
       profilePublic: v.boolean(),
       theme: v.string(),
       timezone: v.string(),
+      keyboardShortcuts: v.optional(v.boolean()),
+      showTooltips: v.optional(v.boolean()),
+      compactMode: v.optional(v.boolean()),
+      landingPage: v.optional(v.string()),
+      experimental: v.optional(v.boolean()),
     })
   },
   handler: async (ctx, args) => {
@@ -215,6 +226,11 @@ export const getSettings = query({
       notifyEmail: true,
       notifyPush: true,
       profilePublic: true,
+      keyboardShortcuts: true,
+      showTooltips: true,
+      compactMode: false,
+      landingPage: "dashboard",
+      experimental: false,
     };
   },
 });

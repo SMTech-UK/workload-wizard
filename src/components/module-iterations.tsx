@@ -107,6 +107,7 @@ export default function ModuleIterations() {
     teachingStartDate: "",
     teachingHours: 0,
     markingHours: 0,
+    assignedLecturerId: "",
     assignedLecturerIds: [] as string[],
     assignedStatus: "unassigned",
     notes: "",
@@ -170,7 +171,10 @@ export default function ModuleIterations() {
 
     setSubmitting(true)
     try {
-      const newIterationId = await createIteration(form);
+      const newIterationId = await createIteration({
+        ...form,
+        assignedLecturerIds: form.assignedLecturerIds.map(id => id as Id<'lecturers'>)
+      });
       await logRecentActivity({
         action: "module iteration created",
         changeType: "create",
@@ -200,7 +204,8 @@ export default function ModuleIterations() {
     try {
       await updateIteration({
         id: selectedIteration._id,
-        ...form
+        ...form,
+        assignedLecturerIds: form.assignedLecturerIds.map(id => id as Id<'lecturers'>)
       });
       await logRecentActivity({
         action: "module iteration updated",
@@ -231,6 +236,7 @@ export default function ModuleIterations() {
       teachingStartDate: "",
       teachingHours: 0,
       markingHours: 0,
+      assignedLecturerId: "",
       assignedLecturerIds: [],
       assignedStatus: "unassigned",
       notes: "",
@@ -283,6 +289,7 @@ export default function ModuleIterations() {
       teachingStartDate: iteration.teachingStartDate,
       teachingHours: iteration.teachingHours,
       markingHours: iteration.markingHours,
+      assignedLecturerId: iteration.assignedLecturerIds?.[0] || "",
       assignedLecturerIds: iteration.assignedLecturerIds || [],
       assignedStatus: iteration.assignedStatus,
       notes: iteration.notes || "",

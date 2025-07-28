@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import Calculator from "@/lib/calculator"
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@auth0/nextjs-auth0";
 
@@ -28,7 +29,7 @@ interface AdminAllocationsEditModalProps {
   allocations: AdminAllocation[]
   staffMemberName: string
   capacity: number // NEW PROP
-  lecturerId: string
+  lecturerId: Id<"lecturers">
 }
 
 export default function AdminAllocationsEditModal({
@@ -41,7 +42,11 @@ export default function AdminAllocationsEditModal({
 }: AdminAllocationsEditModalProps) {
   // If no allocations, initialize with empty categories (all 0 hours)
   const [formData, setFormData] = useState<AdminAllocation[]>(
-    allocations.length > 0 ? allocations.map(a => ({ ...a, hours: typeof a.hours === "number" && !isNaN(a.hours) ? a.hours : 0 })) : []
+    allocations.length > 0 ? allocations.map(a => ({ 
+      ...a, 
+      hours: typeof a.hours === "number" && !isNaN(a.hours) ? a.hours : 0,
+      description: a.description || "" // Ensure description is always a string
+    })) : []
   )
   const [errors, setErrors] = useState<{ [key: number]: { post1?: string; post2?: string } }>({})
   const setAdminAllocations = useMutation(api.admin_allocations.setForLecturer);

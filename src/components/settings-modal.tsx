@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
@@ -20,8 +21,9 @@ import { api } from "../../convex/_generated/api";
 import { useQuery } from "convex/react";
 import { useTheme } from "next-themes";
 import { updateSettings as updateSettingsUtil } from "@/lib/utils";
+import { useDevMode } from "@/hooks/useDevMode";
 
-export type TabType = "profile" | "settings" | "general" | "lecturer-preferences"
+export type TabType = "profile" | "settings" | "general" | "lecturer-preferences" | "developer";
 
 interface SettingsModalProps {
   open: boolean;
@@ -33,6 +35,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   const { user, isLoaded } = useUser();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const { setTheme } = useTheme();
+  const { devMode, isAdmin, toggleDevMode } = useDevMode();
   React.useEffect(() => {
     if (open) setActiveTab(initialTab);
   }, [open, initialTab]);
@@ -43,6 +46,15 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingGeneralSettings, setIsSavingGeneralSettings] = useState(false);
+  const [hasGeneralSettingsChanged, setHasGeneralSettingsChanged] = useState(false);
+  const [originalGeneralSettings, setOriginalGeneralSettings] = useState({
+    keyboardShortcuts: true,
+    showTooltips: true,
+    compactMode: false,
+    landingPage: "dashboard",
+    experimental: false,
+  });
 
   // Clerk user: only allow editing local fields, display Clerk user info
   const [profileData, setProfileData] = useState({
@@ -98,6 +110,16 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       language: "en",
       timezone: "GMT",
     },
+    development: {
+      devMode: false,
+    },
+    general: {
+      keyboardShortcuts: true,
+      showTooltips: true,
+      compactMode: false,
+      landingPage: "dashboard",
+      experimental: false,
+    },
   });
 
   // Keep settingsData in sync with user.user_metadata when modal opens
@@ -118,6 +140,16 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
           theme: "system",
           language: "en",
           timezone: "GMT",
+        },
+        development: {
+          devMode: false,
+        },
+        general: {
+          keyboardShortcuts: true,
+          showTooltips: true,
+          compactMode: false,
+          landingPage: "dashboard",
+          experimental: false,
         },
       });
     }
@@ -197,6 +229,31 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     }
   }, [activeTab, safeUserSettings]);
 
+  // Populate general settings from Convex when general tab is opened and data is available
+  React.useEffect(() => {
+    if (activeTab === "general" && safeUserSettings) {
+      const loadedGeneralSettings = {
+        keyboardShortcuts: safeUserSettings.keyboardShortcuts ?? true,
+        showTooltips: safeUserSettings.showTooltips ?? true,
+        compactMode: safeUserSettings.compactMode ?? false,
+        landingPage: safeUserSettings.landingPage ?? "dashboard",
+        experimental: safeUserSettings.experimental ?? false,
+      };
+      
+      setSettingsData(prev => ({
+        ...prev,
+        general: {
+          ...prev.general,
+          ...loadedGeneralSettings,
+        },
+      }));
+      
+      // Set original values and reset change tracking
+      setOriginalGeneralSettings(loadedGeneralSettings);
+      setHasGeneralSettingsChanged(false);
+    }
+  }, [activeTab, safeUserSettings]);
+
   // Sync theme with user's saved setting when settings are loaded
   React.useEffect(() => {
     if (activeTab === "settings" && safeUserSettings && safeUserSettings.theme) {
@@ -221,7 +278,34 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       icon: Settings,
       description: "Configure your user preferences",
     },
-  ]
+  ];
+  // Add developer tab for admins
+  const appSidebarItems: Array<{
+    id: TabType;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    description: string;
+  }> = [
+    {
+      id: "general" as TabType,
+      label: "General Settings",
+      icon: Settings,
+      description: "Web app configuration",
+    },
+    {
+      id: "lecturer-preferences" as TabType,
+      label: "Lecturer Preferences",
+      icon: BookOpen,
+      description: "Teaching & interests",
+    },
+    // Only show Developer tab for admins
+    ...(isAdmin ? [{
+      id: "developer" as TabType,
+      label: "Developer Settings",
+      icon: Shield,
+      description: "Development tools & options",
+    }] : []),
+  ];
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -319,6 +403,21 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
 
   const handleUpdateSettings = (category: keyof typeof settingsData, key: string, value: any) => {
     setSettingsData((prev) => updateSettingsUtil(prev, category, key, value));
+    
+    // Track changes for general settings
+    if (category === "general" as keyof typeof settingsData) {
+      // Check if the current settings differ from original settings
+      const currentGeneral = {
+        ...settingsData.general,
+        [key]: value,
+      };
+      
+      const hasChanges = Object.keys(originalGeneralSettings).some(
+        (settingKey) => currentGeneral[settingKey as keyof typeof currentGeneral] !== originalGeneralSettings[settingKey as keyof typeof originalGeneralSettings]
+      );
+      
+      setHasGeneralSettingsChanged(hasChanges);
+    }
   };
 
   // Add this function inside SettingsModal
@@ -406,32 +505,22 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                   <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">App Settings</span>
                   <Separator className="flex-1" />
                 </div>
-                <button
-                  onClick={() => setActiveTab('general')}
-                  className={cn(
-                    "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
-                    activeTab === 'general' ? "bg-primary text-primary-foreground" : "hover:bg-muted",
-                  )}
-                >
-                  <Settings className="h-4 w-4" />
-                  <div>
-                    <div className="font-medium text-sm">General Settings</div>
-                    <div className={cn("text-xs", activeTab === 'general' ? "text-primary-foreground/70" : "text-muted-foreground")}>Web app configuration</div>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setActiveTab('lecturer-preferences')}
-                  className={cn(
-                    "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
-                    activeTab === 'lecturer-preferences' ? "bg-primary text-primary-foreground" : "hover:bg-muted",
-                  )}
-                >
-                  <BookOpen className="h-4 w-4" />
-                  <div>
-                    <div className="font-medium text-sm">Lecturer Preferences</div>
-                    <div className={cn("text-xs", activeTab === 'lecturer-preferences' ? "text-primary-foreground/70" : "text-muted-foreground")}>Teaching & interests</div>
-                  </div>
-                </button>
+                {appSidebarItems.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={cn(
+                      "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
+                      activeTab === item.id ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium text-sm">{item.label}</div>
+                      <div className={cn("text-xs", activeTab === item.id ? "text-primary-foreground/70" : "text-muted-foreground")}>{item.description}</div>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -795,8 +884,190 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
 
                   {activeTab === "general" && (
                     <div className="space-y-6">
-                      <h2 className="text-2xl font-semibold">General Settings</h2>
-                      <p className="text-muted-foreground">This is a placeholder for web app general settings.</p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-2xl font-semibold">General Settings</h2>
+                          <p className="text-muted-foreground">Configure web app settings and general options</p>
+                        </div>
+                        {hasGeneralSettingsChanged && (
+                          <Button
+                            onClick={async () => {
+                              if (isSavingGeneralSettings) return; // Prevent multiple clicks
+                              
+                              setIsSavingGeneralSettings(true);
+                              
+                              try {
+                                // Save general settings to Convex
+                                await setSettings({
+                                  settings: {
+                                    // Include existing settings that might be loaded
+                                    language: settingsData.preferences.language,
+                                    notifyEmail: settingsData.notifications.email,
+                                    notifyPush: settingsData.notifications.push,
+                                    profilePublic: settingsData.privacy.profileVisible,
+                                    theme: settingsData.preferences.theme,
+                                    timezone: settingsData.preferences.timezone,
+                                    // Add new general settings
+                                    keyboardShortcuts: settingsData.general.keyboardShortcuts,
+                                    showTooltips: settingsData.general.showTooltips,
+                                    compactMode: settingsData.general.compactMode,
+                                    landingPage: settingsData.general.landingPage,
+                                    experimental: settingsData.general.experimental,
+                                  }
+                                });
+                                
+                                toast.success("General settings saved successfully!");
+                                setHasGeneralSettingsChanged(false);
+                                // Update original settings to current values after successful save
+                                setOriginalGeneralSettings({
+                                  keyboardShortcuts: settingsData.general.keyboardShortcuts,
+                                  showTooltips: settingsData.general.showTooltips,
+                                  compactMode: settingsData.general.compactMode,
+                                  landingPage: settingsData.general.landingPage,
+                                  experimental: settingsData.general.experimental,
+                                });
+                              } catch (error) {
+                                console.error('Failed to save general settings:', error);
+                                toast.error("Failed to save general settings.", {
+                                  description: "Please check your connection and try again.",
+                                  duration: 6000,
+                                });
+                              } finally {
+                                setIsSavingGeneralSettings(false);
+                              }
+                            }}
+                            disabled={isSavingGeneralSettings}
+                            size="sm"
+                          >
+                            {isSavingGeneralSettings ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              "Save Changes"
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      <Separator />
+                      {/* Useful General App Settings */}
+                      <div className="space-y-6">
+                        {/* Interface Settings */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium">Interface</h3>
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label>Enable Keyboard Shortcuts</Label>
+                                <p className="text-sm text-muted-foreground">Quickly navigate and perform actions using keyboard shortcuts</p>
+                              </div>
+                              <Switch
+                                checked={settingsData.general.keyboardShortcuts}
+                                onCheckedChange={checked => handleUpdateSettings("general", "keyboardShortcuts", checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label>Show Tooltips</Label>
+                                <p className="text-sm text-muted-foreground">Display helpful tooltips throughout the app</p>
+                              </div>
+                              <Switch
+                                checked={settingsData.general.showTooltips}
+                                onCheckedChange={checked => handleUpdateSettings("general", "showTooltips", checked)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label>Compact Mode</Label>
+                                <p className="text-sm text-muted-foreground">Reduce spacing for a denser layout</p>
+                              </div>
+                              <Switch
+                                checked={settingsData.general.compactMode}
+                                onCheckedChange={checked => handleUpdateSettings("general", "compactMode", checked)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Navigation Settings */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium">Navigation</h3>
+                          <div className="space-y-3">
+                            <div>
+                              <Label>Default Landing Page</Label>
+                              <p className="text-sm text-muted-foreground mb-2">Choose which page you see after login</p>
+                              <Select
+                                value={settingsData.general.landingPage}
+                                onValueChange={value => handleUpdateSettings("general", "landingPage", value)}
+                              >
+                                <SelectTrigger className="w-full max-w-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="dashboard">Dashboard</SelectItem>
+                                  <SelectItem value="module-allocations">Module Allocations</SelectItem>
+                                  <SelectItem value="lecturer-management">Lecturer Management</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Advanced Settings */}
+                        <div className="space-y-4">
+                          <h3 className="text-lg font-medium">Advanced</h3>
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <Label>Enable Experimental Features</Label>
+                                <p className="text-sm text-muted-foreground">Try out new features before they are released</p>
+                              </div>
+                              <Switch
+                                checked={settingsData.general.experimental}
+                                onCheckedChange={checked => handleUpdateSettings("general", "experimental", checked)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === "developer" && isAdmin && (
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-2xl font-semibold">Developer Settings</h2>
+                          <p className="text-muted-foreground">Development tools and options for advanced users</p>
+                        </div>
+                      </div>
+                      <Separator />
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-medium">Development Mode</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Enable developer tools and testing interfaces
+                            </p>
+                          </div>
+                          <Switch
+                            checked={devMode}
+                            onCheckedChange={toggleDevMode}
+                          />
+                        </div>
+                        {devMode && (
+                          <Alert>
+                            <AlertDescription className="text-sm">
+                              Development mode is enabled. You can now access developer tools and testing interfaces.
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </div>
                     </div>
                   )}
 

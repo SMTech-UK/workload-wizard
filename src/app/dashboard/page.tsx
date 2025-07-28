@@ -147,7 +147,6 @@ const getChangeIcon = (type: string) => {
 }
 
 function DashboardContent() {
-  const createNotification = useMutation(api.notifications.createNotification);
   const [staffProfileModalOpen, setStaffProfileModalOpen] = useState(false);
   const [selectedLecturer, setSelectedLecturer] = useState<any>(undefined);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
@@ -298,10 +297,10 @@ function DashboardContent() {
         return {
           ...alloc,
           moduleName: module ? module.title : alloc.moduleName,
-          semester: module ? module.semester : alloc.semester,
-          type: module ? (module.status === 'core' ? 'Core' : 'Elective') : alloc.type,
+          semester: alloc.semester,
+          type: alloc.type,
           credits: module ? module.credits : undefined,
-          teachingHours: module ? module.teachingHours : undefined,
+          teachingHours: alloc.hoursAllocated,
         };
       })
     : [];

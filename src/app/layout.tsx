@@ -11,6 +11,10 @@ import { ThemeProvider } from "next-themes";
 import { KnockProvider } from "@knocklabs/react";
 import { LoadingOverlayProvider } from "@/hooks/useLoadingOverlay";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
+import FloatingDevToolbar from "@/components/FloatingDevToolbar";
+
+
+import DevSettingsModalWrapper from "@/components/DevSettingsModalWrapper";
 
 const geistSans = localFont({
   src: "../fonts/GeistVF.woff",
@@ -104,9 +108,13 @@ export default function RootLayout({
         <ClerkProvider appearance={{baseTheme: neobrutalism }}>
           <ThemeProvider attribute="class">
             <LoadingOverlayProvider>
-              <ClientLayoutWrapper>
-                {children}
-              </ClientLayoutWrapper>
+              <ConvexClientProvider>
+                <ClientLayoutWrapper>
+                  {children}
+                </ClientLayoutWrapper>
+                <FloatingDevToolbar />
+                <DevSettingsModalWrapper />
+              </ConvexClientProvider>
               <Toaster position="top-right" richColors closeButton />
             </LoadingOverlayProvider>
           </ThemeProvider>

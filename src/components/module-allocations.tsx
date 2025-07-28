@@ -276,6 +276,7 @@ export default function ModuleAllocations() {
           teachingStartDate: iteration.teachingStartDate,
           teachingHours: iteration.teachingHours,
           markingHours: iteration.markingHours,
+          assignedLecturerId: updatedAssignedLecturerIds.find((id: string) => id !== "") || "",
           assignedLecturerIds: updatedAssignedLecturerIds,
           assignedStatus: updatedAssignedLecturerIds.length === 0 ? "unassigned" : "assigned",
           notes: iteration.notes,
@@ -340,6 +341,7 @@ export default function ModuleAllocations() {
         teachingStartDate: iteration.teachingStartDate,
         teachingHours: iteration.teachingHours,
         markingHours: iteration.markingHours,
+        assignedLecturerId: updatedAssignedLecturerIds.find(id => id !== "") || "",
         assignedLecturerIds: updatedAssignedLecturerIds,
         assignedStatus: newAssigned > lecturer.capacity ? "overloaded" : "assigned",
         notes: iteration.notes,
@@ -394,6 +396,7 @@ export default function ModuleAllocations() {
         teachingStartDate: iteration.teachingStartDate,
         teachingHours: iteration.teachingHours,
         markingHours: iteration.markingHours,
+        assignedLecturerId: updatedAssignedLecturerIds.find(id => id !== "") || "",
         assignedLecturerIds: updatedAssignedLecturerIds,
         assignedStatus: updatedAssignedLecturerIds.filter(id => id !== "").length === 0 ? "unassigned" : "assigned",
         notes: iteration.notes,
@@ -432,7 +435,7 @@ export default function ModuleAllocations() {
       // Prepare data for batch save
       const allocations: Array<{
         moduleIterationId: Id<'module_iterations'>;
-        assignedLecturerIds: string[];
+        assignedLecturerIds: Id<'lecturers'>[];
         assignedStatus: string;
       }> = [];
 
@@ -473,7 +476,7 @@ export default function ModuleAllocations() {
 
         allocations.push({
           moduleIterationId: iteration._id,
-          assignedLecturerIds,
+          assignedLecturerIds: assignedLecturerIds.filter(id => id !== "").map(id => id as Id<'lecturers'>),
           assignedStatus: assignedLecturerIds.filter(id => id !== "").length > 0 ? "assigned" : "unassigned"
         });
       });
