@@ -21,9 +21,10 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Eye, X } from "lucide-react"
+import { Plus, Search, Edit, Eye, X, Calendar } from "lucide-react"
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import type { Id } from "../../convex/_generated/dataModel";
 
 // Define the Module interface
@@ -39,6 +40,7 @@ export interface Module {
 }
 
 export default function ModuleManagement() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedModule, setSelectedModule] = useState<Module | null>(null)
   const [modalOpen, setModalOpen] = useState(false);
@@ -306,6 +308,9 @@ export default function ModuleManagement() {
                     <TableCell className="text-gray-900 dark:text-white">{module.defaultMarkingHours}h</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); router.push(`/module-iterations?module=${module.code}`); }}>
+                          <Calendar className="w-4 h-4" />
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenEditModal(module); }}>
                           <Edit className="w-4 h-4" />
                         </Button>

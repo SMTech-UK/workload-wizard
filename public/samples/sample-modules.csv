@@ -1,0 +1,6 @@
+code,title,credits,level,moduleLeader,defaultTeachingHours,defaultMarkingHours
+CS101,Introduction to Computer Science,20,4,Dr. Smith,40,10
+CS102,Programming Fundamentals,20,4,Dr. Johnson,45,15
+CS201,Data Structures and Algorithms,20,5,Dr. Williams,50,20
+CS202,Software Engineering,20,5,Dr. Brown,35,15
+CS301,Advanced Programming,20,6,Dr. Davis,55,25 

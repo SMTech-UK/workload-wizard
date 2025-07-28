@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu, GraduationCap } from "lucide-react"
+import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu, GraduationCap, Calendar, Share2 } from "lucide-react"
 import { TabType } from "@/components/settings-modal";
 import UserProfileDropdown from "./user-profile-dropdown"
 import { Notifications } from "@/components/notifications"
@@ -24,6 +24,8 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
     { id: "lecturers", label: "Lecturers", icon: Users, href: "/lecturer-management" },
     { id: "modules", label: "Modules", icon: GraduationCap, href: "/module-management" },
+    { id: "iterations", label: "Iterations", icon: Calendar, href: "/module-iterations" },
+    { id: "allocations", label: "Allocations", icon: Share2, href: "/module-allocations" },
     { id: "assignments", label: "Assignments", icon: BookOpen, href: "/dashboard?tab=assignments" },
     { id: "reports", label: "Reports", icon: FileText, href: "/dashboard?tab=reports" },
     { id: "inbox", label: "Inbox", icon: Mail, href: "/inbox" },

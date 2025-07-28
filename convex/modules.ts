@@ -59,6 +59,35 @@ export const deleteModule = mutation({
   },
 });
 
+// Mutation to bulk import modules
+export const bulkImport = mutation({
+  args: {
+    modules: v.array(
+      v.object({
+        code: v.string(),
+        title: v.string(),
+        credits: v.number(),
+        level: v.number(),
+        moduleLeader: v.string(),
+        defaultTeachingHours: v.number(),
+        defaultMarkingHours: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const results = [];
+    for (const moduleData of args.modules) {
+      try {
+        const moduleId = await ctx.db.insert("modules", moduleData);
+        results.push({ success: true, id: moduleId, code: moduleData.code });
+      } catch (error) {
+        results.push({ success: false, code: moduleData.code, error: String(error) });
+      }
+    }
+    return results;
+  },
+});
+
 
 
 // Query to get all module allocations

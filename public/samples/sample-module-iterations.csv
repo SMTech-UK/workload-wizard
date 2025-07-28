@@ -1,0 +1,6 @@
+moduleCode,title,semester,cohortId,teachingStartDate,teachingHours,markingHours,assignedStatus,notes
+CS101,Introduction to Computer Science,1,2024-25,2024-09-23,40,10,unassigned,First semester offering
+CS102,Programming Fundamentals,1,2024-25,2024-09-23,45,15,unassigned,Core programming module
+CS201,Data Structures and Algorithms,2,2024-25,2025-01-27,50,20,unassigned,Advanced programming concepts
+CS202,Software Engineering,2,2024-25,2025-01-27,35,15,unassigned,Team-based project work
+CS301,Advanced Programming,1,2024-25,2024-09-23,55,25,unassigned,Final year module 

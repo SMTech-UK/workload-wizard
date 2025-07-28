@@ -1,0 +1,6 @@
+fullName,team,specialism,contract,email,capacity,maxTeachingHours,role,status,fte
+Dr. John Smith,Adult,Clinical Practice,Full-time,john.smith@university.edu,40,35,Senior Lecturer,available,1.0
+Dr. Sarah Johnson,Children,Paediatric Nursing,Part-time,sarah.johnson@university.edu,20,18,Lecturer,available,0.5
+Dr. Michael Brown,Learning Disability,Specialist Practice,Full-time,michael.brown@university.edu,40,35,Associate Professor,available,1.0
+Dr. Emily Davis,Mental Health,Psychiatric Nursing,Full-time,emily.davis@university.edu,40,35,Lecturer,available,1.0
+Dr. Robert Wilson,Simulation,Clinical Skills,Part-time,robert.wilson@university.edu,20,18,Teaching Fellow,available,0.5 

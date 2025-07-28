@@ -84,3 +84,54 @@ export const deleteLecturer = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+// Mutation to bulk import lecturers
+export const bulkImport = mutation({
+  args: {
+    lecturers: v.array(
+      v.object({
+        fullName: v.string(),
+        team: v.string(),
+        specialism: v.string(),
+        contract: v.string(),
+        email: v.string(),
+        capacity: v.number(),
+        maxTeachingHours: v.number(),
+        role: v.string(),
+        status: v.optional(v.string()),
+        teachingAvailability: v.optional(v.number()),
+        totalAllocated: v.optional(v.number()),
+        totalContract: v.optional(v.number()),
+        allocatedTeachingHours: v.optional(v.number()),
+        allocatedAdminHours: v.optional(v.number()),
+        family: v.optional(v.string()),
+        fte: v.optional(v.number()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const results = [];
+    for (const lecturerData of args.lecturers) {
+      try {
+        // Set default values for optional fields
+        const dataToInsert = {
+          ...lecturerData,
+          status: lecturerData.status || "available",
+          teachingAvailability: lecturerData.teachingAvailability || lecturerData.capacity,
+          totalAllocated: lecturerData.totalAllocated || 0,
+          totalContract: lecturerData.totalContract || lecturerData.capacity,
+          allocatedTeachingHours: lecturerData.allocatedTeachingHours || 0,
+          allocatedAdminHours: lecturerData.allocatedAdminHours || 0,
+          family: lecturerData.family || "",
+          fte: lecturerData.fte || 1.0,
+        };
+        
+        const lecturerId = await ctx.db.insert("lecturers", dataToInsert);
+        results.push({ success: true, id: lecturerId, email: lecturerData.email });
+      } catch (error) {
+        results.push({ success: false, email: lecturerData.email, error: String(error) });
+      }
+    }
+    return results;
+  },
+});
