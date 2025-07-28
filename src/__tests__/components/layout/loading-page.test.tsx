@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import LoadingPage from '@/components/loading-page'
+import LoadingPage from '@/components/layout/loading-page'
 
 describe('LoadingPage', () => {
   it('should render with default progress', () => {

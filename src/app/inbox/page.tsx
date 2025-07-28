@@ -1,12 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import Navigation from "@/components/navigation";
-import { KnockSafeWrapper } from "@/components/KnockErrorBoundary";
+import Navigation from "@/components/layout/navigation";
+import { KnockSafeWrapper } from "@/components/features/notifications/KnockErrorBoundary";
 
 // Dynamically import NotificationsInbox to avoid SSR issues
 const NotificationsInbox = dynamic(
-  () => import("@/components/notifications-inbox"),
+  () => import("@/components/features/notifications/notifications-inbox"),
   {
     ssr: false,
     loading: () => (

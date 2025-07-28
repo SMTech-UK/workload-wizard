@@ -11,10 +11,10 @@ import { ThemeProvider } from "next-themes";
 import { KnockProvider } from "@knocklabs/react";
 import { LoadingOverlayProvider } from "@/hooks/useLoadingOverlay";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
-import FloatingDevToolbar from "@/components/FloatingDevToolbar";
+import FloatingDevToolbar from "@/components/features/dev-tools/FloatingDevToolbar";
 
 
-import DevSettingsModalWrapper from "@/components/DevSettingsModalWrapper";
+import DevSettingsModalWrapper from "@/components/features/dev-tools/DevSettingsModalWrapper";
 
 const geistSans = localFont({
   src: "../fonts/GeistVF.woff",

@@ -2,10 +2,10 @@
 
 import { Button } from "@/components/ui/button"
 import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu, GraduationCap, Calendar, Share2, TestTube, Bug, Code, Database, Monitor } from "lucide-react"
-import { TabType } from "@/components/settings-modal";
-import UserProfileDropdown from "./user-profile-dropdown"
-import { Notifications } from "@/components/notifications"
-import { KnockSafeWrapper } from "@/components/KnockErrorBoundary"
+import { TabType } from "@/components/modals/settings-modal";
+import UserProfileDropdown from "../forms/user-profile-dropdown"
+import { Notifications } from "@/components/features/notifications/notifications"
+import { KnockSafeWrapper } from "@/components/features/notifications/KnockErrorBoundary"
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";

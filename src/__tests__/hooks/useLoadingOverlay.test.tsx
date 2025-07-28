@@ -5,7 +5,7 @@ import '@testing-library/jest-dom'
 import { useLoadingOverlay, LoadingOverlayProvider } from '@/hooks/useLoadingOverlay'
 
 // Mock the LoadingOverlay component
-jest.mock('@/components/loading-overlay', () => {
+jest.mock('@/components/layout/loading-overlay', () => {
   return function MockLoadingOverlay({ loading }: { loading: boolean }) {
     return loading ? <div data-testid="loading-overlay">Loading...</div> : null
   }

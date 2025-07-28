@@ -1,19 +1,26 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import Navigation from '@/components/navigation'
+import Navigation from '@/components/layout/navigation'
 
 // Mock the user profile dropdown component
-jest.mock('@/components/user-profile-dropdown', () => {
+jest.mock('@/components/forms/user-profile-dropdown', () => {
   return function MockUserProfileDropdown() {
     return <div data-testid="user-profile-dropdown">User Profile</div>
   }
 })
 
 // Mock the notifications component
-jest.mock('@/components/notifications', () => ({
+jest.mock('@/components/features/notifications/notifications', () => ({
   Notifications: function MockNotifications() {
     return <div data-testid="notifications">Notifications</div>
+  }
+}))
+
+// Mock the KnockErrorBoundary component
+jest.mock('@/components/features/notifications/KnockErrorBoundary', () => ({
+  KnockSafeWrapper: function MockKnockSafeWrapper({ children }: { children: React.ReactNode }) {
+    return <div data-testid="knock-safe-wrapper">{children}</div>
   }
 }))
 

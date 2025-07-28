@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import ModuleManagement from "@/components/module-management"
-import Navigation from "@/components/navigation"
-import SettingsModal, { TabType } from "@/components/settings-modal"
+import ModuleManagement from "@/components/features/module-management/module-management"
+import Navigation from "@/components/layout/navigation"
+import SettingsModal, { TabType } from "@/components/modals/settings-modal"
 
 export default function ModuleManagementPage() {
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);

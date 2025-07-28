@@ -1,8 +1,8 @@
 "use client"
 
-import Footer from "@/components/footer";
-import LandingNav from "@/components/landing-nav";
-import LandingHero from "@/components/landing-page";
+import Footer from "@/components/layout/footer";
+import LandingNav from "@/components/layout/landing-nav";
+import LandingHero from "@/components/features/landing-page";
 import { useLoadingOverlay } from "@/hooks/useLoadingOverlay";
 import { useEffect, useState } from "react";
 import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";

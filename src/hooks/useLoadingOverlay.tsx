@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import LoadingOverlay from "@/components/loading-overlay";
+import LoadingOverlay from "@/components/layout/loading-overlay";
 
 // Loading overlay context
 const LoadingOverlayContext = createContext<{

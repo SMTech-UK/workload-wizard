@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 import { useQuery } from "convex/react";
 import { useTheme } from "next-themes";
 import { updateSettings as updateSettingsUtil } from "@/lib/utils";

@@ -8,11 +8,11 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Users, AlertTriangle, FileText, Calendar, Check } from "lucide-react"
-import Navigation from "@/components/navigation"
-import SettingsModal, { TabType } from "@/components/settings-modal"
+import Navigation from "@/components/layout/navigation"
+import SettingsModal, { TabType } from "@/components/modals/settings-modal"
 
-import ModuleAssignment from "@/components/module-assignment"
-import ReportsSection from "@/components/reports-section"
+import ModuleAssignment from "@/components/features/module-management/module-assignment"
+import ReportsSection from "@/components/features/dashboard/reports-section"
 import { DashboardMetricCard } from "@/components/ui/dashboard-metric-card";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -20,7 +20,7 @@ import { useMutation } from "convex/react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
-import StaffProfileModal from "@/components/staff-profile-modal"
+import StaffProfileModal from "@/components/modals/staff-profile-modal"
 import { useConvex } from "convex/react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { timeAgo } from "@/lib/notify";
@@ -29,8 +29,8 @@ import { useKnockClient, useNotifications, useNotificationStore } from "@knockla
 import { useAuth } from "@clerk/nextjs";
 import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
 import { PlusCircle, Pencil, Trash2, User, BarChart3, BookOpen, Settings, Clock, CheckCircle, Info } from "lucide-react";
-import CSVImportModal from "@/components/csv-import-modal";
-import { KnockSafeWrapper } from "@/components/KnockErrorBoundary";
+import CSVImportModal from "@/components/modals/csv-import-modal";
+import { KnockSafeWrapper } from "@/components/features/notifications/KnockErrorBoundary";
 
 const academicYears = [
   "Academic Year 25/26",

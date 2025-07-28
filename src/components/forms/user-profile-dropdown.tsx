@@ -14,12 +14,12 @@ import Link from "next/link"
 import { useUser } from "@clerk/nextjs"
 import { useClerk } from "@clerk/nextjs"
 import { Authenticated } from "convex/react"
-import SettingsModal, { TabType } from "@/components/settings-modal"
+import SettingsModal, { TabType } from "@/components/modals/settings-modal"
 import React, { useState } from "react"
 import { useTheme } from "next-themes";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../convex/_generated/api";
 
 interface UserProfileDropdownProps {
   onProfileClick?: () => void;

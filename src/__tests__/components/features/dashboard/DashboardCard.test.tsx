@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import { DashboardCard } from '@/components/DashboardCard'
+import { DashboardCard } from '@/components/features/dashboard/DashboardCard'
 
 describe('DashboardCard', () => {
   const defaultProps = {
