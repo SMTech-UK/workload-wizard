@@ -2,22 +2,11 @@
 
 import React from "react";
 import { useAuth } from '@clerk/nextjs';
-import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { KnockProvider } from "@knocklabs/react";
-import { ConvexReactClient } from "convex/react";
 
 interface ClientLayoutWrapperProps {
   children: React.ReactNode;
 }
-
-// Validate environment variable and create Convex client outside component
-const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
-if (!CONVEX_URL) {
-  throw new Error("NEXT_PUBLIC_CONVEX_URL environment variable is not defined");
-}
-
-// Create Convex client once outside the component to avoid recreation on every render
-const convex = new ConvexReactClient(CONVEX_URL);
 
 function KnockProviderWrapper({ children }: { children: React.ReactNode }) {
   const { userId } = useAuth();
@@ -33,13 +22,9 @@ function KnockProviderWrapper({ children }: { children: React.ReactNode }) {
 }
 
 export default function ClientLayoutWrapper({ children }: ClientLayoutWrapperProps) {
-  const { userId, isLoaded } = useAuth();
-  
   return (
-    <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-      <KnockProviderWrapper>
-        {children}
-      </KnockProviderWrapper>
-    </ConvexProviderWithClerk>
+    <KnockProviderWrapper>
+      {children}
+    </KnockProviderWrapper>
   );
 } 

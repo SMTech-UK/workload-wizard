@@ -9,8 +9,10 @@ export function useDevMode() {
   const { user, isLoaded } = useUser();
   const [devMode, setDevMode] = useState(false);
   
-  // Get user profile to check system role
-  const profileFields = useQuery(api.users.getProfileFields);
+  // Get user profile to check system role - only when user is loaded and authenticated
+  const profileFields = isLoaded && user 
+    ? useQuery(api.users.getProfileFields)
+    : undefined;
   
   // Check if user is admin
   const isAdmin = profileFields?.systemRole === 'admin' || profileFields?.systemRole === 'administrator';

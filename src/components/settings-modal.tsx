@@ -164,15 +164,15 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     interestInput: "",
   });
 
-  // Fetch preferences from Convex (call hooks unconditionally)
-  const preferences = useQuery(api.users.getPreferences);
-  const profileFields = useQuery(api.users.getProfileFields);
-  const userSettings = useQuery(api.users.getSettings);
+  // Fetch preferences from Convex (only when user is authenticated)
+  const preferences = isLoaded && user ? useQuery(api.users.getPreferences) : null;
+  const profileFields = isLoaded && user ? useQuery(api.users.getProfileFields) : null;
+  const userSettings = isLoaded && user ? useQuery(api.users.getSettings) : null;
 
-  // Only use the data if isLoaded and user are truthy
-  const safePreferences = isLoaded && user ? preferences : null;
-  const safeProfileFields = isLoaded && user ? profileFields : null;
-  const safeUserSettings = isLoaded && user ? userSettings : null;
+  // Use the data directly since we're already checking authentication
+  const safePreferences = preferences;
+  const safeProfileFields = profileFields;
+  const safeUserSettings = userSettings;
 
   // Populate lecturerPrefs from preferences when tab is opened and data is available
   React.useEffect(() => {
