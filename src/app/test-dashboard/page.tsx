@@ -34,7 +34,8 @@ import {
   TrendingUp,
   TrendingDown,
   EyeOff,
-  AlertCircle
+  AlertCircle,
+  WandSparkles
 } from "lucide-react"
 import { useTestHistory } from "@/hooks/useTestHistory"
 import { TestResultsViewer } from "@/components/features/dev-tools/TestResultsViewer"
@@ -87,8 +88,8 @@ export default function TestDashboardPage() {
   const [testType, setTestType] = useState("all")
   const [expandedSuites, setExpandedSuites] = useState<Set<string>>(new Set())
   
-  const { runTests, testReport, isRunning, error } = useTestRunner()
-  const { stats, history } = useTestHistory()
+  const { runTests, runIndividualTest, testReport, isRunning, error } = useTestRunner()
+  const { stats, history, refresh: refreshHistory } = useTestHistory()
 
   // Test configuration state
   const [testConfig, setTestConfig] = useState({
@@ -173,6 +174,8 @@ export default function TestDashboardPage() {
 
   const handleRunTests = async (testType: string = "all") => {
     await runTests(testType, true, testConfig)
+    // Refresh history after test run
+    setTimeout(() => refreshHistory(), 1000)
   }
 
   const toggleSuiteDetails = (suiteName: string) => {
@@ -355,6 +358,11 @@ export default function TestDashboardPage() {
     }
   }
 
+  // Utility function to clean up test names by removing src/__tests__ prefix
+  const cleanTestName = (name: string) => {
+    return name.replace(/^src\/__tests__\//, '')
+  }
+
   const filteredResults = testReport?.suites.flatMap(suite => 
     suite.results.filter(result => {
       const matchesSearch = result.name.toLowerCase().includes(testType.toLowerCase())
@@ -370,37 +378,55 @@ export default function TestDashboardPage() {
   }, [testType, runTests])
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6 max-w-full overflow-hidden">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Test Dashboard</h2>
-          <p className="text-gray-600 dark:text-gray-300 text-sm">
-            Run and monitor tests with real-time results
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-yellow-500">
+            <WandSparkles className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold">Test Dashboard</h2>
+            <p className="text-gray-600 dark:text-gray-300 text-sm">
+              Run and monitor tests with real-time results
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-sm font-medium">Current Config</div>
-            <div className="text-xs text-gray-500">
-              {testConfig.environment} • {testConfig.timeout / 1000}s • {testConfig.maxWorkers} workers
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 border border-gray-200 dark:border-gray-700">
+            <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+              <span className="font-medium text-gray-900 dark:text-gray-100">Config:</span>
+              <span className="inline-flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                {testConfig.environment}
+              </span>
+              <span>•</span>
+              <span>{testConfig.timeout / 1000}s</span>
+              <span>•</span>
+              <span>{testConfig.maxWorkers}w</span>
             </div>
-        </div>
-        <div className="flex gap-2">
+          </div>
+          <div className="flex">
+            <Button
+              onClick={() => handleRunTests("all")}
+              disabled={isRunning}
+              className="bg-green-600 hover:bg-green-700 rounded-none rounded-l-md border-r-0"
+            >
+              {isRunning ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4 mr-2" />
+              )}
+              {isRunning ? "Running..." : "Run Tests"}
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-          <Button
-                  onClick={() => handleRunTests(testType)}
-            disabled={isRunning}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isRunning ? (
-              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Play className="w-4 h-4 mr-2" />
-            )}
-            {isRunning ? "Running..." : "Run Tests"}
-                  <ChevronDown className="w-4 h-4 ml-2" />
-          </Button>
+                <Button 
+                  size="default"
+                  disabled={isRunning}
+                  className="bg-green-600 hover:bg-green-700 text-white rounded-none rounded-r-md border-l-0 px-0"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Select Test Type</DropdownMenuLabel>
@@ -436,7 +462,7 @@ export default function TestDashboardPage() {
         </Alert>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 max-w-full overflow-hidden">
         <TabsList className="flex w-full bg-white border border-gray-200">
           <TabsTrigger value="overview" className="flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Overview</TabsTrigger>
           <TabsTrigger value="results" className="flex-1 data-[state=active]:bg-black data-[state=active]:text-white">Results</TabsTrigger>
@@ -447,7 +473,7 @@ export default function TestDashboardPage() {
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
+            <Card className="h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <TestTube className="w-4 h-4 text-blue-500" />
@@ -463,14 +489,14 @@ export default function TestDashboardPage() {
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">
-                    {displayReport?.summary.duration.toFixed(1) || 0}s
+                    {displayReport ? `${Math.round(displayReport.summary.duration)}s` : "0s"}
                   </Badge>
                   <span className="text-xs text-blue-600">duration</span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
@@ -482,7 +508,7 @@ export default function TestDashboardPage() {
                   {displayReport?.summary.passed || 0}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  {displayReport ? `${((displayReport.summary.passed / displayReport.summary.total) * 100).toFixed(1)}%` : "0%"} success rate
+                  {displayReport ? `${Math.round((displayReport.summary.passed / displayReport.summary.total) * 100)}%` : "0%"} success rate
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   <Badge variant="outline" className="text-xs text-green-600">
@@ -492,7 +518,7 @@ export default function TestDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <XCircle className="w-4 h-4 text-red-500" />
@@ -504,7 +530,7 @@ export default function TestDashboardPage() {
                   {displayReport?.summary.failed || 0}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
-                  {displayReport ? `${((displayReport.summary.failed / displayReport.summary.total) * 100).toFixed(1)}%` : "0%"} failure rate
+                  {displayReport ? `${Math.round((displayReport.summary.failed / displayReport.summary.total) * 100)}%` : "0%"} failure rate
                 </div>
                 <div className="mt-2 flex items-center gap-2">
                   <Badge variant="outline" className="text-xs text-red-600">
@@ -514,7 +540,7 @@ export default function TestDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-purple-500" />
@@ -524,7 +550,7 @@ export default function TestDashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-purple-600">
                   {typeof displayReport?.summary.coverage === 'number'
-                    ? `${displayReport.summary.coverage.toFixed(1)}%` 
+                    ? `${Math.round(displayReport.summary.coverage)}%` 
                     : "N/A"}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -534,7 +560,7 @@ export default function TestDashboardPage() {
                 </div>
                 <div className="mt-2">
                   {typeof displayReport?.summary.coverage === 'number' ? (
-                    <Progress 
+                    <Progress
                       value={displayReport.summary.coverage} 
                       className="h-2" 
                     />
@@ -564,15 +590,15 @@ export default function TestDashboardPage() {
                     <div className="text-sm text-gray-600">Total Runs</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{stats.successRate.toFixed(1)}%</div>
+                    <div className="text-2xl font-bold text-green-600">{Math.round(stats.successRate)}%</div>
                     <div className="text-sm text-gray-600">Success Rate</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{stats.averageCoverage.toFixed(1)}%</div>
+                    <div className="text-2xl font-bold">{Math.round(stats.averageCoverage)}%</div>
                     <div className="text-sm text-gray-600">Avg Coverage</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{stats.averageDuration.toFixed(1)}s</div>
+                    <div className="text-2xl font-bold">{Math.round(stats.averageDuration)}s</div>
                     <div className="text-sm text-gray-600">Avg Duration</div>
                   </div>
                 </div>
@@ -580,24 +606,28 @@ export default function TestDashboardPage() {
             </Card>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-100">
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Test Suites</CardTitle>
               </CardHeader>
               <CardContent className="overflow-hidden">
-                <div className="h-32 overflow-y-auto">
-                  <div className="space-y-1">
+                <div className="h-60 overflow-scroll">
+                  <div className="space-y-3">
                     {displayReport?.suites.map((suite, index) => (
                     <div key={index} className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{suite.name}</span>
-                        <div className="flex gap-2">
-                          <Badge variant="outline" className="text-xs text-green-600">
-                            {suite.passed} passed
+                      <div className="flex flex-wrap items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm leading-tight break-words">
+                            {cleanTestName(suite.name)}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Badge variant="outline" className="text-xs text-green-600 whitespace-nowrap">
+                            {suite.passed}P
                           </Badge>
-                          <Badge variant="outline" className="text-xs text-red-600">
-                            {suite.failed} failed
+                          <Badge variant="outline" className="text-xs text-red-600 whitespace-nowrap">
+                            {suite.failed}F
                           </Badge>
                         </div>
                       </div>
@@ -620,13 +650,13 @@ export default function TestDashboardPage() {
                 <CardTitle className="text-lg">Recent Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-1">
+                <div className="space-y-1 h-60 overflow-scroll">
                   {displayReport ? (
                     displayReport.suites.flatMap(suite => suite.results).slice(0, 5).map((result, index) => (
                       <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-gray-900">
                         {getStatusIcon(result.status)}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{result.name}</div>
+                        <div className="flex-1 min-w-0 ">
+                          <div className="text-sm font-medium truncate">{cleanTestName(result.name)}</div>
                           <div className="text-xs text-gray-500">
                             {new Date(result.timestamp).toLocaleTimeString()}
                           </div>
@@ -650,8 +680,8 @@ export default function TestDashboardPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="results" className="space-y-4">
-          <Card>
+        <TabsContent value="results" className="space-y-4 max-w-full overflow-hidden">
+          <Card className="overflow-hidden">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Test Results</CardTitle>
@@ -675,21 +705,22 @@ export default function TestDashboardPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="overflow-hidden">
+              <div className="space-y-4 max-w-full">
                 {/* The showPassed and showFailed buttons were removed from the new_code, so this section is removed. */}
 
-                <ScrollArea className="h-64 w-full">
+                <ScrollArea className="h-[32rem] w-full overflow-hidden">
                   {displayReport ? (
                     <TestResultsViewer 
                       suites={displayReport.suites}
-                      onRerunTest={(testId) => {
-                        console.log('Rerunning test:', testId)
-                        // TODO: Implement individual test rerun
+                      onRerunTest={(testName, testId) => {
+                        runIndividualTest(testName, testId, () => {
+                          // Refresh history after individual test completes
+                          refreshHistory()
+                        })
                       }}
                       onRerunSuite={(suiteName) => {
-                        console.log('Rerunning suite:', suiteName)
-                        // TODO: Implement suite rerun
+                        handleRunTests("all")
                       }}
                     />
                   ) : (
@@ -782,17 +813,21 @@ export default function TestDashboardPage() {
                 <div className="space-y-4">
                   {displayReport.suites.map((suite, index) => (
                     <div key={index} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium">{suite.name}</h4>
-                        <div className="flex gap-2">
-                          <Badge variant="outline" className="text-xs text-green-600">
-                            {suite.passed} passed
+                      <div className="flex flex-wrap items-start gap-2 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm leading-tight break-words">
+                            {cleanTestName(suite.name)}
+                          </h4>
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <Badge variant="outline" className="text-xs text-green-600 whitespace-nowrap">
+                            {suite.passed}P
                           </Badge>
-                          <Badge variant="outline" className="text-xs text-red-600">
-                            {suite.failed} failed
+                          <Badge variant="outline" className="text-xs text-red-600 whitespace-nowrap">
+                            {suite.failed}F
                           </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {suite.total} total
+                          <Badge variant="outline" className="text-xs whitespace-nowrap">
+                            {suite.total}T
                           </Badge>
                         </div>
                       </div>
@@ -803,9 +838,9 @@ export default function TestDashboardPage() {
                       />
                       <div className="text-xs text-gray-500 mt-1">
                         {suite.duration.toFixed(1)}s duration
-                        </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                   </div>
               ) : (
                 <div className="text-center py-8">

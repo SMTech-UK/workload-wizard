@@ -5,6 +5,8 @@ export interface TestHistoryEntry {
   id: string
   timestamp: string
   testType: string
+  testName?: string // For individual test runs
+  testId?: string // For individual test runs
   coverage: boolean
   config?: {
     environment: string
@@ -45,6 +47,7 @@ export interface TestHistoryEntry {
   }>
   success: boolean
   error?: string
+  isIndividualTest?: boolean // Flag to identify individual test runs
 }
 
 export interface TestHistoryStats {

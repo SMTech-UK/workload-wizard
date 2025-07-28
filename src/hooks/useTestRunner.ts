@@ -38,6 +38,7 @@ interface UseTestRunnerReturn {
   testReport: TestReport | null
   error: string | null
   runTests: (testType?: string, coverage?: boolean, config?: any) => Promise<void>
+  runIndividualTest: (testName: string, testId: string, onComplete?: () => void) => Promise<void>
   stopTests: () => void
   clearResults: () => void
 }
@@ -91,11 +92,52 @@ export function useTestRunner(): UseTestRunnerReturn {
     setError(null)
   }, [])
 
+  const runIndividualTest = useCallback(async (testName: string, testId: string, onComplete?: () => void) => {
+    setIsRunning(true)
+    setError(null)
+
+    try {
+      const requestBody = {
+        testType: 'individual',
+        testName,
+        testId,
+        coverage: false
+      }
+      
+      const response = await fetch('/api/test-runner', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        setTestReport(data.results)
+        setError(null)
+      } else {
+        setError(data.error || 'Individual test execution failed')
+        setTestReport(null)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error occurred')
+    } finally {
+      setIsRunning(false)
+      // Call completion callback if provided
+      if (onComplete) {
+        setTimeout(onComplete, 500)
+      }
+    }
+  }, [])
+
   return {
     isRunning,
     testReport,
     error,
     runTests,
+    runIndividualTest,
     stopTests,
     clearResults
   }

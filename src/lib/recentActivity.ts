@@ -16,21 +16,27 @@ export type RecentActivityArgs = {
 
 // Formats the activity for the 'formatted' field
 export function formatRecentActivity(args: RecentActivityArgs): string {
-  if (args.type === "lecturer_created" && args.fullName) {
-    const by = args.modifiedBy && args.modifiedBy.length > 0 ? args.modifiedBy[0].name : undefined;
-    return `Lecturer ${args.fullName} created${by ? ` by ${by}` : ''}`;
-  }
-  if (args.type === "lecturer_deleted" && args.fullName) {
-    const by = args.modifiedBy && args.modifiedBy.length > 0 ? args.modifiedBy[0].name : undefined;
-    return `Lecturer ${args.fullName} deleted${by ? ` by ${by}` : ''}`;
-  }
-  if (args.type === "lecturer_edited" && args.fullName && args.details && args.details.lecturerId) {
-    const by = args.modifiedBy && args.modifiedBy.length > 0 ? args.modifiedBy[0].name : undefined;
-    const section = args.details.section ? ` (${args.details.section})` : '';
-    return `Lecturer ${args.fullName} edited${section}${by ? ` by ${by}` : ''}`;
-  }
+  const by = args.modifiedBy && args.modifiedBy.length > 0 ? args.modifiedBy[0].name : undefined;
   const entityLabel = args.entity.charAt(0).toUpperCase() + args.entity.slice(1);
-  return `${entityLabel} ${args.entityId} ${args.changeType}${args.action ? ` (${args.action})` : ''}`;
+  
+  // Handle lecturer-specific formatting with fullName
+  if (args.fullName && args.type && (args.type === "lecturer_created" || args.type === "lecturer_deleted" || args.type === "lecturer_edited")) {
+    if (args.type === "lecturer_created") {
+      return `Lecturer ${args.fullName} created${by ? ` by ${by}` : ''}`;
+    }
+    
+    if (args.type === "lecturer_deleted") {
+      return `Lecturer ${args.fullName} deleted${by ? ` by ${by}` : ''}`;
+    }
+    
+    if (args.type === "lecturer_edited" && args.details && args.details.section) {
+      return `Lecturer ${args.fullName} edited (${args.details.section})${by ? ` by ${by}` : ''}`;
+    }
+  }
+  
+  // Handle generic entity activities
+  const actionPart = args.action ? ` (${args.action})` : '';
+  return `${entityLabel} ${args.entityId} ${args.changeType}${actionPart}${by ? ` by ${by}` : ''}`;
 }
 
 // React hook to get a logger function

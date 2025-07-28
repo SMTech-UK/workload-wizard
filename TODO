@@ -1,29 +1,135 @@
 
 Todo:
+  ☐ **COMPONENT TESTING COMPLETION** - Priority: HIGH
+    ☐ Fix and complete UI component tests:
+      ☐ Resolve all TestHistoryViewer test failures
+      ☐ Add comprehensive tests for all shadcn/ui components
+      ☐ Test component accessibility and responsive behavior
+      ☐ Add snapshot testing for UI consistency
+    ☐ Add feature component tests:
+      ☐ DashboardCard component tests
+      ☐ Module management component tests
+      ☐ Lecturer management component tests
+      ☐ Notification component tests
+    ☐ Add form component tests:
+      ☐ CSV import modal tests
+      ☐ Staff edit modal tests
+      ☐ Settings modal tests
+      ☐ All form validation tests
+
+  ☐ **INTEGRATION & E2E TESTING** - Priority: MEDIUM
+    ☐ Add integration tests:
+      ☐ Cross-component interaction testing
+      ☐ User workflow testing (login → dashboard → module allocation)
+      ☐ Data flow testing between frontend and Convex backend
+      ☐ Real-time update testing with Convex subscriptions
+    ☐ Add E2E testing setup:
+      ☐ Configure Playwright or Cypress for E2E tests
+      ☐ Test complete user journeys
+      ☐ Test authentication flows
+      ☐ Test notification systems
+    ☐ Add performance testing:
+      ☐ Load testing for dashboard performance
+      ☐ Stress testing for large datasets
+      ☐ Memory leak detection
+      ☐ API response time testing
+
+  ☐ **TEST COVERAGE & QUALITY** - Priority: MEDIUM
+    ☐ Fix test-runner API mocking issues (non-critical, can be addressed later)
+    ☐ Achieve comprehensive test coverage:
+      ☐ Target 90%+ code coverage for critical business logic
+      ☐ Add coverage reporting and CI integration
+      ☐ Identify and test uncovered code paths
+      ☐ Add mutation testing for critical functions
+    ☐ Improve test quality:
+      ☐ Add test documentation and examples
+      ☐ Implement test data factories and builders
+      ☐ Add test utilities and helpers
+      ☐ Standardize test patterns across the codebase
+    ☐ Add test monitoring and reporting:
+      ☐ Test execution time monitoring
+      ☐ Flaky test detection and fixing
+      ☐ Test failure analysis and reporting
+      ☐ Performance regression testing
+
   ☐ **DEVTOOLS COMPLETION & TESTING** - Priority: HIGH
     ☐ Add comprehensive unit tests for all devtools components:
-      - DevToolsPage component tests
-      - DevRouteGuard component tests  
-      - TestDataManager component tests
-      - useDevMode hook tests
+      ☐ DevToolsPage component tests
+      ☐ DevRouteGuard component tests  
+      ☐ TestDataManager component tests
+      ☐ useDevMode hook tests
     ☐ Complete API route implementations:
-      - Connect add-test-lecturer to actual Convex mutations
-      - Connect add-test-module to actual Convex mutations
-      - Implement clear-test-data with proper Convex cleanup
-      - Add API route tests for all dev endpoints
+      ☐ Connect add-test-lecturer to actual Convex mutations
+      ☐ Connect add-test-module to actual Convex mutations
+      ☐ Implement clear-test-data with proper Convex cleanup
+      ☐ Add API route tests for all dev endpoints
     ☐ Add integration tests for devtools workflow
     ☐ Implement real-time monitoring in DevToolsPage:
-      - Connect to actual Convex queries for system metrics
-      - Add live database connection status
-      - Implement real API performance monitoring
+      ☐ Connect to actual Convex queries for system metrics
+      ☐ Add live database connection status
+      ☐ Implement real API performance monitoring
     ☐ Add comprehensive error handling and logging to devtools
     ☐ Ensure all devtools are properly protected by admin authentication
     ☐ Add test coverage reporting and CI/CD integration
+    ☐ Fix devtools tool dropdown to be able to run tests
 
-  ☐ Complete module allocation feature after auth and notifications are set up
-  ☐ Update Clerk user details and avatar from website
-  ☐ Work on styling/colors (https://www.youtube.com/watch?v=vvPklRN0Tco)
-  ☐ Add dropdown for extending notifications
-  ☐ Add notification click URL
-  ☐ Fix navbar links
-  ☐ Add notification sonners/pop-ups
+  ☐ **TESTING AUTOMATION & CI/CD** - Priority: MEDIUM
+    ☐ Set up automated testing pipeline:
+      ☐ Configure GitHub Actions for test automation
+      ☐ Add test result reporting and notifications
+      ☐ Implement test failure alerts
+      ☐ Add test performance monitoring
+    ☐ Add pre-commit hooks:
+      ☐ Run tests before commits
+      ☐ Check test coverage thresholds
+      ☐ Validate test file structure
+      ☐ Ensure all tests pass before merge
+    ☐ Add test environment management:
+      ☐ Separate test database setup
+      ☐ Test data seeding and cleanup
+      ☐ Environment-specific test configurations
+      ☐ Mock external service configurations
+
+  ☐ **DOCUMENTATION & TRAINING** - Priority: LOW
+    ☐ Create testing documentation:
+      ☐ Testing guidelines and best practices
+      ☐ Test writing standards and conventions
+      ☐ Debugging test failures guide
+      ☐ Performance testing guidelines
+    ☐ Add test examples and templates:
+      ☐ Component test templates
+      ☐ API test templates
+      ☐ Integration test templates
+      ☐ E2E test templates
+
+  ☐ **FEATURE DEVELOPMENT** - Priority: MEDIUM
+    ☐ Complete module allocation feature after auth and notifications are set up
+    ☐ Update Clerk user details and avatar from website
+    ☐ Work on styling/colors (https://www.youtube.com/watch?v=vvPklRN0Tco)
+    ☐ Add dropdown for extending notifications
+    ☐ Add notification click URL
+    ☐ Fix navbar links
+    ☐ Add notification sonners/pop-ups
+
+### Completed Tasks:
+✔ Jest/React Testing Library setup working correctly @done(25-07-28 21:19)
+✔ React Hook context issues resolved @done(25-07-28 21:19)
+✔ Component rendering tests fixed @done(25-07-28 21:19)
+✔ TypeScript linter errors resolved @done(25-07-28 22:15)
+✔ **Jest/React Testing Library Setup** - All `toBeInTheDocument` errors resolved @done(25-07-28 21:19)
+✔ **Fix React Hook Context Issues** - Resolved `useMutation` context errors @done(25-07-28 21:19)
+✔ **Fix Component Rendering Tests** - Resolved TestHistoryViewer and other component test failures @done(25-07-28 21:19)
+✔ Fixed Jest configuration by uncommenting `setupFilesAfterEnv` @done(25-07-28 21:22)
+✔ Enhanced Jest setup with proper Next.js App Router mocks @done(25-07-28 21:22)
+✔ All `@testing-library/jest-dom` matchers now working @done(25-07-28 21:22)
+✔ Added proper Convex client mocking for hook tests @done(25-07-28 21:22)
+✔ Fixed all TestHistoryViewer modal and rendering issues @done(25-07-28 21:22)
+✔ Fix Jest configuration and setup issues @done(25-07-28 21:19)
+✔ Fix React Hook Context Issues @done(25-07-28 21:19)
+✔ Fix Component Rendering Tests @done(25-07-28 21:19)
+✔ Fix TypeScript Linter Errors @done(25-07-28 22:15)
+✔ Complete academic-workload.test.ts implementation @done(25-07-28 22:45)
+✔ Implement missing academic workload functions @done(25-07-28 22:30)
+✔ Implement API layer testing @done(25-07-28 23:15)
+✔ **CRITICAL BUSINESS LOGIC TESTING** - Priority: HIGH @done(25-07-28 21:54)
+✔ **UI COMPONENT TESTING PROGRESS** - Fixed table component tests and added comprehensive tests for Alert, Badge, and Skeleton components @done(25-07-28 23:45)

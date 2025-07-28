@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
     const { 
       testType = 'all', 
       coverage = false,
+      testName,
+      testId,
       config = {
         environment: 'jsdom',
         coverageThreshold: 70,
@@ -35,7 +37,15 @@ export async function POST(request: NextRequest) {
       jestArgs.push(`--testEnvironment=${config.environment}`)
     }
     
-    if (testType !== 'all') {
+    if (testType === 'individual' && testName && testId) {
+      // For individual test, use testNamePattern to run specific test
+      const testPattern = testName.replace(/\.test\.(js|ts|tsx)$/, '')
+      jestArgs.push(`--testPathPattern=${testPattern}`)
+      // Escape the test ID for Jest pattern matching
+      const escapedTestId = testId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      jestArgs.push(`--testNamePattern="${escapedTestId}"`)
+
+    } else if (testType !== 'all') {
       // Map test types to Jest patterns based on actual file structure
       const testPatterns = {
         'unit': 'lib',
@@ -49,12 +59,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    jestArgs.push('--watchAll=false', '--verbose', '--json', '--passWithNoTests')
+    jestArgs.push('--watchAll=false', '--json', '--passWithNoTests')
 
     const command = `npm test -- ${jestArgs.join(' ')}`
     
     // Always run coverage command to get detailed coverage data
-    let coverageCommand = `npm test -- --coverage --watchAll=false --passWithNoTests`
+    let coverageCommand = `npm test -- --coverage --watchAll=false --passWithNoTests --silent`
     
     // Add configuration-based arguments to coverage command
     if (config.timeout) {
@@ -93,7 +103,8 @@ export async function POST(request: NextRequest) {
     try {
       const result = await execAsync(command, {
         cwd: process.cwd(),
-        timeout: config.timeout || 60000 // Use config timeout or default to 60 seconds
+        timeout: config.timeout || 60000, // Use config timeout or default to 60 seconds
+        maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large test output
       })
       stdout = result.stdout
       stderr = result.stderr
@@ -116,7 +127,8 @@ export async function POST(request: NextRequest) {
       console.log(`Running coverage command: ${coverageCommand}`)
       const coverageResult = await execAsync(coverageCommand, {
         cwd: process.cwd(),
-        timeout: config.timeout || 60000 // Use config timeout or default to 60 seconds
+        timeout: config.timeout || 60000, // Use config timeout or default to 60 seconds
+        maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large test output
       })
       coverageOutput = coverageResult.stdout + '\n' + coverageResult.stderr
       
@@ -273,12 +285,14 @@ export async function POST(request: NextRequest) {
     try {
       const historyEntry = {
         testType,
+        testName: testType === 'individual' ? testName : undefined,
+        testId: testType === 'individual' ? testId : undefined,
         coverage,
         config, // Include the configuration used
+        isIndividualTest: testType === 'individual',
         ...transformedResults
       }
       const historyId = await testHistoryManager.saveTestResult(historyEntry)
-      console.log(`Test result saved to history with ID: ${historyId}`)
     } catch (historyError) {
       console.error('Failed to save test result to history:', historyError)
       // Don't fail the request if history saving fails
@@ -304,7 +318,8 @@ export async function GET() {
   try {
     // Get test status and available test files
     const { stdout } = await execAsync('find src/__tests__ -name "*.test.*" -type f', {
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      maxBuffer: 1024 * 1024 // 1MB buffer for file listing
     })
 
     const testFiles = stdout.split('\n').filter(Boolean).map(file => ({

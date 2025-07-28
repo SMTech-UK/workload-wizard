@@ -1,153 +1,74 @@
 import '@testing-library/jest-dom'
 
-// Polyfill fetch for Node.js environment
-if (!global.fetch) {
-  global.fetch = jest.fn()
+// Mock Next.js Response for API tests
+global.Response = {
+  json: jest.fn((data, options) => ({
+    json: () => Promise.resolve(data),
+    status: options?.status || 200,
+    ok: (options?.status || 200) < 400,
+    ...options
+  }))
 }
 
-// Mock Next.js router
-jest.mock('next/router', () => ({
-  useRouter() {
-    return {
-      route: '/',
-      pathname: '/',
-      query: {},
-      asPath: '/',
-      push: jest.fn(),
-      pop: jest.fn(),
-      reload: jest.fn(),
-      back: jest.fn(),
-      prefetch: jest.fn().mockResolvedValue(undefined),
-      beforePopState: jest.fn(),
-      events: {
-        on: jest.fn(),
-        off: jest.fn(),
-        emit: jest.fn(),
-      },
-      isFallback: false,
+// Mock NextResponse for API route tests
+jest.mock('next/server', () => ({
+  NextRequest: class MockNextRequest {
+    constructor(url = 'http://localhost:3000/api/test') {
+      this.url = url
+      this.nextUrl = new URL(url)
     }
   },
+  NextResponse: {
+    json: jest.fn((data, options) => ({
+      json: () => Promise.resolve(data),
+      status: options?.status || 200,
+      ok: (options?.status || 200) < 400,
+      ...options
+    }))
+  }
 }))
 
-// Mock Next.js navigation
-jest.mock('next/navigation', () => ({
-  useRouter() {
-    return {
-      push: jest.fn(),
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-      refresh: jest.fn(),
-    }
-  },
-  useSearchParams() {
-    return new URLSearchParams()
-  },
-  usePathname() {
-    return '/'
-  },
-}))
-
-// Mock Convex
-jest.mock('convex/react', () => ({
-  useQuery: jest.fn(() => null),
-  useMutation: jest.fn(() => jest.fn()),
-  useAction: jest.fn(() => jest.fn()),
-  usePaginatedQuery: jest.fn(() => ({ results: [], status: 'CanLoadMore' })),
-}))
-
-// Mock Clerk
-jest.mock('@clerk/nextjs', () => ({
-  useUser: () => ({
-    isSignedIn: true,
-    user: {
-      id: 'test-user-id',
-      emailAddresses: [{ emailAddress: 'test@example.com' }],
-      firstName: 'Test',
-      lastName: 'User',
-    },
-  }),
-  useAuth: () => ({
-    isLoaded: true,
-    isSignedIn: true,
-    userId: 'test-user-id',
-  }),
-  SignIn: () => <div data-testid="sign-in">Sign In</div>,
-  SignUp: () => <div data-testid="sign-up">Sign Up</div>,
-  UserButton: () => <div data-testid="user-button">User Button</div>,
-}))
-
-// Mock Knock
-jest.mock('@knocklabs/react', () => ({
-  useKnock: () => ({
-    user: { id: 'test-user-id' },
-    feed: {
-      items: [],
-      pageInfo: { after: null, before: null },
-      on: jest.fn(),
-      off: jest.fn(),
-    },
-  }),
-  KnockProvider: ({ children }) => children,
-}))
-
-// Mock window.matchMedia - only define if not already defined
-if (!window.matchMedia) {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    configurable: true,
-    value: jest.fn().mockImplementation(query => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: jest.fn(), // deprecated
-      removeListener: jest.fn(), // deprecated
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    })),
-  })
+// Mock file system for test history
+const fs = {
+  existsSync: jest.fn(),
+  mkdirSync: jest.fn(),
+  readFileSync: jest.fn(),
+  writeFileSync: jest.fn(),
+  promises: {
+    readFile: jest.fn(),
+    writeFile: jest.fn()
+  }
 }
 
-// Proper timer mocks for Jest environment
-// Store original timer functions
-const originalSetTimeout = global.setTimeout;
-const originalClearTimeout = global.clearTimeout;
-const originalSetInterval = global.setInterval;
-const originalClearInterval = global.clearInterval;
-
-// Mock timer functions properly
-global.setTimeout = jest.fn((callback, delay) => {
-  return originalSetTimeout(callback, delay);
-});
-
-global.clearTimeout = jest.fn((id) => {
-  return originalClearTimeout(id);
-});
-
-global.setInterval = jest.fn((callback, delay) => {
-  return originalSetInterval(callback, delay);
-});
-
-global.clearInterval = jest.fn((id) => {
-  return originalClearInterval(id);
-});
-
-// Ensure clearTimeout is available globally
-if (!global.clearTimeout) {
-  global.clearTimeout = jest.fn();
+const path = {
+  join: jest.fn((...args) => args.join('/'))
 }
 
-// Mock clearTimeout to prevent errors in cleanup
-global.clearTimeout = jest.fn();
+jest.mock('fs', () => fs)
+jest.mock('path', () => path)
 
-// Mock ResizeObserver
-global.ResizeObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}))
+// Mock console methods to reduce noise in tests
+global.console = {
+  ...console,
+  warn: jest.fn(),
+  error: jest.fn(),
+  log: jest.fn()
+}
+
+// Mock window.matchMedia for responsive tests
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: jest.fn().mockImplementation(query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: jest.fn(), // deprecated
+    removeListener: jest.fn(), // deprecated
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn(),
+  })),
+})
 
 // Mock IntersectionObserver
 global.IntersectionObserver = jest.fn().mockImplementation(() => ({
@@ -156,22 +77,84 @@ global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   disconnect: jest.fn(),
 }))
 
-// Suppress console errors in tests unless explicitly needed
-const originalError = console.error
-beforeAll(() => {
-  console.error = (...args) => {
-    if (
-      typeof args[0] === 'string' &&
-      (args[0].includes('Warning: ReactDOM.render is no longer supported') ||
-       args[0].includes('Warning: An update to') ||
-       args[0].includes('Warning: React does not recognize'))
-    ) {
-      return
-    }
-    originalError.call(console, ...args)
-  }
-})
+// Mock ResizeObserver
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}))
 
-afterAll(() => {
-  console.error = originalError
-}) 
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+}
+global.localStorage = localStorageMock
+
+// Mock sessionStorage
+const sessionStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+}
+global.sessionStorage = sessionStorageMock
+
+// Mock fetch for API tests
+global.fetch = jest.fn()
+
+// Mock URLSearchParams
+global.URLSearchParams = class MockURLSearchParams {
+  constructor(init) {
+    this.params = new Map()
+    if (init) {
+      const searchParams = new URL(init).searchParams
+      for (const [key, value] of searchParams) {
+        this.params.set(key, value)
+      }
+    }
+  }
+  
+  get(key) {
+    return this.params.get(key)
+  }
+  
+  has(key) {
+    return this.params.has(key)
+  }
+  
+  set(key, value) {
+    this.params.set(key, value)
+  }
+  
+  delete(key) {
+    this.params.delete(key)
+  }
+  
+  forEach(callback) {
+    this.params.forEach(callback)
+  }
+  
+  entries() {
+    return this.params.entries()
+  }
+  
+  keys() {
+    return this.params.keys()
+  }
+  
+  values() {
+    return this.params.values()
+  }
+  
+  toString() {
+    return Array.from(this.params.entries())
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join('&')
+  }
+}
+
+// Export mocks for use in tests
+export { fs, path, localStorageMock, sessionStorageMock } 

@@ -23,6 +23,98 @@ export function updateSettings<T extends Record<string, any>>(
 }
 
 /**
+ * Format duration in milliseconds to human-readable string
+ */
+export function formatDuration(ms: number): string {
+  if (ms < 0) {
+    return `-${formatDuration(Math.abs(ms))}`;
+  }
+  
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  
+  if (ms < 60000) {
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+  
+  if (ms < 3600000) {
+    return `${(ms / 60000).toFixed(1)}m`;
+  }
+  
+  if (ms < 86400000) {
+    return `${(ms / 3600000).toFixed(1)}h`;
+  }
+  
+  return `${(ms / 86400000).toFixed(1)}d`;
+}
+
+/**
+ * Format decimal value as percentage
+ */
+export function formatPercentage(value: number): string {
+  const percentage = value * 100;
+  // Remove .0 for whole numbers
+  return percentage % 1 === 0 ? `${percentage}%` : `${percentage.toFixed(1)}%`;
+}
+
+/**
+ * Format date to readable string
+ */
+export function formatDate(date: Date | string | number | null | undefined): string {
+  if (!date) {
+    return 'Invalid Date';
+  }
+  
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return 'Invalid Date';
+    }
+    return dateObj.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  } catch {
+    return 'Invalid Date';
+  }
+}
+
+/**
+ * Debounce function calls
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: NodeJS.Timeout;
+  
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+}
+
+/**
+ * Throttle function calls
+ */
+export function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let lastCall = 0;
+  
+  return (...args: Parameters<T>) => {
+    const now = Date.now();
+    if (now - lastCall >= delay) {
+      lastCall = now;
+      func(...args);
+    }
+  };
+}
+
+/**
  * Generate contract string (e.g., 1AP, 0.6TA) and total contract hours based on FTE and family.
  * Uses Math.round for all rounding.
  */

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { 
   CheckCircle, 
   XCircle, 
@@ -17,7 +18,8 @@ import {
   Code,
   AlertTriangle,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from "lucide-react"
 
 interface TestResult {
@@ -42,13 +44,14 @@ interface TestSuite {
 
 interface TestResultsViewerProps {
   suites: TestSuite[]
-  onRerunTest?: (testId: string) => void
+  onRerunTest?: (testName: string, testId: string) => void
   onRerunSuite?: (suiteName: string) => void
 }
 
 export function TestResultsViewer({ suites, onRerunTest, onRerunSuite }: TestResultsViewerProps) {
   const [expandedSuites, setExpandedSuites] = useState<Set<string>>(new Set())
   const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set())
+  const [selectedTestCode, setSelectedTestCode] = useState<{ name: string; code: string } | null>(null)
 
   const toggleSuite = (suiteName: string) => {
     const newExpanded = new Set(expandedSuites)
@@ -100,57 +103,143 @@ export function TestResultsViewer({ suites, onRerunTest, onRerunSuite }: TestRes
     navigator.clipboard.writeText(text)
   }
 
+  // Utility function to clean up test names by removing src/__tests__ prefix
+  const cleanTestName = (name: string) => {
+    return name.replace(/^src\/__tests__\//, '')
+  }
+
+  const handleViewCode = async (testName: string, testId?: string) => {
+    try {
+      // Convert test name to file path
+      const filePath = testName.startsWith('src/__tests__/') 
+        ? testName 
+        : `src/__tests__/${testName}`
+      
+      // Fetch the test file content with optional test ID for specific section
+      const url = testId 
+        ? `/api/test-code?file=${encodeURIComponent(filePath)}&testId=${encodeURIComponent(testId)}`
+        : `/api/test-code?file=${encodeURIComponent(filePath)}`
+      
+      const response = await fetch(url)
+      if (response.ok) {
+        const data = await response.json()
+        setSelectedTestCode({
+          name: cleanTestName(testName),
+          code: data.code
+        })
+      } else {
+        // Fallback: show a placeholder with the file path
+        setSelectedTestCode({
+          name: cleanTestName(testName),
+          code: `// Test file: ${filePath}\n// Content not available\n// This would show the actual test code when the API endpoint is implemented`
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch test code:', error)
+      setSelectedTestCode({
+        name: cleanTestName(testName),
+        code: `// Error loading test code for: ${testName}\n// ${error}`
+      })
+    }
+  }
+
   return (
     <div className="space-y-4">
       {suites.map((suite, suiteIndex) => (
         <Collapsible key={suiteIndex} open={expandedSuites.has(suite.name)} onOpenChange={() => toggleSuite(suite.name)}>
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CollapsibleTrigger
-                    className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
-                  >
-                    {expandedSuites.has(suite.name) ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4" />
-                    )}
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(suite.failed > 0 ? 'failed' : 'passed')}
-                      <CardTitle className="text-lg">{suite.name}</CardTitle>
-                    </div>
-                  </CollapsibleTrigger>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-2">
-                    <Badge variant="outline" className="text-xs text-green-600">
-                      {suite.passed} passed
-                    </Badge>
-                    <Badge variant="outline" className="text-xs text-red-600">
-                      {suite.failed} failed
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {suite.duration.toFixed(1)}s
-                    </Badge>
-                  </div>
-                  {onRerunSuite && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onRerunSuite(suite.name)}
+          <Card className="overflow-hidden max-w-full">
+                        <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-start gap-2">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <CollapsibleTrigger
+                      className="flex items-start gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
                     >
-                      <Code className="w-4 h-4 mr-2" />
-                      Rerun
-                    </Button>
-                  )}
+                      {expandedSuites.has(suite.name) ? (
+                        <ChevronDown className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      )}
+                      <div className="flex items-start gap-2 min-w-0">
+                        {getStatusIcon(suite.failed > 0 ? 'failed' : 'passed')}
+                        <CardTitle className="text-base break-words min-w-0 leading-relaxed">{cleanTestName(suite.name)}</CardTitle>
+                      </div>
+                    </CollapsibleTrigger>
+                  </div>
+                  <div className="flex items-start gap-2 flex-shrink-0">
+                    <div className="flex gap-1">
+                      <Badge variant="outline" className="text-xs text-green-600 whitespace-nowrap">
+                        {suite.passed}P
+                      </Badge>
+                      <Badge variant="outline" className="text-xs text-red-600 whitespace-nowrap">
+                        {suite.failed}F
+                      </Badge>
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">
+                        {suite.duration.toFixed(1)}s
+                      </Badge>
+                    </div>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewCode(suite.name)}
+                          className="whitespace-nowrap"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+                        <DialogHeader>
+                          <DialogTitle>Test Suite Code: {selectedTestCode?.name || cleanTestName(suite.name)}</DialogTitle>
+                          <DialogDescription>
+                            View the source code for this test suite
+                          </DialogDescription>
+                        </DialogHeader>
+                        <ScrollArea className="h-96 w-full">
+                          <pre className="text-sm font-mono bg-gray-50 dark:bg-gray-900 p-4 rounded-lg overflow-auto">
+                            <code>{selectedTestCode?.code || 'Loading...'}</code>
+                          </pre>
+                        </ScrollArea>
+                        <div className="flex justify-end gap-2 mt-4 px-6">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyToClipboard(selectedTestCode?.code || '')}
+                          >
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copy Code
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(`/api/test-code?file=${encodeURIComponent(suite.name)}&download=true`, '_blank')}
+                          >
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Download
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    {onRerunSuite && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onRerunSuite(suite.name)}
+                        className="whitespace-nowrap"
+                      >
+                        <Code className="w-4 h-4 mr-2" />
+                        Rerun
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="ml-6">
-                <Progress 
-                  value={suite.total > 0 ? (suite.passed / suite.total) * 100 : 0} 
-                  className="h-2" 
-                />
+                <div className="ml-6">
+                  <Progress 
+                    value={suite.total > 0 ? (suite.passed / suite.total) * 100 : 0} 
+                    className="h-2" 
+                  />
+                </div>
               </div>
             </CardHeader>
             
@@ -160,36 +249,37 @@ export function TestResultsViewer({ suites, onRerunTest, onRerunSuite }: TestRes
                   {suite.results.map((test, testIndex) => (
                     <Collapsible key={test.id} open={expandedTests.has(test.id)} onOpenChange={() => toggleTest(test.id)}>
                       <div
-                        className={`p-3 rounded-lg border ${getStatusColor(test.status)}`}
+                        className={`p-3 rounded-lg border ${getStatusColor(test.status)} overflow-hidden`}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3 flex-1">
+                        <div className="flex flex-wrap items-start gap-2">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
                             <CollapsibleTrigger
-                              className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
+                              className="flex items-start gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 p-1 rounded"
                             >
                               {expandedTests.has(test.id) ? (
-                                <ChevronDown className="w-3 h-3" />
+                                <ChevronDown className="w-3 h-3 flex-shrink-0 mt-0.5" />
                               ) : (
-                                <ChevronRight className="w-3 h-3" />
+                                <ChevronRight className="w-3 h-3 flex-shrink-0 mt-0.5" />
                               )}
                               {getStatusIcon(test.status)}
-                              <span className="font-medium text-sm">{test.name}</span>
+                              <span className="font-medium text-sm break-words min-w-0 leading-relaxed text-left">{cleanTestName(test.name)}</span>
                             </CollapsibleTrigger>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-start gap-2 flex-shrink-0">
                             {test.duration && (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs whitespace-nowrap">
                                 {test.duration.toFixed(1)}s
                               </Badge>
                             )}
-                            <Badge variant="outline" className="text-xs">
-                              {test.category}
+                            <Badge variant="outline" className="text-xs whitespace-nowrap">
+                              {test.category.charAt(0).toUpperCase() + test.category.slice(1)}
                             </Badge>
                             {onRerunTest && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => onRerunTest(test.id)}
+                                onClick={() => onRerunTest(test.name, test.id)}
+                                className="whitespace-nowrap"
                               >
                                 <Code className="w-3 h-3" />
                               </Button>

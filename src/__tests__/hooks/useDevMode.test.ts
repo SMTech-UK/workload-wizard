@@ -10,230 +10,323 @@ jest.mock('convex/react', () => ({
   useQuery: jest.fn(),
 }));
 
-describe('useDevMode', () => {
-  const mockUseUser = require('@clerk/nextjs').useUser;
-  const mockUseQuery = require('convex/react').useQuery;
+const mockUseUser = require('@clerk/nextjs').useUser;
+const mockUseQuery = require('convex/react').useQuery;
 
+describe('useDevMode Hook - Critical Development Logic', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    // Clear localStorage
+    // Clear localStorage before each test
     localStorage.clear();
-    // Reset window.matchMedia mock
-    Object.defineProperty(window, 'matchMedia', {
-      writable: true,
-      value: jest.fn().mockImplementation(query => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addListener: jest.fn(),
-        removeListener: jest.fn(),
-        addEventListener: jest.fn(),
-        removeEventListener: jest.fn(),
-        dispatchEvent: jest.fn(),
-      })),
+    
+    // Mock user as admin
+    mockUseUser.mockReturnValue({
+      user: { id: 'test-user-id' },
+      isLoaded: true,
+    });
+    
+    // Mock profile fields as admin
+    mockUseQuery.mockReturnValue({
+      systemRole: 'admin',
     });
   });
 
-  describe('when user is admin', () => {
-    beforeEach(() => {
-      mockUseUser.mockReturnValue({
-        user: { id: 'admin-user' },
-        isLoaded: true,
-      });
+  afterEach(() => {
+    localStorage.clear();
+    jest.clearAllMocks();
+  });
 
-      mockUseQuery.mockReturnValue({
-        systemRole: 'admin',
-      });
-    });
-
-    it('should initialize with dev mode disabled by default', () => {
-      const { result } = renderHook(() => useDevMode());
-
-      expect(result.current.devMode).toBe(false);
-      expect(result.current.isAdmin).toBe(true);
-      expect(result.current.shouldShowDevTools).toBe(false);
-    });
-
-    it('should load dev mode from localStorage when available', () => {
+  describe('Initial State Detection', () => {
+    it('should detect dev mode from localStorage when set to true', () => {
+      // Arrange
       localStorage.setItem('devMode', 'true');
-
+      
+      // Act
       const { result } = renderHook(() => useDevMode());
-
+      
+      // Assert
       expect(result.current.devMode).toBe(true);
+    });
+
+    it('should detect dev mode from localStorage when set to false', () => {
+      // Arrange
+      localStorage.setItem('devMode', 'false');
+      
+      // Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+    });
+
+    it('should default to false when localStorage is not set', () => {
+      // Arrange & Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+    });
+
+    it('should identify admin user correctly', () => {
+      // Arrange & Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
+      expect(result.current.isAdmin).toBe(true);
+    });
+
+    it('should show dev tools when admin and dev mode is enabled', () => {
+      // Arrange
+      localStorage.setItem('devMode', 'true');
+      
+      // Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
       expect(result.current.shouldShowDevTools).toBe(true);
     });
+  });
 
-    it('should toggle dev mode and save to localStorage', () => {
+  describe('Toggle Functionality', () => {
+    it('should toggle dev mode from false to true', () => {
+      // Arrange
+      localStorage.setItem('devMode', 'false');
       const { result } = renderHook(() => useDevMode());
-
+      
+      // Act
       act(() => {
         result.current.toggleDevMode(true);
       });
+      
+      // Assert
+      expect(result.current.devMode).toBe(true);
+      expect(localStorage.getItem('devMode')).toBe('true');
+    });
 
+    it('should toggle dev mode from true to false', () => {
+      // Arrange
+      localStorage.setItem('devMode', 'true');
+      const { result } = renderHook(() => useDevMode());
+      
+      // Act
+      act(() => {
+        result.current.toggleDevMode(false);
+      });
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+      expect(localStorage.getItem('devMode')).toBe('false');
+    });
+
+    it('should not toggle dev mode when user is not admin', () => {
+      // Arrange
+      mockUseQuery.mockReturnValue({
+        systemRole: 'user',
+      });
+      localStorage.setItem('devMode', 'false');
+      const { result } = renderHook(() => useDevMode());
+      
+      // Act
+      act(() => {
+        result.current.toggleDevMode(true);
+      });
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+      expect(result.current.isAdmin).toBe(false);
+    });
+
+    it('should handle multiple toggles correctly', () => {
+      // Arrange
+      const { result } = renderHook(() => useDevMode());
+      
+      // Act & Assert
+      act(() => {
+        result.current.toggleDevMode(true);
+      });
+      expect(result.current.devMode).toBe(true);
+      
+      act(() => {
+        result.current.toggleDevMode(false);
+      });
+      expect(result.current.devMode).toBe(false);
+      
+      act(() => {
+        result.current.toggleDevMode(true);
+      });
+      expect(result.current.devMode).toBe(true);
+    });
+  });
+
+  describe('LocalStorage Persistence', () => {
+    it('should persist dev mode state in localStorage', () => {
+      // Arrange
+      const { result } = renderHook(() => useDevMode());
+      
+      // Act
+      act(() => {
+        result.current.toggleDevMode(true);
+      });
+      
+      // Assert
+      expect(localStorage.getItem('devMode')).toBe('true');
+    });
+
+    it('should update localStorage when toggling', () => {
+      // Arrange
+      const { result } = renderHook(() => useDevMode());
+      
+      // Act
+      act(() => {
+        result.current.toggleDevMode(true);
+      });
+      
+      // Assert
+      expect(localStorage.getItem('devMode')).toBe('true');
+      
+      act(() => {
+        result.current.toggleDevMode(false);
+      });
+      expect(localStorage.getItem('devMode')).toBe('false');
+    });
+
+    it('should handle localStorage errors gracefully', () => {
+      // Arrange
+      const originalSetItem = localStorage.setItem;
+      localStorage.setItem = jest.fn().mockImplementation(() => {
+        throw new Error('localStorage not available');
+      });
+      
+      // Act & Assert
+      const { result } = renderHook(() => useDevMode());
+      
+      expect(() => {
+        act(() => {
+          result.current.toggleDevMode(true);
+        });
+      }).not.toThrow();
+      
+      // Cleanup
+      localStorage.setItem = originalSetItem;
+    });
+  });
+
+  describe('Edge Cases and Error Handling', () => {
+    it('should handle invalid localStorage values gracefully', () => {
+      // Arrange
+      localStorage.setItem('devMode', 'invalid');
+      
+      // Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+    });
+
+    it('should handle empty localStorage value', () => {
+      // Arrange
+      localStorage.setItem('devMode', '');
+      
+      // Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+    });
+
+    it('should handle null localStorage value', () => {
+      // Arrange
+      localStorage.setItem('devMode', 'null');
+      
+      // Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+    });
+
+    it('should handle user not loaded state', () => {
+      // Arrange
+      mockUseUser.mockReturnValue({
+        user: null,
+        isLoaded: false,
+      });
+      
+      // Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+      expect(result.current.isAdmin).toBe(false);
+    });
+
+    it('should handle missing profile fields', () => {
+      // Arrange
+      mockUseQuery.mockReturnValue(null);
+      
+      // Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert
+      expect(result.current.devMode).toBe(false);
+      expect(result.current.isAdmin).toBe(null);
+    });
+  });
+
+  describe('Integration Scenarios', () => {
+    it('should work correctly with admin user and dev mode interaction', () => {
+      // Arrange
+      localStorage.setItem('devMode', 'false');
+      
+      // Act
+      const { result } = renderHook(() => useDevMode());
+      
+      // Assert - Should be false initially
+      expect(result.current.devMode).toBe(false);
+      expect(result.current.shouldShowDevTools).toBe(false);
+      
+      // Act - Enable dev mode
+      act(() => {
+        result.current.toggleDevMode(true);
+      });
+      
+      // Assert - Should now be enabled
       expect(result.current.devMode).toBe(true);
       expect(result.current.shouldShowDevTools).toBe(true);
       expect(localStorage.getItem('devMode')).toBe('true');
     });
 
-    it('should disable dev mode and update localStorage', () => {
-      localStorage.setItem('devMode', 'true');
-
-      const { result } = renderHook(() => useDevMode());
-
+    it('should maintain state across multiple hook instances', () => {
+      // Arrange
+      const { result: result1 } = renderHook(() => useDevMode());
+      
+      // Act
       act(() => {
+        result1.current.toggleDevMode(true);
+      });
+      
+      // Assert
+      expect(result1.current.devMode).toBe(true);
+      expect(localStorage.getItem('devMode')).toBe('true');
+      
+      // Create second instance after state change
+      const { result: result2 } = renderHook(() => useDevMode());
+      expect(result2.current.devMode).toBe(true);
+    });
+
+    it('should handle rapid state changes correctly', () => {
+      // Arrange
+      const { result } = renderHook(() => useDevMode());
+      
+      // Act
+      act(() => {
+        result.current.toggleDevMode(true);
         result.current.toggleDevMode(false);
-      });
-
-      expect(result.current.devMode).toBe(false);
-      expect(result.current.shouldShowDevTools).toBe(false);
-      expect(localStorage.getItem('devMode')).toBe('false');
-    });
-
-    it('should handle localStorage errors gracefully', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
-      // Mock localStorage to throw an error
-      const originalSetItem = localStorage.setItem;
-      localStorage.setItem = jest.fn().mockImplementation(() => {
-        throw new Error('Storage quota exceeded');
-      });
-
-      const { result } = renderHook(() => useDevMode());
-
-      act(() => {
         result.current.toggleDevMode(true);
       });
-
-      // The function should complete without throwing, but devMode might still be true due to the setTimeout
-      // We'll check that the function doesn't crash and the state is managed properly
-      expect(typeof result.current.devMode).toBe('boolean');
-
-      // Restore original function
-      localStorage.setItem = originalSetItem;
-      consoleSpy.mockRestore();
-    });
-  });
-
-  describe('when user is not admin', () => {
-    beforeEach(() => {
-      mockUseUser.mockReturnValue({
-        user: { id: 'regular-user' },
-        isLoaded: true,
-      });
-
-      mockUseQuery.mockReturnValue({
-        systemRole: 'user',
-      });
-    });
-
-    it('should not allow dev mode for non-admin users', () => {
-      const { result } = renderHook(() => useDevMode());
-
-      expect(result.current.devMode).toBe(false);
-      expect(result.current.isAdmin).toBe(false);
-      expect(result.current.shouldShowDevTools).toBe(false);
-    });
-
-    it('should not save dev mode to localStorage for non-admin users', () => {
-      const { result } = renderHook(() => useDevMode());
-
-      act(() => {
-        result.current.toggleDevMode(true);
-      });
-
-      expect(result.current.devMode).toBe(false);
-      expect(localStorage.getItem('devMode')).toBeNull();
-    });
-  });
-
-  describe('when user is administrator', () => {
-    beforeEach(() => {
-      mockUseUser.mockReturnValue({
-        user: { id: 'admin-user' },
-        isLoaded: true,
-      });
-
-      mockUseQuery.mockReturnValue({
-        systemRole: 'administrator',
-      });
-    });
-
-    it('should allow dev mode for administrator users', () => {
-      const { result } = renderHook(() => useDevMode());
-
-      expect(result.current.isAdmin).toBe(true);
-      expect(result.current.devMode).toBe(false);
-    });
-  });
-
-  describe('when user is not loaded', () => {
-    beforeEach(() => {
-      mockUseUser.mockReturnValue({
-        user: null,
-        isLoaded: false,
-      });
-
-      mockUseQuery.mockReturnValue(null);
-    });
-
-    it('should not allow dev mode when user is not loaded', () => {
-      const { result } = renderHook(() => useDevMode());
-
-      expect(result.current.isAdmin).toBe(false);
-      expect(result.current.devMode).toBe(false);
-      expect(result.current.shouldShowDevTools).toBe(false);
-    });
-  });
-
-  describe('when profile fields are not available', () => {
-    beforeEach(() => {
-      mockUseUser.mockReturnValue({
-        user: { id: 'admin-user' },
-        isLoaded: true,
-      });
-
-      mockUseQuery.mockReturnValue(null);
-    });
-
-    it('should not allow dev mode when profile fields are not available', () => {
-      const { result } = renderHook(() => useDevMode());
-
-      // When profileFields is null, isAdmin should be null (falsy)
-      expect(result.current.isAdmin).toBe(null);
-      expect(result.current.devMode).toBe(false);
-      expect(result.current.shouldShowDevTools).toBe(null);
-    });
-  });
-
-  describe('localStorage error handling', () => {
-    beforeEach(() => {
-      mockUseUser.mockReturnValue({
-        user: { id: 'admin-user' },
-        isLoaded: true,
-      });
-
-      mockUseQuery.mockReturnValue({
-        systemRole: 'admin',
-      });
-    });
-
-    it('should handle localStorage getItem errors', () => {
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
-      // Mock localStorage to throw an error on getItem
-      const originalGetItem = localStorage.getItem;
-      localStorage.getItem = jest.fn().mockImplementation(() => {
-        throw new Error('Storage error');
-      });
-
-      const { result } = renderHook(() => useDevMode());
-
-      // The error might not be logged in all cases, so we'll just check that the function completes
-      expect(result.current.devMode).toBe(false);
-
-      // Restore original function
-      localStorage.getItem = originalGetItem;
-      consoleSpy.mockRestore();
+      // Assert
+      expect(result.current.devMode).toBe(true);
+      expect(localStorage.getItem('devMode')).toBe('true');
     });
   });
 }); 

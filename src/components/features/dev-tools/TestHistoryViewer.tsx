@@ -38,14 +38,20 @@ export function TestHistoryViewer({ onViewResult }: TestHistoryViewerProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedResult, setSelectedResult] = useState<TestHistoryEntry | null>(null)
 
+
+
   const filteredHistory = history.filter(entry => {
-    const matchesType = filterType === 'all' || entry.testType === filterType
+    const matchesType = filterType === 'all' || 
+      (filterType === 'individual' && entry.isIndividualTest) ||
+      (filterType !== 'individual' && entry.testType === filterType)
     const matchesStatus = filterStatus === 'all' || 
       (filterStatus === 'success' && entry.success) ||
       (filterStatus === 'failed' && !entry.success)
     const matchesSearch = searchTerm === '' || 
       entry.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      entry.testType.toLowerCase().includes(searchTerm.toLowerCase())
+      entry.testType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (entry.testName && entry.testName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (entry.testId && entry.testId.toLowerCase().includes(searchTerm.toLowerCase()))
 
     return matchesType && matchesStatus && matchesSearch
   })
@@ -195,6 +201,7 @@ export function TestHistoryViewer({ onViewResult }: TestHistoryViewerProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Tests</SelectItem>
+                  <SelectItem value="individual">Individual Tests</SelectItem>
                   <SelectItem value="unit">Unit Tests</SelectItem>
                   <SelectItem value="component">Component Tests</SelectItem>
                   <SelectItem value="hook">Hook Tests</SelectItem>
@@ -218,7 +225,7 @@ export function TestHistoryViewer({ onViewResult }: TestHistoryViewerProps) {
           </div>
 
           {/* History List */}
-          <ScrollArea className="h-64">
+          <ScrollArea className="h-96">
             <div className="space-y-2">
               {filteredHistory.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
@@ -233,7 +240,26 @@ export function TestHistoryViewer({ onViewResult }: TestHistoryViewerProps) {
                           {getStatusIcon(entry.success)}
                           <div>
                             <div className="font-medium text-sm">
-                              {entry.testType === 'all' ? 'All Tests' : entry.testType.split(',').map(type => type.trim().charAt(0).toUpperCase() + type.trim().slice(1)).join(', ')}
+                              {entry.isIndividualTest ? (
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-blue-600">Individual Test</span>
+                                    <Badge variant="outline" className="text-xs">Single</Badge>
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    {entry.testName ? entry.testName.replace(/\.test\.(js|ts|tsx)$/, '') : 'Unknown Test'}
+                                  </div>
+                                  {entry.testId && (
+                                    <div className="text-xs text-gray-500">
+                                      {entry.testId}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                entry.testType === 'all' ? 'All Tests' : 
+                                entry.testType === 'individual' ? 'Individual Test' :
+                                entry.testType.split(',').map(type => type.trim().charAt(0).toUpperCase() + type.trim().slice(1)).join(', ')
+                              )}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {formatTimestamp(entry.timestamp)}
@@ -268,11 +294,26 @@ export function TestHistoryViewer({ onViewResult }: TestHistoryViewerProps) {
                               <div className="space-y-4 h-[calc(80vh-120px)] overflow-y-auto pr-2">
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                   <div>
-                                    <span className="font-medium">Test Type:</span> {entry.testType === 'all' ? 'All Tests' : entry.testType.split(',').map(type => type.trim().charAt(0).toUpperCase() + type.trim().slice(1)).join(', ')}
+                                    <span className="font-medium">Test Type:</span> 
+                                    {entry.isIndividualTest ? (
+                                      <span className="text-blue-600">Individual Test</span>
+                                    ) : (
+                                      entry.testType === 'all' ? 'All Tests' : entry.testType.split(',').map(type => type.trim().charAt(0).toUpperCase() + type.trim().slice(1)).join(', ')
+                                    )}
                                   </div>
                                   <div>
                                     <span className="font-medium">Coverage:</span> {entry.summary.coverage}%
                                   </div>
+                                  {entry.isIndividualTest && entry.testName && (
+                                    <div>
+                                      <span className="font-medium">Test File:</span> {entry.testName.replace(/\.test\.(js|ts|tsx)$/, '')}
+                                    </div>
+                                  )}
+                                  {entry.isIndividualTest && entry.testId && (
+                                    <div>
+                                      <span className="font-medium">Test ID:</span> {entry.testId}
+                                    </div>
+                                  )}
                                   <div>
                                     <span className="font-medium">Duration:</span> {formatDuration(entry.summary.duration)}
                                   </div>

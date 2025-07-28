@@ -1,0 +1,185 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Table Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for basic table 1`] = `
+<div
+  class="relative w-full overflow-auto"
+>
+  <table
+    class="w-full caption-bottom text-sm"
+  >
+    <caption
+      class="mt-4 text-sm text-muted-foreground"
+    >
+      Test Table
+    </caption>
+    <thead
+      class="[&_tr]:border-b"
+    >
+      <tr
+        class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      >
+        <th
+          class="h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Name
+        </th>
+        <th
+          class="h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Email
+        </th>
+      </tr>
+    </thead>
+    <tbody
+      class="[&_tr:last-child]:border-0"
+    >
+      <tr
+        class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      >
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          John Doe
+        </td>
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          john@example.com
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
+
+exports[`Table Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for empty table 1`] = `
+<div
+  class="relative w-full overflow-auto"
+>
+  <table
+    class="w-full caption-bottom text-sm"
+  >
+    <caption
+      class="mt-4 text-sm text-muted-foreground"
+    >
+      Empty Table
+    </caption>
+    <thead
+      class="[&_tr]:border-b"
+    >
+      <tr
+        class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      >
+        <th
+          class="h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Name
+        </th>
+        <th
+          class="h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Email
+        </th>
+      </tr>
+    </thead>
+    <tbody
+      class="[&_tr:last-child]:border-0"
+    />
+  </table>
+</div>
+`;
+
+exports[`Table Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for table with multiple rows 1`] = `
+<div
+  class="relative w-full overflow-auto"
+>
+  <table
+    class="w-full caption-bottom text-sm"
+  >
+    <thead
+      class="[&_tr]:border-b"
+    >
+      <tr
+        class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      >
+        <th
+          class="h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Name
+        </th>
+        <th
+          class="h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Email
+        </th>
+        <th
+          class="h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Role
+        </th>
+      </tr>
+    </thead>
+    <tbody
+      class="[&_tr:last-child]:border-0"
+    >
+      <tr
+        class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      >
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          John Doe
+        </td>
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          john@example.com
+        </td>
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Admin
+        </td>
+      </tr>
+      <tr
+        class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      >
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Jane Smith
+        </td>
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          jane@example.com
+        </td>
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          User
+        </td>
+      </tr>
+      <tr
+        class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+      >
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Bob Johnson
+        </td>
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          bob@example.com
+        </td>
+        <td
+          class="p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]"
+        >
+          Editor
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+`;
