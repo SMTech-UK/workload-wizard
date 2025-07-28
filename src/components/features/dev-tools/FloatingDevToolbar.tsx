@@ -234,6 +234,70 @@ function FloatingDevToolbarContent({
                   <Button
                     size="sm"
                     variant="outline"
+                    onClick={() => router.push('/test-dashboard?run=unit')}
+                    className="bg-white dark:bg-gray-800 shadow-lg"
+                  >
+                    <TestTube className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Run Unit Tests</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push('/test-dashboard?run=component')}
+                    className="bg-white dark:bg-gray-800 shadow-lg"
+                  >
+                    <Code className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Run Component Tests</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push('/test-dashboard?run=hook')}
+                    className="bg-white dark:bg-gray-800 shadow-lg"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Run Hook Tests</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push('/test-dashboard?run=all')}
+                    className="bg-white dark:bg-gray-800 shadow-lg"
+                  >
+                    <Play className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Run All Tests</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
                     onClick={runQuickTests}
                     disabled={isRunningTests}
                     className="bg-white dark:bg-gray-800 shadow-lg"
@@ -241,7 +305,7 @@ function FloatingDevToolbarContent({
                     {isRunningTests ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Play className="w-4 h-4" />
+                      <Zap className="w-4 h-4" />
                     )}
                   </Button>
                 </TooltipTrigger>
@@ -313,10 +377,20 @@ function FloatingDevToolbarContent({
                 <Code className="w-4 h-4 mr-2" />
                 Dev Tools
               </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => router.push('/test-dashboard')}>
+                <TestTube className="w-4 h-4 mr-2" />
+                Test Dashboard
+              </DropdownMenuItem>
               
               <DropdownMenuItem onClick={() => router.push('/dev-tools?tab=api-tester')}>
                 <Database className="w-4 h-4 mr-2" />
                 API Tester
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => router.push('/dev-tools?tab=component-explorer')}>
+                <Code className="w-4 h-4 mr-2" />
+                Component Explorer
               </DropdownMenuItem>
               
               <DropdownMenuSeparator />
@@ -328,10 +402,25 @@ function FloatingDevToolbarContent({
                 {isRunningTests ? 'Running Tests...' : 'Run Quick Tests'}
               </DropdownMenuItem>
               
-              <DropdownMenuItem onClick={() => router.push('/dev-tools?tab=component-explorer')}>
-                <Code className="w-4 h-4 mr-2" />
-                Component Explorer
+              <DropdownMenuItem onClick={() => router.push('/test-dashboard?run=unit')}>
+                <TestTube className="w-4 h-4 mr-2" />
+                Run Unit Tests
               </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={() => router.push('/test-dashboard?run=component')}>
+                <Code className="w-4 h-4 mr-2" />
+                Run Component Tests
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={() => router.push('/test-dashboard?run=hook')}>
+                <Settings className="w-4 h-4 mr-2" />
+                Run Hook Tests
+              </DropdownMenuItem>
+              
+              <DropdownMenuItem onClick={() => router.push('/test-dashboard?run=all')}>
+                <Play className="w-4 h-4 mr-2" />
+                Run All Tests
+              </DropdownMenuItem>        
               
               <DropdownMenuSeparator />
               

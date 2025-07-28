@@ -1,5 +1,10 @@
 import '@testing-library/jest-dom'
 
+// Polyfill fetch for Node.js environment
+if (!global.fetch) {
+  global.fetch = jest.fn()
+}
+
 // Mock Next.js router
 jest.mock('next/router', () => ({
   useRouter() {
@@ -128,6 +133,14 @@ global.setInterval = jest.fn((callback, delay) => {
 global.clearInterval = jest.fn((id) => {
   return originalClearInterval(id);
 });
+
+// Ensure clearTimeout is available globally
+if (!global.clearTimeout) {
+  global.clearTimeout = jest.fn();
+}
+
+// Mock clearTimeout to prevent errors in cleanup
+global.clearTimeout = jest.fn();
 
 // Mock ResizeObserver
 global.ResizeObserver = jest.fn().mockImplementation(() => ({

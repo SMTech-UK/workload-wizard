@@ -27,7 +27,10 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Zap
+  Zap,
+  TestTube,
+  XCircle,
+  Code
 } from "lucide-react"
 
 export default function DevToolsPage() {
@@ -55,11 +58,12 @@ export default function DevToolsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="alerts">Alerts</TabsTrigger>
+          <TabsTrigger value="tests">Tests</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -398,28 +402,28 @@ export default function DevToolsPage() {
                   <div>
                     <Label>CPU Usage Threshold</Label>
                     <div className="flex gap-2 mt-2">
-                      <Input type="number" placeholder="80" className="w-20" />
+                      <Input type="number" className="w-20" />
                       <span className="text-sm text-gray-600">%</span>
                     </div>
                   </div>
                   <div>
                     <Label>Memory Usage Threshold</Label>
                     <div className="flex gap-2 mt-2">
-                      <Input type="number" placeholder="85" className="w-20" />
+                      <Input type="number" className="w-20" />
                       <span className="text-sm text-gray-600">%</span>
                     </div>
                   </div>
                   <div>
                     <Label>Response Time Threshold</Label>
                     <div className="flex gap-2 mt-2">
-                      <Input type="number" placeholder="1000" className="w-20" />
+                      <Input type="number" className="w-20" />
                       <span className="text-sm text-gray-600">ms</span>
                     </div>
                   </div>
                   <div>
                     <Label>Error Rate Threshold</Label>
                     <div className="flex gap-2 mt-2">
-                      <Input type="number" placeholder="5" className="w-20" />
+                      <Input type="number" className="w-20" />
                       <span className="text-sm text-gray-600">%</span>
                     </div>
                   </div>
@@ -445,6 +449,196 @@ export default function DevToolsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="tests" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">Test Dashboard</h2>
+              <p className="text-gray-600 dark:text-gray-300 text-sm">
+                Run and monitor tests with real-time results
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => window.open('/test-dashboard', '_blank')}>
+                <TestTube className="w-4 h-4 mr-2" />
+                Open Test Dashboard
+              </Button>
+              <Button onClick={() => window.open('/test-dashboard', '_blank')}>
+                <Play className="w-4 h-4 mr-2" />
+                Run Tests
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TestTube className="w-4 h-4 text-blue-500" />
+                  Total Tests
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">-</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Tests available
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    -
+                  </Badge>
+                  <span className="text-xs text-blue-600">avg duration</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  Passed
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">-</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Success rate
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs text-green-600">
+                    -
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                  Failed
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">-</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Failure rate
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs text-red-600">
+                    -
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-purple-500" />
+                  Coverage
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">-</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Code coverage
+                </div>
+                <div className="mt-2">
+                  <Progress value={0} className="h-2" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Test Suites</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    { name: "Unit Tests", passed: 7, failed: 1, total: 8, duration: 4.2 },
+                    { name: "Component Tests", passed: 10, failed: 1, total: 12, duration: 6.1 },
+                    { name: "Hook Tests", passed: 3, failed: 0, total: 4, duration: 2.0 }
+                  ].map((suite, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-medium">{suite.name}</span>
+                        <div className="flex gap-2">
+                          <Badge variant="outline" className="text-xs text-green-600">
+                            {suite.passed} passed
+                          </Badge>
+                          <Badge variant="outline" className="text-xs text-red-600">
+                            {suite.failed} failed
+                          </Badge>
+                        </div>
+                      </div>
+                      <Progress 
+                        value={suite.total > 0 ? (suite.passed / suite.total) * 100 : 0} 
+                        className="h-2" 
+                      />
+                      <div className="text-xs text-gray-500">
+                        {suite.duration.toFixed(1)}s duration
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.open('/test-dashboard', '_blank')}
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Run All Tests
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.open('/test-dashboard?type=unit', '_blank')}
+                  >
+                    <TestTube className="w-4 h-4 mr-2" />
+                    Run Unit Tests Only
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.open('/test-dashboard?type=component', '_blank')}
+                  >
+                    <Code className="w-4 h-4 mr-2" />
+                    Run Component Tests
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.open('/test-dashboard?type=hook', '_blank')}
+                  >
+                    <TestTube className="w-4 h-4 mr-2" />
+                    Run Hook Tests
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => window.open('/test-dashboard?tab=coverage', '_blank')}
+                  >
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    View Coverage
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

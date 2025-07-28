@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu, GraduationCap, Calendar, Share2, TestTube, Bug, Code, Database, Monitor } from "lucide-react"
+import { LayoutDashboard, Users, BookOpen, FileText, Settings, Bell, WandSparkles, Mail, Menu, GraduationCap, Calendar, Share2, TestTube, Bug, Code, Database, Monitor, Play } from "lucide-react"
 import { TabType } from "@/components/modals/settings-modal";
 import UserProfileDropdown from "../forms/user-profile-dropdown"
 import { Notifications } from "@/components/features/notifications/notifications"
@@ -44,7 +44,7 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
 
   const devNavItems = [
     { id: "dev-tools", label: "Dev Tools", icon: Bug, href: "/dev-tools" },
-    { id: "tests", label: "Tests", icon: TestTube, href: "/dev-tools?tab=test-dashboard" },
+    { id: "test-dashboard", label: "Test Dashboard", icon: TestTube, href: "/test-dashboard" },
     { id: "api-tester", label: "API", icon: Code, href: "/dev-tools?tab=api-tester" },
     { id: "database", label: "Database", icon: Database, href: "/dev-tools?tab=database" },
     { id: "system-monitor", label: "System Monitor", icon: Monitor, href: "/dev-tools?tab=monitoring" },
@@ -66,7 +66,7 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
 
   // Reusable NavButton component for navigation items
   function NavButton({ item, isActive, onClick, className }: {
-    item: typeof navItems[number];
+    item: typeof navItems[number] | typeof devNavItems[number];
     isActive: boolean;
     onClick: () => void;
     className?: string;
@@ -77,19 +77,24 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
         variant={isActive ? "default" : "ghost"}
         onClick={onClick}
         className={cn(
-          "flex items-center gap-2",
+          "flex items-center gap-2 transition-colors",
           className,
-          isActive && "bg-blue-600 text-white dark:bg-blue-500 dark:text-white hover:bg-blue-700 dark:hover:bg-blue-600"
+          isActive 
+            ? "bg-blue-600 text-white dark:bg-blue-500 dark:text-white hover:bg-blue-700 dark:hover:bg-blue-600 shadow-sm" 
+            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
         )}
       >
-        <item.icon className="w-4 h-4 text-gray-900 dark:text-white" />
-        <span className="text-gray-900 dark:text-white">{item.label}</span>
+        <item.icon className={cn(
+          "w-4 h-4",
+          isActive ? "text-white" : "text-gray-600 dark:text-gray-400"
+        )} />
+        <span className="font-medium">{item.label}</span>
       </Button>
     );
   }
 
   return (
-    <header className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 sticky top-0 z-50">
+    <header className="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 sticky top-0 z-50 shadow-sm">
       <div className="w-full max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 w-full">
           <div className="flex items-center gap-4 w-full">
@@ -144,10 +149,10 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
                  <Button 
                    variant="ghost" 
                    size="icon" 
-                   className="p-2 bg-yellow-500 hover:bg-yellow-600"
+                   className="p-2 bg-yellow-500 hover:bg-yellow-600 text-black"
                    title="Dev Tools"
                  >
-                   <Bug className="w-5 h-5 text-black font-bold drop-shadow-sm" />
+                   <Bug className="w-5 h-5 font-bold drop-shadow-sm" />
                  </Button>
                </DropdownMenuTrigger>
                <DropdownMenuContent align="end" className="w-56">
@@ -157,15 +162,68 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
                    <Badge className="ml-auto bg-yellow-500 hover:bg-yellow-600 text-black font-bold border-black">DEV</Badge>
                  </DropdownMenuLabel>
                  <DropdownMenuSeparator />
-                 {devNavItems.map((item) => (
-                   <DropdownMenuItem 
-                     key={item.id}
-                     onClick={() => router.push(item.href)}
-                   >
-                     <item.icon className="w-4 h-4 mr-2" />
-                     {item.label}
-                   </DropdownMenuItem>
-                 ))}
+                 {devNavItems.map((item) => {
+                   const isActive = Boolean(item.href && pathname === item.href);
+                   return (
+                     <DropdownMenuItem 
+                       key={item.id}
+                       onClick={() => router.push(item.href)}
+                       className={cn(
+                         "flex items-center gap-2 cursor-pointer",
+                         isActive && "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                       )}
+                     >
+                       <item.icon className="w-4 h-4" />
+                       {item.label}
+                       {isActive && <Badge variant="outline" className="ml-auto text-xs">Active</Badge>}
+                     </DropdownMenuItem>
+                   );
+                 })}
+                 <DropdownMenuSeparator />
+                 <DropdownMenuLabel className="flex items-center gap-2">
+                   <TestTube className="w-4 h-4" />
+                   Quick Test Runs
+                 </DropdownMenuLabel>
+                 <DropdownMenuItem 
+                   onClick={() => {
+                     // Open test dashboard and run unit tests
+                     router.push('/test-dashboard?run=unit');
+                   }}
+                   className="flex items-center gap-2 cursor-pointer"
+                 >
+                   <TestTube className="w-4 h-4" />
+                   Run Unit Tests
+                 </DropdownMenuItem>
+                 <DropdownMenuItem 
+                   onClick={() => {
+                     // Open test dashboard and run component tests
+                     router.push('/test-dashboard?run=component');
+                   }}
+                   className="flex items-center gap-2 cursor-pointer"
+                 >
+                   <Code className="w-4 h-4" />
+                   Run Component Tests
+                 </DropdownMenuItem>
+                 <DropdownMenuItem 
+                   onClick={() => {
+                     // Open test dashboard and run hook tests
+                     router.push('/test-dashboard?run=hook');
+                   }}
+                   className="flex items-center gap-2 cursor-pointer"
+                 >
+                   <Settings className="w-4 h-4" />
+                   Run Hook Tests
+                 </DropdownMenuItem>
+                 <DropdownMenuItem 
+                   onClick={() => {
+                     // Open test dashboard and run all tests
+                     router.push('/test-dashboard?run=all');
+                   }}
+                   className="flex items-center gap-2 cursor-pointer"
+                 >
+                   <Play className="w-4 h-4" />
+                   Run All Tests
+                 </DropdownMenuItem>
                </DropdownMenuContent>
              </DropdownMenu>
             )}

@@ -1,7 +1,7 @@
 import { SignInButton, useAuth } from "@clerk/nextjs";
 import { WandSparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import UserProfileDropdown from "./user-profile-dropdown";
+import UserProfileDropdown from "@/components/forms/user-profile-dropdown";
 import Link from "next/link";
 
 export default function LandingNav() {
