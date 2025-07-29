@@ -396,4 +396,58 @@ describe('Button Component', () => {
       expect(screen.getByText('Bold')).toBeInTheDocument();
     });
   });
+
+  describe('Snapshot Testing', () => {
+    it('should maintain consistent UI structure across different variants', () => {
+      // Arrange & Act
+      const { container: defaultContainer } = render(<Button>Default Button</Button>);
+      const { container: destructiveContainer } = render(<Button variant="destructive">Destructive Button</Button>);
+      const { container: outlineContainer } = render(<Button variant="outline">Outline Button</Button>);
+      const { container: secondaryContainer } = render(<Button variant="secondary">Secondary Button</Button>);
+      const { container: ghostContainer } = render(<Button variant="ghost">Ghost Button</Button>);
+      const { container: linkContainer } = render(<Button variant="link">Link Button</Button>);
+      
+      // Assert
+      expect(defaultContainer).toMatchSnapshot('button-default-variant');
+      expect(destructiveContainer).toMatchSnapshot('button-destructive-variant');
+      expect(outlineContainer).toMatchSnapshot('button-outline-variant');
+      expect(secondaryContainer).toMatchSnapshot('button-secondary-variant');
+      expect(ghostContainer).toMatchSnapshot('button-ghost-variant');
+      expect(linkContainer).toMatchSnapshot('button-link-variant');
+    });
+
+    it('should maintain consistent UI structure across different sizes', () => {
+      // Arrange & Act
+      const { container: defaultContainer } = render(<Button size="default">Default Size</Button>);
+      const { container: smContainer } = render(<Button size="sm">Small Size</Button>);
+      const { container: lgContainer } = render(<Button size="lg">Large Size</Button>);
+      const { container: iconContainer } = render(<Button size="icon">Icon Size</Button>);
+      
+      // Assert
+      expect(defaultContainer).toMatchSnapshot('button-default-size');
+      expect(smContainer).toMatchSnapshot('button-small-size');
+      expect(lgContainer).toMatchSnapshot('button-large-size');
+      expect(iconContainer).toMatchSnapshot('button-icon-size');
+    });
+
+    it('should maintain consistent UI structure with disabled state', () => {
+      // Arrange & Act
+      const { container } = render(<Button disabled>Disabled Button</Button>);
+      
+      // Assert
+      expect(container).toMatchSnapshot('button-disabled-state');
+    });
+
+    it('should maintain consistent UI structure with custom className', () => {
+      // Arrange & Act
+      const { container } = render(
+        <Button className="bg-purple-500 hover:bg-purple-600 text-white font-bold">
+          Custom Styled Button
+        </Button>
+      );
+      
+      // Assert
+      expect(container).toMatchSnapshot('button-custom-styling');
+    });
+  });
 }); 

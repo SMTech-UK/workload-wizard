@@ -176,4 +176,72 @@ describe('Card Components', () => {
       expect(screen.getByText('Nested paragraph')).toBeInTheDocument();
     });
   });
+
+  describe('Snapshot Testing', () => {
+    it('should maintain consistent UI structure across different card components', () => {
+      // Arrange & Act
+      const { container: headerContainer } = render(
+        <CardHeader>
+          <CardTitle>Card Title</CardTitle>
+          <CardDescription>Card Description</CardDescription>
+        </CardHeader>
+      );
+      
+      const { container: contentContainer } = render(
+        <CardContent>
+          <p>Card content goes here</p>
+        </CardContent>
+      );
+      
+      const { container: footerContainer } = render(
+        <CardFooter>
+          <button>Action</button>
+        </CardFooter>
+      );
+      
+      // Assert
+      expect(headerContainer).toMatchSnapshot('card-header-structure');
+      expect(contentContainer).toMatchSnapshot('card-content-structure');
+      expect(footerContainer).toMatchSnapshot('card-footer-structure');
+    });
+
+    it('should maintain consistent UI structure with complete card', () => {
+      // Arrange & Act
+      const { container } = render(
+        <Card>
+          <CardHeader>
+            <CardTitle>Complete Card</CardTitle>
+            <CardDescription>This is a complete card example</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Main content of the card</p>
+          </CardContent>
+          <CardFooter>
+            <button>Save</button>
+            <button>Cancel</button>
+          </CardFooter>
+        </Card>
+      );
+      
+      // Assert
+      expect(container).toMatchSnapshot('card-complete-structure');
+    });
+
+    it('should maintain consistent UI structure with custom styling', () => {
+      // Arrange & Act
+      const { container } = render(
+        <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0">
+          <CardHeader>
+            <CardTitle>Styled Card</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Custom styled content</p>
+          </CardContent>
+        </Card>
+      );
+      
+      // Assert
+      expect(container).toMatchSnapshot('card-custom-styling');
+    });
+  });
 }); 

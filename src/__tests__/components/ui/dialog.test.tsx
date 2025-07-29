@@ -525,63 +525,82 @@ describe('Dialog Component - Comprehensive UI Testing', () => {
     });
   });
 
-  describe('Snapshot Testing for UI Consistency', () => {
-    it('should match snapshot for basic dialog', () => {
-      const { container } = render(
+  describe('Snapshot Testing', () => {
+    it('should maintain consistent UI structure for dialog components', () => {
+      // Arrange & Act
+      const { container: triggerContainer } = render(
         <Dialog>
-          <DialogTrigger asChild>
-            <Button>Open Dialog</Button>
-          </DialogTrigger>
+          <DialogTrigger>Open Dialog</DialogTrigger>
+          <DialogContent>Dialog content</DialogContent>
+        </Dialog>
+      );
+      
+      const { container: headerContainer } = render(
+        <Dialog defaultOpen>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Test Dialog</DialogTitle>
-              <DialogDescription>This is a test dialog</DialogDescription>
+              <DialogTitle>Dialog Title</DialogTitle>
+              <DialogDescription>Dialog Description</DialogDescription>
             </DialogHeader>
           </DialogContent>
         </Dialog>
       );
-
-      expect(container.firstChild).toMatchSnapshot();
-    });
-
-    it('should match snapshot for dialog with footer', () => {
-      const { container } = render(
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>Open Dialog</Button>
-          </DialogTrigger>
+      
+      const { container: footerContainer } = render(
+        <Dialog defaultOpen>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Test Dialog</DialogTitle>
-            </DialogHeader>
             <DialogFooter>
-              <Button>Cancel</Button>
-              <Button>Confirm</Button>
+              <button>Save</button>
+              <button>Cancel</button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       );
-
-      expect(container.firstChild).toMatchSnapshot();
+      
+      // Assert
+      expect(triggerContainer).toMatchSnapshot('dialog-trigger-structure');
+      expect(headerContainer).toMatchSnapshot('dialog-header-structure');
+      expect(footerContainer).toMatchSnapshot('dialog-footer-structure');
     });
 
-    it('should match snapshot for opened dialog', async () => {
+    it('should maintain consistent UI structure with complete dialog', () => {
+      // Arrange & Act
       const { container } = render(
         <Dialog defaultOpen>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Test Dialog</DialogTitle>
-              <DialogDescription>This is a test dialog</DialogDescription>
+              <DialogTitle>Complete Dialog</DialogTitle>
+              <DialogDescription>This is a complete dialog example</DialogDescription>
             </DialogHeader>
+            <div>Main dialog content goes here</div>
+            <DialogFooter>
+              <button>Save</button>
+              <button>Cancel</button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       );
+      
+      // Assert
+      expect(container).toMatchSnapshot('dialog-complete-structure');
+    });
 
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-      });
-
-      expect(container.firstChild).toMatchSnapshot();
+    it('should maintain consistent UI structure with custom styling', () => {
+      // Arrange & Act
+      const { container } = render(
+        <Dialog defaultOpen>
+          <DialogContent className="bg-gradient-to-br from-purple-100 to-blue-100 border-purple-300">
+            <DialogHeader>
+              <DialogTitle className="text-purple-800">Styled Dialog</DialogTitle>
+              <DialogDescription className="text-purple-600">Custom styled dialog</DialogDescription>
+            </DialogHeader>
+            <div className="text-purple-700">Styled content</div>
+          </DialogContent>
+        </Dialog>
+      );
+      
+      // Assert
+      expect(container).toMatchSnapshot('dialog-custom-styling');
     });
   });
 

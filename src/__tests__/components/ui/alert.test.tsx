@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 describe('Alert Component - Comprehensive UI Testing', () => {
   describe('Basic Rendering and Functionality', () => {
@@ -255,37 +256,62 @@ describe('Alert Component - Comprehensive UI Testing', () => {
     });
   });
 
-  describe('Snapshot Testing for UI Consistency', () => {
-    it('should match snapshot for default alert', () => {
-      const { container } = render(
+  describe('Snapshot Testing', () => {
+    it('should maintain consistent UI structure across different alert variants', () => {
+      // Arrange & Act
+      const { container: defaultContainer } = render(
         <Alert>
-          <AlertTitle>Test Alert</AlertTitle>
-          <AlertDescription>This is a test alert.</AlertDescription>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Default Alert</AlertTitle>
+          <AlertDescription>This is a default alert message.</AlertDescription>
         </Alert>
       );
-
-      expect(container.firstChild).toMatchSnapshot();
-    });
-
-    it('should match snapshot for destructive alert', () => {
-      const { container } = render(
+      
+      const { container: destructiveContainer } = render(
         <Alert variant="destructive">
-          <AlertTitle>Error Alert</AlertTitle>
-          <AlertDescription>This is an error alert.</AlertDescription>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Destructive Alert</AlertTitle>
+          <AlertDescription>This is a destructive alert message.</AlertDescription>
         </Alert>
       );
-
-      expect(container.firstChild).toMatchSnapshot();
+      
+      // Assert
+      expect(defaultContainer).toMatchSnapshot('alert-default-variant');
+      expect(destructiveContainer).toMatchSnapshot('alert-destructive-variant');
     });
 
-    it('should match snapshot for alert without title', () => {
+    it('should maintain consistent UI structure with custom styling', () => {
+      // Arrange & Act
       const { container } = render(
-        <Alert>
-          <AlertDescription>Alert without title</AlertDescription>
+        <Alert className="bg-blue-50 border-blue-200 text-blue-800">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900">Custom Alert</AlertTitle>
+          <AlertDescription className="text-blue-700">This is a custom styled alert.</AlertDescription>
         </Alert>
       );
+      
+      // Assert
+      expect(container).toMatchSnapshot('alert-custom-styling');
+    });
 
-      expect(container.firstChild).toMatchSnapshot();
+    it('should maintain consistent UI structure with different content', () => {
+      // Arrange & Act
+      const { container } = render(
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Complex Alert</AlertTitle>
+          <AlertDescription>
+            <p>This alert contains complex content.</p>
+            <ul>
+              <li>Item 1</li>
+              <li>Item 2</li>
+            </ul>
+          </AlertDescription>
+        </Alert>
+      );
+      
+      // Assert
+      expect(container).toMatchSnapshot('alert-complex-content');
     });
   });
 

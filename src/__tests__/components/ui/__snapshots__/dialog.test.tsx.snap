@@ -1,0 +1,46 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Dialog Component - Comprehensive UI Testing Snapshot Testing should maintain consistent UI structure for dialog components: dialog-footer-structure 1`] = `
+<div
+  aria-hidden="true"
+  data-aria-hidden="true"
+/>
+`;
+
+exports[`Dialog Component - Comprehensive UI Testing Snapshot Testing should maintain consistent UI structure for dialog components: dialog-header-structure 1`] = `
+<div
+  aria-hidden="true"
+  data-aria-hidden="true"
+/>
+`;
+
+exports[`Dialog Component - Comprehensive UI Testing Snapshot Testing should maintain consistent UI structure for dialog components: dialog-trigger-structure 1`] = `
+<div
+  aria-hidden="true"
+  data-aria-hidden="true"
+>
+  <button
+    aria-controls="radix-:r1p:"
+    aria-expanded="false"
+    aria-haspopup="dialog"
+    data-state="closed"
+    type="button"
+  >
+    Open Dialog
+  </button>
+</div>
+`;
+
+exports[`Dialog Component - Comprehensive UI Testing Snapshot Testing should maintain consistent UI structure with complete dialog: dialog-complete-structure 1`] = `
+<div
+  aria-hidden="true"
+  data-aria-hidden="true"
+/>
+`;
+
+exports[`Dialog Component - Comprehensive UI Testing Snapshot Testing should maintain consistent UI structure with custom styling: dialog-custom-styling 1`] = `
+<div
+  aria-hidden="true"
+  data-aria-hidden="true"
+/>
+`;

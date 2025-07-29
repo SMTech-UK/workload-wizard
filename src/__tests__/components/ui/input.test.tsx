@@ -188,4 +188,59 @@ describe('Input', () => {
     // Just test that the component renders with autoFocus prop
     expect(input).toBeInTheDocument();
   });
+
+  describe('Snapshot Testing', () => {
+    it('should maintain consistent UI structure across different input types', () => {
+      // Arrange & Act
+      const { container: textContainer } = render(<Input type="text" placeholder="Text input" />);
+      const { container: emailContainer } = render(<Input type="email" placeholder="Email input" />);
+      const { container: passwordContainer } = render(<Input type="password" placeholder="Password input" />);
+      const { container: numberContainer } = render(<Input type="number" placeholder="Number input" />);
+      
+      // Assert
+      expect(textContainer).toMatchSnapshot('input-text-type');
+      expect(emailContainer).toMatchSnapshot('input-email-type');
+      expect(passwordContainer).toMatchSnapshot('input-password-type');
+      expect(numberContainer).toMatchSnapshot('input-number-type');
+    });
+
+    it('should maintain consistent UI structure with different states', () => {
+      // Arrange & Act
+      const { container: disabledContainer } = render(<Input disabled placeholder="Disabled input" />);
+      const { container: readonlyContainer } = render(<Input readOnly placeholder="Readonly input" />);
+      const { container: requiredContainer } = render(<Input required placeholder="Required input" />);
+      
+      // Assert
+      expect(disabledContainer).toMatchSnapshot('input-disabled-state');
+      expect(readonlyContainer).toMatchSnapshot('input-readonly-state');
+      expect(requiredContainer).toMatchSnapshot('input-required-state');
+    });
+
+    it('should maintain consistent UI structure with custom styling', () => {
+      // Arrange & Act
+      const { container } = render(
+        <Input 
+          className="bg-blue-50 border-blue-300 text-blue-900 placeholder-blue-500"
+          placeholder="Custom styled input"
+        />
+      );
+      
+      // Assert
+      expect(container).toMatchSnapshot('input-custom-styling');
+    });
+
+    it('should maintain consistent UI structure with value and placeholder', () => {
+      // Arrange & Act
+      const { container } = render(
+        <Input 
+          value="Sample value"
+          placeholder="Enter your text"
+          onChange={() => {}}
+        />
+      );
+      
+      // Assert
+      expect(container).toMatchSnapshot('input-with-value');
+    });
+  });
 }); 
