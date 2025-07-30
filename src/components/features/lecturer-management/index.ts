@@ -1,0 +1,1 @@
+export { default as LecturerManagement } from './lecturer-management'; 

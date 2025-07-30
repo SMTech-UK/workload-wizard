@@ -1,151 +1,258 @@
 # Test Dashboard
 
-A web-based interface for running and monitoring tests in your Next.js project.
-
-## Quick Start
-
-### Option 1: Launch Test Dashboard UI
-```bash
-npm run test:ui
-```
-This will:
-- Start the development server (if not already running)
-- Open the test dashboard in your browser
-- Navigate to `http://localhost:3000/test-dashboard`
-
-### Option 2: Manual Navigation
-1. Start your development server: `npm run dev`
-2. Navigate to: `http://localhost:3000/test-dashboard`
-3. Or click the "Tests" link in the main navigation
+A comprehensive test management and execution interface integrated into the WorkloadWizard dev tools.
 
 ## Features
 
 ### 🎯 Test Execution
 - **Run All Tests**: Execute the complete test suite
-- **Run Component Tests**: Run only component-specific tests
-- **Real-time Results**: See test progress and results as they execute
-- **Stop Execution**: Cancel running tests at any time
+- **Selective Testing**: Run specific test types (Unit, Component, Hook)
+- **Real-time Results**: View test execution progress and results
+- **Coverage Analysis**: Generate and view code coverage reports
 
-### 📊 Results Display
-- **Overview Tab**: Summary statistics and quick status
-- **Test Suites Tab**: Detailed breakdown of each test suite
-- **Coverage Tab**: Code coverage metrics and progress bars
-- **Logs Tab**: Real-time execution logs and error messages
+### 📊 Visual Results
+- **Test Overview**: Summary cards showing pass/fail rates and coverage
+- **Detailed Results**: Expandable test suites with individual test results
+- **Error Details**: View and copy test failure messages
+- **Performance Metrics**: Test execution times and performance data
 
-### 🔍 Test Control
-- **Individual Suite Testing**: Run specific test suites
-- **Coverage Analysis**: Include coverage data in test runs
-- **Error Details**: View detailed error messages for failed tests
-- **Performance Metrics**: See test execution times
+### 🔧 Integration
+- **Dev Tools Integration**: Accessible via the dev tools dashboard
+- **API Endpoints**: RESTful API for test execution
+- **URL Parameters**: Direct access with query parameters
+- **Auto-refresh**: Continuous monitoring with automatic updates
 
-## Dashboard Sections
+## Usage
 
-### Overview
-- Total test count and pass/fail statistics
-- Overall pass rate with visual progress bar
-- Number of test suites and their status
-- Current execution status
+### Accessing the Test Dashboard
 
-### Test Suites
-- Individual test suite results
-- Test-by-test breakdown
-- Error messages and stack traces
-- Execution duration for each test
+1. **Via Dev Tools**: Navigate to `/dev-tools` and click the "Tests" tab
+2. **Direct Access**: Visit `/test-dashboard` directly
+3. **Quick Actions**: Use the quick action buttons in dev tools
 
-### Coverage
-- Statement coverage percentage
-- Branch coverage percentage
-- Function coverage percentage
-- Line coverage percentage
-- Visual progress bars for each metric
+### Running Tests
 
-### Logs
-- Real-time execution logs
-- Timestamped entries
-- Error messages and warnings
-- Command execution details
+#### From the Dashboard
+1. Select test type from the dropdown (All, Unit, Component, Hook)
+2. Click "Run Tests" button
+3. Monitor progress in real-time
+4. View results in the Results tab
 
-## API Endpoints
+#### Via URL Parameters
+- `/test-dashboard?type=unit` - Run unit tests only
+- `/test-dashboard?type=component` - Run component tests only
+- `/test-dashboard?type=hook` - Run hook tests only
+- `/test-dashboard?tab=coverage` - Open coverage tab directly
 
-The dashboard uses the following API endpoints:
+### Understanding Results
 
-- `POST /api/test-runner` - Execute tests
-- `GET /api/test-runner` - Get available test files
+#### Overview Tab
+- **Total Tests**: Number of tests executed
+- **Passed/Failed**: Success and failure counts with percentages
+- **Coverage**: Code coverage percentage with progress bar
+- **Test Suites**: Breakdown by test category with progress indicators
+
+#### Results Tab
+- **Expandable Suites**: Click to view individual test results
+- **Test Details**: Duration, category, and timestamp for each test
+- **Error Information**: Expand failed tests to see error messages
+- **Rerun Options**: Individual test and suite rerun capabilities
+
+#### Coverage Tab
+- **Coverage Metrics**: Statements, branches, functions, and lines
+- **File Breakdown**: Coverage by individual files
+- **Threshold Indicators**: Visual indicators for coverage targets
+
+#### Settings Tab
+- **Test Configuration**: Environment, thresholds, timeouts
+- **Export Options**: Download results in various formats
+
+## API Reference
+
+### Test Runner API
+
+#### POST `/api/test-runner`
+Execute tests with specified parameters.
+
+**Request Body:**
+```json
+{
+  "testType": "all" | "unit" | "component" | "hook",
+  "coverage": boolean
+}
+```
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "results": {
+    "summary": {
+      "total": number,
+      "passed": number,
+      "failed": number,
+      "running": number,
+      "coverage": number,
+      "duration": number
+    },
+    "suites": [
+      {
+        "name": string,
+        "total": number,
+        "passed": number,
+        "failed": number,
+        "running": number,
+        "duration": number,
+        "results": [
+          {
+            "id": string,
+            "name": string,
+            "status": "passed" | "failed" | "running" | "pending",
+            "duration": number,
+            "error": string,
+            "category": string,
+            "timestamp": string
+          }
+        ]
+      }
+    ],
+    "timestamp": string
+  }
+}
+```
+
+#### GET `/api/test-runner`
+Get available test files and their categories.
+
+**Response:**
+```json
+{
+  "success": boolean,
+  "testFiles": [
+    {
+      "path": string,
+      "name": string,
+      "category": "unit" | "component" | "hook" | "other"
+    }
+  ],
+  "timestamp": string
+}
+```
+
+## Components
+
+### TestResultsViewer
+A reusable component for displaying test results with:
+- Expandable test suites
+- Individual test result details
+- Error message display
+- Rerun functionality
+
+### useTestRunner Hook
+Custom React hook for managing test execution:
+- Test execution state
+- API communication
+- Error handling
+- Result management
 
 ## Configuration
 
-### Test Execution Options
-- **Include Coverage**: Toggle coverage analysis
-- **Test Path Pattern**: Filter tests by path pattern
-- **Verbose Output**: Enable detailed logging
-- **JSON Output**: Structured test results
+### Test Environment
+- **Default**: jsdom (for component testing)
+- **Alternatives**: Node.js, Happy DOM
+- **Coverage Threshold**: Configurable (default: 70%)
+- **Timeout**: Configurable (default: 5000ms)
+- **Max Workers**: Configurable (default: 4 threads)
 
-### Coverage Thresholds
-- **Statements**: 70% minimum
-- **Branches**: 70% minimum
-- **Functions**: 70% minimum
-- **Lines**: 70% minimum
+### Auto-refresh
+- **Interval**: 30 seconds (configurable)
+- **Trigger**: Only when tests are not running
+- **Scope**: Respects selected test type
+
+## Integration with Existing Tools
+
+### Dev Tools
+The test dashboard is fully integrated into the existing dev tools:
+- **Overview Tab**: Test summary and quick actions
+- **Quick Actions**: Direct links to specific test types
+- **Status Indicators**: Real-time test status
+
+### Test Scripts
+Compatible with existing npm scripts:
+- `npm test` - Standard test execution
+- `npm run test:coverage` - Coverage generation
+- `npm run test:watch` - Watch mode
+
+## Best Practices
+
+### Test Organization
+1. **Unit Tests**: Place in `src/__tests__/lib/`
+2. **Component Tests**: Place in `src/__tests__/components/`
+3. **Hook Tests**: Place in `src/__tests__/hooks/`
+4. **Integration Tests**: Place in `src/__tests__/integration/`
+
+### Naming Conventions
+- Test files: `*.test.{js,ts,tsx}`
+- Test suites: Descriptive names matching source files
+- Test cases: Clear, descriptive test names
+
+### Coverage Goals
+- **Minimum**: 70% overall coverage
+- **Target**: 80%+ for critical business logic
+- **Monitoring**: Regular coverage checks in CI/CD
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Tests Not Running**
-   - Ensure Jest is properly configured
-   - Check that test files follow naming conventions
-   - Verify all dependencies are installed
+#### Tests Not Running
+- Check if Jest is properly configured
+- Verify test file patterns match configuration
+- Ensure all dependencies are installed
 
-2. **Coverage Not Showing**
-   - Run tests with coverage enabled
-   - Check Jest coverage configuration
-   - Ensure source files are properly instrumented
+#### API Errors
+- Check server logs for detailed error messages
+- Verify API endpoint is accessible
+- Ensure proper permissions for file system access
 
-3. **API Errors**
-   - Check development server is running
-   - Verify API route is accessible
-   - Check console for detailed error messages
+#### Coverage Issues
+- Verify coverage reporters are configured
+- Check if source maps are generated
+- Ensure test files are properly instrumented
 
 ### Debug Mode
-Enable debug logging by adding `DEBUG=true` to your environment:
+Enable debug logging by setting environment variable:
 ```bash
-DEBUG=true npm run test:ui
+DEBUG=test-dashboard npm run dev
 ```
-
-## Integration
-
-### With CI/CD
-The test dashboard can be integrated with CI/CD pipelines:
-- Use the API endpoints for automated testing
-- Parse JSON output for reporting
-- Set coverage thresholds for quality gates
-
-### With IDEs
-- Use the dashboard alongside your IDE's test runner
-- Compare results between local and dashboard execution
-- Use coverage data for code quality analysis
 
 ## Future Enhancements
 
-- [ ] Real-time test execution streaming
-- [ ] Test history and trends
-- [ ] Performance benchmarking
-- [ ] Test dependency visualization
-- [ ] Integration with external test runners
-- [ ] Custom test configurations
-- [ ] Team collaboration features
+### Planned Features
+- **Parallel Test Execution**: Run tests in parallel for faster execution
+- **Test History**: Track test results over time
+- **Performance Profiling**: Detailed performance analysis
+- **Test Generation**: AI-assisted test case generation
+- **Integration with CI/CD**: Direct integration with build pipelines
+
+### Performance Optimizations
+- **Caching**: Cache test results for faster subsequent runs
+- **Incremental Testing**: Only run tests for changed files
+- **Smart Filtering**: Intelligent test selection based on changes
 
 ## Contributing
 
-To enhance the test dashboard:
-1. Modify `src/components/TestDashboard.tsx`
-2. Update API routes in `src/app/api/test-runner/`
-3. Add new features to the UI components
-4. Update this documentation
+When adding new test features:
+1. Follow existing component patterns
+2. Add proper TypeScript types
+3. Include error handling
+4. Add tests for new functionality
+5. Update documentation
 
 ## Support
 
 For issues or questions:
 1. Check the troubleshooting section
-2. Review the test configuration
-3. Check the browser console for errors
-4. Verify all dependencies are up to date 
+2. Review API documentation
+3. Examine test configuration
+4. Check server logs for errors 

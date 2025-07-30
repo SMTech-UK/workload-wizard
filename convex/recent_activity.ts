@@ -4,6 +4,9 @@ import { v } from "convex/values";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.query("recent_activity").collect();
   },
 });
@@ -22,6 +25,9 @@ export const logActivity = mutation({
     details: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     await ctx.db.insert("recent_activity", {
       action: args.action,
       changeType: args.changeType,

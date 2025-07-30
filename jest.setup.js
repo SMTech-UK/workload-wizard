@@ -1,93 +1,61 @@
 import '@testing-library/jest-dom'
 
-// Mock Next.js router
-jest.mock('next/router', () => ({
-  useRouter() {
-    return {
-      route: '/',
-      pathname: '/',
-      query: {},
-      asPath: '/',
-      push: jest.fn(),
-      pop: jest.fn(),
-      reload: jest.fn(),
-      back: jest.fn(),
-      prefetch: jest.fn().mockResolvedValue(undefined),
-      beforePopState: jest.fn(),
-      events: {
-        on: jest.fn(),
-        off: jest.fn(),
-        emit: jest.fn(),
-      },
-      isFallback: false,
+// Mock Next.js Response for API tests
+global.Response = {
+  json: jest.fn((data, options) => ({
+    json: () => Promise.resolve(data),
+    status: options?.status || 200,
+    ok: (options?.status || 200) < 400,
+    ...options
+  }))
+}
+
+// Mock NextResponse for API route tests
+jest.mock('next/server', () => ({
+  NextRequest: class MockNextRequest {
+    constructor(url = 'http://localhost:3000/api/test') {
+      this.url = url
+      this.nextUrl = new URL(url)
     }
   },
+  NextResponse: {
+    json: jest.fn((data, options) => ({
+      json: () => Promise.resolve(data),
+      status: options?.status || 200,
+      ok: (options?.status || 200) < 400,
+      ...options
+    }))
+  }
 }))
 
-// Mock Next.js navigation
-jest.mock('next/navigation', () => ({
-  useRouter() {
-    return {
-      push: jest.fn(),
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-      refresh: jest.fn(),
-    }
-  },
-  useSearchParams() {
-    return new URLSearchParams()
-  },
-  usePathname() {
-    return '/'
-  },
-}))
+// Mock file system for test history
+const fs = {
+  existsSync: jest.fn(),
+  mkdirSync: jest.fn(),
+  readFileSync: jest.fn(),
+  writeFileSync: jest.fn(),
+  promises: {
+    readFile: jest.fn(),
+    writeFile: jest.fn()
+  }
+}
 
-// Mock Convex
-jest.mock('convex/react', () => ({
-  useQuery: jest.fn(() => null),
-  useMutation: jest.fn(() => jest.fn()),
-  useAction: jest.fn(() => jest.fn()),
-  usePaginatedQuery: jest.fn(() => ({ results: [], status: 'CanLoadMore' })),
-}))
+const path = {
+  join: jest.fn((...args) => args.join('/'))
+}
 
-// Mock Clerk
-jest.mock('@clerk/nextjs', () => ({
-  useUser: () => ({
-    isSignedIn: true,
-    user: {
-      id: 'test-user-id',
-      emailAddresses: [{ emailAddress: 'test@example.com' }],
-      firstName: 'Test',
-      lastName: 'User',
-    },
-  }),
-  useAuth: () => ({
-    isLoaded: true,
-    isSignedIn: true,
-    userId: 'test-user-id',
-  }),
-  SignIn: () => <div data-testid="sign-in">Sign In</div>,
-  SignUp: () => <div data-testid="sign-up">Sign Up</div>,
-  UserButton: () => <div data-testid="user-button">User Button</div>,
-}))
+jest.mock('fs', () => fs)
+jest.mock('path', () => path)
 
-// Mock Knock
-jest.mock('@knocklabs/react', () => ({
-  useKnock: () => ({
-    user: { id: 'test-user-id' },
-    feed: {
-      items: [],
-      pageInfo: { after: null, before: null },
-      on: jest.fn(),
-      off: jest.fn(),
-    },
-  }),
-  KnockProvider: ({ children }) => children,
-}))
+// Mock console methods to reduce noise in tests
+global.console = {
+  ...console,
+  warn: jest.fn(),
+  error: jest.fn(),
+  log: jest.fn()
+}
 
-// Mock window.matchMedia
+// Mock window.matchMedia for responsive tests
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation(query => ({
@@ -102,13 +70,6 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
-// Mock ResizeObserver
-global.ResizeObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}))
-
 // Mock IntersectionObserver
 global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
@@ -116,20 +77,84 @@ global.IntersectionObserver = jest.fn().mockImplementation(() => ({
   disconnect: jest.fn(),
 }))
 
-// Suppress console errors in tests unless explicitly needed
-const originalError = console.error
-beforeAll(() => {
-  console.error = (...args) => {
-    if (
-      typeof args[0] === 'string' &&
-      args[0].includes('Warning: ReactDOM.render is no longer supported')
-    ) {
-      return
-    }
-    originalError.call(console, ...args)
-  }
-})
+// Mock ResizeObserver
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}))
 
-afterAll(() => {
-  console.error = originalError
-}) 
+// Mock localStorage
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+}
+global.localStorage = localStorageMock
+
+// Mock sessionStorage
+const sessionStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+}
+global.sessionStorage = sessionStorageMock
+
+// Mock fetch for API tests
+global.fetch = jest.fn()
+
+// Mock URLSearchParams
+global.URLSearchParams = class MockURLSearchParams {
+  constructor(init) {
+    this.params = new Map()
+    if (init) {
+      const searchParams = new URL(init).searchParams
+      for (const [key, value] of searchParams) {
+        this.params.set(key, value)
+      }
+    }
+  }
+  
+  get(key) {
+    return this.params.get(key)
+  }
+  
+  has(key) {
+    return this.params.has(key)
+  }
+  
+  set(key, value) {
+    this.params.set(key, value)
+  }
+  
+  delete(key) {
+    this.params.delete(key)
+  }
+  
+  forEach(callback) {
+    this.params.forEach(callback)
+  }
+  
+  entries() {
+    return this.params.entries()
+  }
+  
+  keys() {
+    return this.params.keys()
+  }
+  
+  values() {
+    return this.params.values()
+  }
+  
+  toString() {
+    return Array.from(this.params.entries())
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join('&')
+  }
+}
+
+// Export mocks for use in tests
+export { fs, path, localStorageMock, sessionStorageMock } 

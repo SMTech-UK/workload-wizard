@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import LecturerManagement from "@/components/lecturer-management"
-import Navigation from "@/components/navigation"
-import SettingsModal, { TabType } from "@/components/settings-modal"
+import LecturerManagement from "@/components/features/lecturer-management/lecturer-management"
+import Navigation from "@/components/layout/navigation"
+import SettingsModal, { TabType } from "@/components/modals/settings-modal"
 
 export default function LecturerManagementPage() {
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);

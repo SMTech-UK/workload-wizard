@@ -1,0 +1,614 @@
+"use client"
+
+import { useState } from "react"
+import { useQuery } from "convex/react"
+import { useMutation } from "convex/react"
+import { api } from "../../../../convex/_generated/api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Progress } from "@/components/ui/progress"
+import { Plus, Search, Edit, Eye, AlertTriangle, X } from "lucide-react"
+import StaffProfileModal from "@/components/modals/staff-profile-modal"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLogRecentActivity } from "@/lib/recentActivity";
+import { useUser } from "@clerk/nextjs";
+import type { Id } from "../../../../convex/_generated/dataModel";
+
+// Define the Lecturer interface at the top for type safety
+export interface Lecturer {
+  _id: Id<'lecturers'>;
+  fullName: string;
+  team: string;
+  specialism: string;
+  contract: string;
+  email: string;
+  capacity: number;
+  id: string;
+  maxTeachingHours: number;
+  moduleAllocations?: any[]; // Replace 'any' with a more specific type if available
+  role: string;
+  status: string;
+  teachingAvailability: number;
+  totalAllocated: number;
+  totalContract: number;
+  allocatedTeachingHours: number;
+  allocatedAdminHours: number;
+  family: string;
+  fte: number;
+}
+
+export default function LecturerManagement() {
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null)
+  const [modalOpen, setModalOpen] = useState(false);
+  
+
+  const lecturers = useQuery(api.lecturers.getAll) ?? [];
+  const createLecturer = useMutation(api.lecturers.createLecturer)
+  const deleteLecturer = useMutation(api.lecturers.deleteLecturer)
+  const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
+  const modules = useQuery(api.modules.getAll) ?? [];
+  const logRecentActivity = useLogRecentActivity();
+  const { user } = useUser();
+
+  // Add careerFamilies and helper for FTE calculation
+  const careerFamilies = [
+    { value: "Academic Practitioner", label: "Academic Practitioner (AP)" },
+    { value: "Teaching Academic", label: "Teaching Academic (TA)" },
+    { value: "Research Academic", label: "Research Academic (RA)" },
+  ];
+
+  function getFamilyLabel(value: string) {
+    const found = careerFamilies.find(f => f.value === value);
+    return found ? found.label : '';
+  }
+
+  function getTeachingPercentage(family: string) {
+    switch (family) {
+      case 'Research Academic':
+        return 0.3;
+      case 'Teaching Academic':
+        return 0.6;
+      case 'Academic Practitioner':
+        return 0.8;
+      default:
+        return 0.6; // fallback
+    }
+  }
+
+  function getFamilyInitialsForContract(family: string) {
+    const map: Record<string, string> = {
+      'Academic Practitioner': 'AP',
+      'Teaching Academic': 'TA',
+      'Research Academic': 'RA',
+    };
+    return map[family] || family;
+  }
+
+  // Add roles array for dropdown
+  const roles = [
+    { value: "Lecturer", label: "Lecturer" },
+    { value: "Senior Lecturer", label: "Senior Lecturer" },
+    { value: "Professional Lead", label: "Professional Lead" },
+    { value: "Professor", label: "Professor" },
+  ];
+
+  // Add teams array for dropdown
+  const teams = [
+    { value: "Simulation", label: "Simulation" },
+    { value: "Post-Registration", label: "Post-Registration" },
+    { value: "Adult", label: "Adult" },
+    { value: "Child/LD", label: "Child/LD" },
+    { value: "Mental Health", label: "Mental Health" },
+  ];
+
+  // Add state for form fields
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    contract: "AP", // default to AP, will be set based on family
+    team: "",
+    specialism: "",
+    capacity: 0, // will be set on creation
+    maxTeachingHours: 0, // will be set on creation
+    role: "Lecturer",
+    status: "available",
+    teachingAvailability: 0, // will be set on creation
+    totalAllocated: 0,
+    totalContract: 0, // will be set on creation
+    allocatedTeachingHours: 0,
+    allocatedAdminHours: 0,
+    family: "",
+    fte: 1,
+  })
+  const [submitting, setSubmitting] = useState(false)
+
+  // Define a constant for the annual contract hours
+  const ANNUAL_CONTRACT_HOURS = 1498;
+
+  // Helper to calculate contract code (e.g., 1AP, 0.6TA)
+  function getContractCode(fte: number, family: string) {
+    const familyInitials = getFamilyInitialsForContract(family);
+    const roundedFte = Math.round(fte * 100) / 100;
+    const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
+    return `${fteStr}${familyInitials}`;
+  }
+
+  // Helper to calculate total contract hours
+  function getTotalContract(fte: number) {
+    return Math.floor(fte * ANNUAL_CONTRACT_HOURS);
+  }
+
+  // Helper to calculate max teaching hours
+  function getMaxTeachingHours(totalContract: number, family: string) {
+    const teachingPct = getTeachingPercentage(family);
+    return Math.floor(totalContract * teachingPct);
+  }
+
+  // Helper to calculate teaching availability and capacity (same as maxTeachingHours)
+  function getTeachingAvailability(maxTeachingHours: number) {
+    return maxTeachingHours;
+  }
+
+  function getCapacity(maxTeachingHours: number) {
+    return maxTeachingHours;
+  }
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { id, value } = e.target;
+    setForm((prev) => {
+      let newForm = { ...prev, [id]: value };
+      let fte = id === "fte" ? Number(value) : Number(prev.fte);
+      let family = id === "family" ? value : prev.family;
+
+      // Use helpers for calculations
+      newForm.contract = getContractCode(fte, family);
+      if (id === "fte" || id === "family") {
+        const totalContract = getTotalContract(fte);
+        const maxTeachingHours = getMaxTeachingHours(totalContract, family);
+        newForm.totalContract = totalContract;
+        newForm.maxTeachingHours = maxTeachingHours;
+        newForm.teachingAvailability = getTeachingAvailability(maxTeachingHours);
+        newForm.capacity = getCapacity(maxTeachingHours);
+      }
+      return newForm;
+    });
+  }
+
+  const handleSelectChange = (value: string) => {
+    setForm((prev) => ({ ...prev, contract: value }))
+  }
+
+  const handleFamilyChange = (value: string) => {
+    setForm((prev) => {
+      const teachingPct = getTeachingPercentage(value);
+      const fte = Number(prev.fte);
+      const totalContract = Math.floor(fte * ANNUAL_CONTRACT_HOURS);
+      const maxTeachingHours = Math.floor(totalContract * teachingPct);
+      const familyInitials = getFamilyInitialsForContract(value);
+      const roundedFte = Math.round(fte * 100) / 100;
+      const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
+      return {
+        ...prev,
+        family: value,
+        contract: `${fteStr}${familyInitials}`,
+        totalContract,
+        maxTeachingHours,
+        teachingAvailability: maxTeachingHours,
+        capacity: maxTeachingHours,
+      };
+    });
+  }
+
+  const handleCreateLecturer = async () => {
+    // Validate form
+    if (!form.fullName.trim() || !form.email.trim() || !form.family) {
+      // Show validation error to user
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email)) {
+      // Show email validation error
+      return;
+    }
+
+    setSubmitting(true)
+    try {
+      const newLecturerId = await createLecturer(form);
+      // Log recent activity
+      await logRecentActivity({
+        action: "lecturer created",
+        changeType: "create",
+        entity: "lecturer",
+        entityId: newLecturerId, // use the Convex _id
+        fullName: form.fullName, // for formatting
+        modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
+        permission: "default"
+      });
+      setModalOpen(false)
+      setForm({
+        fullName: "",
+        email: "",
+        contract: "AP",
+        team: "",
+        specialism: "",
+        capacity: 0,
+        maxTeachingHours: 0,
+        role: "Lecturer",
+        status: "available",
+        teachingAvailability: 0,
+        totalAllocated: 0,
+        totalContract: 0,
+        allocatedTeachingHours: 0,
+        allocatedAdminHours: 0,
+        family: "",
+        fte: 1,
+      })
+    } catch (error) {
+      console.error('Failed to create lecturer:', error);
+      // Show error message to user
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const [statusFilter, setStatusFilter] = useState('all');
+  const filteredLecturers = lecturers.filter((lecturer) => {
+    const matchesSearch =
+      lecturer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lecturer.team?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === 'all' || lecturer.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "overloaded":
+        return <Badge variant="destructive">Overloaded</Badge>
+      case "at-capacity":
+        return <Badge variant="secondary">At Capacity</Badge>
+      case "near-capacity":
+        return <Badge variant="secondary">Near Capacity</Badge>
+      case "available":
+        return (
+          <Badge variant="default" className="bg-green-600">
+            Available
+          </Badge>
+        )
+      case "n/a":
+        return <Badge variant="outline">N/A</Badge>
+      default:
+        return <Badge variant="outline">Unknown</Badge>
+    }
+  }
+
+  const getContractTypeBadge = (type: string) => {
+    const colors = {
+      AP: "bg-blue-100 text-blue-800",
+      TA: "bg-green-100 text-green-800",
+      RA: "bg-purple-100 text-purple-800",
+    }
+    return <Badge className={colors[type as keyof typeof colors]}>{type}</Badge>
+  }
+
+  // Add this function to handle lecturer deletion and log recent activity
+  const handleDeleteLecturer = async (lecturer: Lecturer) => {
+    if (!lecturer || !lecturer._id) return;
+    await deleteLecturer({ id: lecturer._id });
+    await logRecentActivity({
+      action: "lecturer deleted",
+      changeType: "delete",
+      entity: "lecturer",
+      entityId: lecturer._id,
+      fullName: lecturer.fullName,
+      modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
+      permission: "default"
+    });
+  };
+
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [lecturerToDelete, setLecturerToDelete] = useState<Lecturer | null>(null);
+
+  // Updated delete handler to use dialog
+  const confirmDeleteLecturer = (lecturer: Lecturer) => {
+    setLecturerToDelete(lecturer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!lecturerToDelete || !lecturerToDelete._id) return;
+    await deleteLecturer({ id: lecturerToDelete._id });
+    await logRecentActivity({
+      action: "lecturer deleted",
+      changeType: "delete",
+      entity: "lecturer",
+      entityId: lecturerToDelete._id,
+      fullName: lecturerToDelete.fullName,
+      modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
+      permission: "default"
+    });
+    setDeleteDialogOpen(false);
+    setLecturerToDelete(null);
+  };
+
+  return (
+    <div className="space-y-6 bg-white dark:bg-zinc-900 min-h-screen">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Lecturer Management</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">Manage academic staff profiles and capacity</p>
+        </div>
+        <Dialog>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Lecturer
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
+              <DialogHeader>
+                <DialogTitle className="text-gray-900 dark:text-white">Add New Lecturer</DialogTitle>
+                <DialogDescription className="text-gray-600 dark:text-gray-300">
+                  Create a new lecturer profile with contract details and allocations.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="text-gray-900 dark:text-white">Full Name</Label>
+                  <Input id="fullName" value={form.fullName} onChange={handleFormChange} placeholder="Dr. John Doe" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" value={form.email} onChange={handleFormChange} placeholder="j.doe@university.edu" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={form.role} onValueChange={value => setForm(prev => ({ ...prev, role: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roles.map(role => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Removed contract type field, only FTE and Career Family remain */}
+                <div className="space-y-2">
+                  <Label htmlFor="family">Career Family</Label>
+                  <Select value={form.family} onValueChange={handleFamilyChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select career family">
+                        {getFamilyLabel(form.family)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {careerFamilies.map(family => (
+                        <SelectItem key={family.value} value={family.value}>
+                          {family.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fte">FTE</Label>
+                  <Input id="fte" type="number" min={0.01} max={1} step={0.01} value={form.fte} onChange={handleFormChange} placeholder="1.0" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="team">Team</Label>
+                  <Select value={form.team} onValueChange={value => setForm(prev => ({ ...prev, team: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teams.map(team => (
+                        <SelectItem key={team.value} value={team.value}>
+                          {team.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="specialism">Specialism</Label>
+                  <Input id="specialism" value={form.specialism} onChange={handleFormChange} placeholder="Paramedic" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <DialogClose asChild>
+                  <Button variant="outline" disabled={submitting}>Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleCreateLecturer} disabled={submitting || !form.fullName || !form.email || !form.family}>
+                  {submitting ? "Creating..." : "Create Lecturer"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+      {/* Search and Filters */}
+      <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
+        <CardHeader>
+          <CardTitle className="text-gray-900 dark:text-white">Search & Filter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search lecturers by name or department..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="near-capacity">Near Capacity</SelectItem>
+                <SelectItem value="at-capacity">At Capacity</SelectItem>
+                <SelectItem value="overloaded">Overloaded</SelectItem>
+                <SelectItem value="n/a">N/A</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lecturers Table */}
+      <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
+        <CardHeader>
+          <CardTitle className="text-gray-900 dark:text-white">Academic Staff ({filteredLecturers.length})</CardTitle>
+          <CardDescription className="text-gray-600 dark:text-gray-300">Overview of all academic staff and their current workload</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-gray-900 dark:text-white">Name</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Contract</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Team</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Capacity</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
+                <TableHead className="text-gray-900 dark:text-white">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredLecturers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground dark:text-gray-300">
+                    No lecturers to show.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredLecturers.map((lecturer) => {
+                  // If assigned and capacity are both 0, treat status as 'n/a'
+                  const status = (lecturer.totalAllocated === 0 && lecturer.totalContract === 0) ? 'n/a' : lecturer.status;
+                  const handleOpenModal = () => {
+                    setSelectedLecturer(lecturer as any);
+                    setModalOpen(true);
+                  };
+                  return (
+                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800" onClick={handleOpenModal}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">{lecturer.fullName}</div>
+                        <div className="text-sm text-muted-foreground dark:text-gray-300">{lecturer.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {getContractTypeBadge(lecturer.contract)}
+                        <div className="text-xs text-muted-foreground">FTE: {lecturer.fte.toFixed(1)}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{lecturer.team || lecturer.specialism || '-'}</TableCell>
+                    <TableCell>
+                      <div className="space-y-2 min-w-32">
+                        <div className="flex items-center justify-between text-sm">
+                          <span>{lecturer.capacity}h</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-muted-foreground cursor-help">remaining</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Total Contract: {lecturer.totalContract}h
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <Progress value={lecturer.totalContract ? (lecturer.totalAllocated / lecturer.totalContract) * 100 : 0} className="h-2" />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(status)}
+                        {status === "overloaded" && <AlertTriangle className="w-4 h-4 text-red-500" />}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenModal(); }}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100 dark:hover:bg-red-900" onClick={e => { e.stopPropagation(); confirmDeleteLecturer(lecturer as any); }}>
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      {/* Replace LecturerDetailsModal with StaffProfileModal */}
+      <StaffProfileModal
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setSelectedLecturer(null);
+        }}
+        lecturer={selectedLecturer as any}
+        adminAllocations={
+          selectedLecturer
+            ? (adminAllocations.find(a => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
+            : []
+        }
+      />
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this lecturer profile? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button className="bg-red-600 text-white hover:bg-red-700" onClick={handleConfirmDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

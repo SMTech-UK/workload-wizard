@@ -5,6 +5,9 @@ import { mutation } from "./_generated/server";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.query("modules").collect();
   },
 });
@@ -13,6 +16,9 @@ export const getAll = query({
 export const getById = query({
   args: { id: v.id("modules") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.get(args.id);
   },
 });
@@ -29,6 +35,9 @@ export const createModule = mutation({
     defaultMarkingHours: v.number(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.insert("modules", args);
   },
 });
@@ -46,6 +55,9 @@ export const updateModule = mutation({
     defaultMarkingHours: v.number(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     const { id, ...updateData } = args;
     return await ctx.db.patch(id, updateData);
   },
@@ -55,6 +67,9 @@ export const updateModule = mutation({
 export const deleteModule = mutation({
   args: { id: v.id("modules") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.delete(args.id);
   },
 });
@@ -75,6 +90,9 @@ export const bulkImport = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     const results = [];
     for (const moduleData of args.modules) {
       try {
@@ -94,6 +112,9 @@ export const bulkImport = mutation({
 export const getAllAllocations = query({
   args: {},
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.query("module_allocations").collect();
   },
 });

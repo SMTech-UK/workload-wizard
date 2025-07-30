@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, Suspense } from "react"
-import ModuleIterations from "@/components/module-iterations"
-import Navigation from "@/components/navigation"
-import SettingsModal, { TabType } from "@/components/settings-modal"
+import ModuleIterations from "@/components/features/module-management/module-iterations"
+import Navigation from "@/components/layout/navigation"
+import SettingsModal, { TabType } from "@/components/modals/settings-modal"
 
 export default function ModuleIterationsPage() {
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);

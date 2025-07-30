@@ -5,6 +5,9 @@ import Calculator from "@/lib/calculator";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.query("admin_allocations").collect();
   },
 });
@@ -20,6 +23,9 @@ export const setForLecturer = mutation({
     })),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     // Try to find existing allocation for this lecturer (no index)
     const all = await ctx.db.query("admin_allocations").collect();
     const existing = all.find(a => a.lecturerId === args.lecturerId);

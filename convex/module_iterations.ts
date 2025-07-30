@@ -6,6 +6,9 @@ import { mutation } from "./_generated/server";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.query("module_iterations").collect();
   },
 });
@@ -14,6 +17,9 @@ export const getAll = query({
 export const getByModuleCode = query({
   args: { moduleCode: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db
       .query("module_iterations")
       .filter((q) => q.eq(q.field("moduleCode"), args.moduleCode))
@@ -25,6 +31,9 @@ export const getByModuleCode = query({
 export const getById = query({
   args: { id: v.id("module_iterations") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.get(args.id);
   },
 });
@@ -65,6 +74,9 @@ export const createIteration = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.insert("module_iterations", args);
   },
 });

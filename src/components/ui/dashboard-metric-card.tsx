@@ -18,7 +18,7 @@ export function DashboardMetricCard({
   children,
 }: DashboardMetricCardProps) {
   return (
-    <div className="rounded-lg border p-6 bg-white dark:bg-zinc-900 shadow-sm">
+    <div className="rounded-lg border p-6 bg-white dark:bg-zinc-900 shadow-sm" data-testid="dashboard-metric-card">
       <div className="flex flex-row items-center justify-between space-y-0 pb-2">
         <span className="text-sm font-medium text-gray-900 dark:text-white">{title}</span>
         {icon}

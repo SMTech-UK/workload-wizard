@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,11 +8,11 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Users, AlertTriangle, FileText, Calendar, Check } from "lucide-react"
-import Navigation from "@/components/navigation"
-import SettingsModal, { TabType } from "@/components/settings-modal"
+import Navigation from "@/components/layout/navigation"
+import SettingsModal, { TabType } from "@/components/modals/settings-modal"
 
-import ModuleAssignment from "@/components/module-assignment"
-import ReportsSection from "@/components/reports-section"
+import ModuleAssignment from "@/components/features/module-management/module-assignment"
+import ReportsSection from "@/components/features/dashboard/reports-section"
 import { DashboardMetricCard } from "@/components/ui/dashboard-metric-card";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -20,7 +20,7 @@ import { useMutation } from "convex/react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from '@/lib/utils';
-import StaffProfileModal from "@/components/staff-profile-modal"
+import StaffProfileModal from "@/components/modals/staff-profile-modal"
 import { useConvex } from "convex/react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { timeAgo } from "@/lib/notify";
@@ -29,7 +29,8 @@ import { useKnockClient, useNotifications, useNotificationStore } from "@knockla
 import { useAuth } from "@clerk/nextjs";
 import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
 import { PlusCircle, Pencil, Trash2, User, BarChart3, BookOpen, Settings, Clock, CheckCircle, Info } from "lucide-react";
-import CSVImportModal from "@/components/csv-import-modal";
+import CSVImportModal from "@/components/modals/csv-import-modal";
+import { KnockSafeWrapper } from "@/components/features/notifications/KnockErrorBoundary";
 
 const academicYears = [
   "Academic Year 25/26",
@@ -147,6 +148,7 @@ const getChangeIcon = (type: string) => {
 }
 
 function DashboardContent() {
+  const { isSignedIn, userId } = useAuth();
   const [staffProfileModalOpen, setStaffProfileModalOpen] = useState(false);
   const [selectedLecturer, setSelectedLecturer] = useState<any>(undefined);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
@@ -173,12 +175,107 @@ function DashboardContent() {
       window.location.hash = activeTab;
     }
   }, [activeTab]);
-  const lecturers = useQuery(api.lecturers.getAll) ?? [];
-  const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
-  const modules = useQuery(api.modules.getAll) ?? [];
+  
+  // Always call hooks, but handle authentication in the data
+  const lecturersQuery = useQuery(api.lecturers.getAll);
+  const adminAllocationsQuery = useQuery(api.admin_allocations.getAll);
+  const modulesQuery = useQuery(api.modules.getAll);
   const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYears[0]);
   const convex = useConvex();
+
+  // Knock feed setup for recent changes - ALL HOOKS MUST BE CALLED UNCONDITIONALLY
+  const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
+  const knockApiKey = process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY;
+  const knockClient = useKnockClient();
+  const recentChangesFeedClient = useNotifications(
+    knockClient,
+    recentChangesChannelId || ""
+  );
+  const store = useNotificationStore(recentChangesFeedClient);
+  const router = useRouter();
+
+  // Memoize data to prevent unnecessary re-renders in useEffect
+  const lecturers = useMemo(() => (isSignedIn ? lecturersQuery ?? [] : []), [lecturersQuery, isSignedIn]);
+  const adminAllocations = useMemo(() => (isSignedIn ? adminAllocationsQuery ?? [] : []), [adminAllocationsQuery, isSignedIn]);
+  const modules = useMemo(() => (isSignedIn ? modulesQuery ?? [] : []), [modulesQuery, isSignedIn]);
+  const memoizedLecturers = useMemo(() => lecturers, [lecturers]);
+
+  // Fallback logic after hooks are called
+  let recentChangesItems: any[] = [];
+  let loadingRecentChanges = false;
+  try {
+    recentChangesItems = store.items;
+    loadingRecentChanges = store.loading;
+  } catch (error) {
+    console.warn('Knock client not available:', error);
+    // Fallback to empty state
+  }
+
+  // All useEffect hooks must be called unconditionally at the top
+  useEffect(() => {
+    const updateStatuses = async () => {
+      const updates = memoizedLecturers.map((lecturer: any) => {
+        const newStatus = calculateLecturerStatus(lecturer.totalAllocated, lecturer.totalContract);
+        if (lecturer.status !== newStatus) {
+          // Wrap each call in a promise with error handling
+          return updateLecturerStatus({ id: lecturer._id, status: newStatus })
+            .catch((err: any) => {
+              console.error(`Failed to update status for lecturer ${lecturer._id}:`, err);
+              // Optionally, show a toast or notification here
+            });
+        }
+        return null;
+      }).filter(Boolean);
+      if (updates.length > 0) {
+        await Promise.all(updates);
+      }
+    };
+    updateStatuses();
+  }, [memoizedLecturers, updateLecturerStatus]);
+
+  useEffect(() => { 
+    if (isSignedIn && recentChangesChannelId && knockApiKey && recentChangesFeedClient) {
+      try {
+        recentChangesFeedClient.fetch(); 
+      } catch (error) {
+        console.warn('Failed to fetch recent changes:', error);
+      }
+    }
+  }, [recentChangesFeedClient, isSignedIn, recentChangesChannelId, knockApiKey]);
+
+  // Handler functions
+  const handleProfileClick = () => {
+    setUserProfileModalTab("profile");
+    setUserProfileModalOpen(true);
+  };
+  
+  const handleSettingsClick = () => {
+    setUserProfileModalTab("general");
+    setUserProfileModalOpen(true);
+  };
+
+  // Show loading state if not authenticated
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-900">
+        <div className="w-full bg-white dark:bg-zinc-900">
+          <Navigation 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            onProfileClick={handleProfileClick} 
+            onSettingsClick={handleSettingsClick} 
+            onInboxClick={() => router.push("/inbox")}
+          />
+        </div>
+        <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center py-8">
+            <p className="text-gray-600 dark:text-gray-300">Please sign in to view the dashboard</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const totalLecturers = lecturers.length;
   // Example: get last academic year lecturer count (replace with real data if available)
@@ -237,27 +334,6 @@ function DashboardContent() {
     return "available";
   }
 
-  useEffect(() => {
-    const updateStatuses = async () => {
-      const updates = lecturers.map((lecturer: any) => {
-        const newStatus = calculateLecturerStatus(lecturer.totalAllocated, lecturer.totalContract);
-        if (lecturer.status !== newStatus) {
-          // Wrap each call in a promise with error handling
-          return updateLecturerStatus({ id: lecturer._id, status: newStatus })
-            .catch((err: any) => {
-              console.error(`Failed to update status for lecturer ${lecturer._id}:`, err);
-              // Optionally, show a toast or notification here
-            });
-        }
-        return null;
-      }).filter(Boolean);
-      if (updates.length > 0) {
-        await Promise.all(updates);
-      }
-    };
-    updateStatuses();
-  }, [lecturers, updateLecturerStatus]);
-
   const handleOpenStaffProfileModal = (lecturerId: string) => {
     if (!lecturerId) return;
     const lecturer = lecturers.find((l: any) => l && l._id === lecturerId);
@@ -278,69 +354,24 @@ function DashboardContent() {
     }, 150);
   };
 
-  const handleProfileClick = () => {
-    setUserProfileModalTab("profile");
-    setUserProfileModalOpen(true);
-  };
-  const handleSettingsClick = () => {
-    setUserProfileModalTab("general");
-    setUserProfileModalOpen(true);
-  };
-
   const selectedAdminAllocations = selectedLecturer
     ? (adminAllocations.find((a: any) => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
     : [];
 
   const selectedModuleAllocations = selectedLecturer && selectedLecturer.moduleAllocations
     ? (selectedLecturer.moduleAllocations as any[]).map((alloc: any) => {
-        const module = modules.find((m: any) => m.id === alloc.moduleCode);
+        const moduleData = modules.find((m: any) => m.id === alloc.moduleCode);
         return {
           ...alloc,
-          moduleName: module ? module.title : alloc.moduleName,
+          moduleName: moduleData ? moduleData.title : alloc.moduleName,
           semester: alloc.semester,
           type: alloc.type,
-          credits: module ? module.credits : undefined,
+          credits: moduleData ? moduleData.credits : undefined,
           teachingHours: alloc.hoursAllocated,
         };
       })
     : [];
-
-  // Knock feed setup for recent changes
-  const { isSignedIn, userId } = useAuth();
-  const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
-  const knockApiKey = process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY;
-
-  // Always call hooks unconditionally at the top level
-  const knockClient = useKnockClient();
-  const recentChangesFeedClient = useNotifications(
-    knockClient,
-    recentChangesChannelId || ""
-  );
-  const store = useNotificationStore(recentChangesFeedClient);
-
-  // Fallback logic after hooks are called
-  let recentChangesItems: any[] = [];
-  let loadingRecentChanges = false;
-  try {
-    recentChangesItems = store.items;
-    loadingRecentChanges = store.loading;
-  } catch (error) {
-    console.warn('Knock client not available:', error);
-    // Fallback to empty state
-  }
   
-  useEffect(() => { 
-    if (isSignedIn && recentChangesChannelId && knockApiKey && recentChangesFeedClient) {
-      try {
-        recentChangesFeedClient.fetch(); 
-      } catch (error) {
-        console.warn('Failed to fetch recent changes:', error);
-      }
-    }
-  }, [recentChangesFeedClient, isSignedIn, recentChangesChannelId, knockApiKey]);
-
-  const router = useRouter();
-
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-900">
       {/* Navigation with custom user profile dropdown */}
@@ -1030,5 +1061,26 @@ export default function AcademicWorkloadPlanner() {
     );
   }
   
-  return <DashboardContent />;
+  return (
+    <KnockSafeWrapper fallback={
+      <div className="min-h-screen bg-white dark:bg-zinc-900">
+        <div className="w-full bg-white dark:bg-zinc-900">
+          <Navigation 
+            activeTab="dashboard" 
+            setActiveTab={() => {}} 
+            onProfileClick={() => {}} 
+            onSettingsClick={() => {}} 
+            onInboxClick={() => {}}
+          />
+        </div>
+        <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center py-8">
+            <p className="text-gray-600 dark:text-gray-300">Loading dashboard...</p>
+          </div>
+        </main>
+      </div>
+    }>
+      <DashboardContent />
+    </KnockSafeWrapper>
+  );
 }

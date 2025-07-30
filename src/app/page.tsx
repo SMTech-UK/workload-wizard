@@ -1,20 +1,30 @@
 "use client"
 
-import Footer from "@/components/footer";
-import LandingNav from "@/components/landing-nav";
-import LandingHero from "@/components/landing-page";
+import Footer from "@/components/layout/footer";
+import LandingNav from "@/components/layout/landing-nav";
+import LandingHero from "@/components/features/landing-page";
 import { useLoadingOverlay } from "@/hooks/useLoadingOverlay";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useStoreUserEffect } from "@/hooks/useStoreUserEffect";
 
 export default function Home() {
   const { setLoading } = useLoadingOverlay();
   const { isLoading, isAuthenticated } = useStoreUserEffect();
+  const [isClient, setIsClient] = useState(false);
+  
+  // Ensure we're on the client side before running effects
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return; // Only run on client side
+    
     setLoading(true);
     const timeout = setTimeout(() => setLoading(false), 1500);
     return () => clearTimeout(timeout);
-  }, [setLoading]);
+  }, [setLoading, isClient]);
+  
   return (
     <div className="flex flex-col min-h-screen relative overflow-hidden">
       {/* Animated gradient background */}

@@ -11,10 +11,10 @@ import { ThemeProvider } from "next-themes";
 import { KnockProvider } from "@knocklabs/react";
 import { LoadingOverlayProvider } from "@/hooks/useLoadingOverlay";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
-import FloatingDevToolbar from "@/components/FloatingDevToolbar";
+import FloatingDevToolbar from "@/components/features/dev-tools/FloatingDevToolbar";
 
 
-import DevSettingsModalWrapper from "@/components/DevSettingsModalWrapper";
+import DevSettingsModalWrapper from "@/components/features/dev-tools/DevSettingsModalWrapper";
 
 const geistSans = localFont({
   src: "../fonts/GeistVF.woff",
@@ -92,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -104,16 +104,22 @@ export default function RootLayout({
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <ClerkProvider appearance={{baseTheme: neobrutalism }}>
-          <ThemeProvider attribute="class">
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <LoadingOverlayProvider>
               <ConvexClientProvider>
+                <KnockProvider
+                  apiKey={process.env.NEXT_PUBLIC_KNOCK_API_KEY}
+                  userId={process.env.NEXT_PUBLIC_KNOCK_CHANNEL_ID}
+                >
                 <ClientLayoutWrapper>
                   {children}
                 </ClientLayoutWrapper>
                 <FloatingDevToolbar />
                 <DevSettingsModalWrapper />
+                </KnockProvider>
               </ConvexClientProvider>
               <Toaster position="top-right" richColors closeButton />
             </LoadingOverlayProvider>
