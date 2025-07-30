@@ -19,6 +19,7 @@
 # misc
 .DS_Store
 *.pem
+.env.sentry-build-plugin
 
 # debug
 npm-debug.log*
