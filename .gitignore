@@ -19,6 +19,25 @@
 # misc
 .DS_Store
 *.pem
+.cursor
+.swc
+.test-history
+.cursorrules
+COMPONENT_STRUCTURE.md
+CSV_IMPORT_GUIDE.md
+DEV_TOOLS.md
+FOLDER_STRUCTURE_MIGRATION.md
+KNOCK_SETUP.md
+TEST_DASHBOARD.md
+TEST_IMPROVEMENTS_SUMMARY.md
+TEST_SUMMARY.md
+test-output.txt
+test-report.json
+test-results.json
+TESTING.md
+TODO
+jest-output.json
+
 
 # debug
 npm-debug.log*
