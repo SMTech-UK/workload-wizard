@@ -114,7 +114,10 @@ export const getPreferences = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) {
+      // Return null instead of throwing error for better UX
+      return null;
+    }
     const user = await ctx.db.query("users")
       .filter(q => q.eq(q.field("subject"), identity.subject))
       .unique();
@@ -198,7 +201,10 @@ export const getProfileFields = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) {
+      // Return null instead of throwing error for better UX
+      return null;
+    }
     const user = await ctx.db.query("users")
       .filter(q => q.eq(q.field("subject"), identity.subject))
       .unique();
@@ -215,7 +221,10 @@ export const getSettings = query({
   args: {},
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!identity) {
+      // Return null instead of throwing error for better UX
+      return null;
+    }
     const user = await ctx.db.query("users")
       .filter(q => q.eq(q.field("subject"), identity.subject))
       .unique();

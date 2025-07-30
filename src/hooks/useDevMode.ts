@@ -6,7 +6,7 @@ import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
 export function useDevMode() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
   const [devMode, setDevMode] = useState(false);
   const [isClient, setIsClient] = useState(false);
   
@@ -15,11 +15,12 @@ export function useDevMode() {
     setIsClient(true);
   }, []);
   
-  // Always call useQuery, but handle the case where it might not be available
+  // Always call useQuery, but handle authentication errors gracefully
   const profileFields = useQuery(api.users.getProfileFields);
   
-  // Check if user is admin - only if we have valid data
-  const isAdmin = isLoaded && user && profileFields && 
+  // Check if user is admin - only if we have valid data and user is authenticated
+  // Handle the case where profileFields might be null due to auth errors
+  const isAdmin = isLoaded && isSignedIn && user && profileFields && 
     (profileFields.systemRole === 'admin' || profileFields.systemRole === 'administrator');
   
   // Load dev mode from localStorage (only for admins)

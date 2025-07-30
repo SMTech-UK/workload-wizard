@@ -164,15 +164,15 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     interestInput: "",
   });
 
-  // Always call hooks at the top level, before any conditional logic
+  // Always call hooks at the top level, but handle authentication in data processing
   const preferences = useQuery(api.users.getPreferences);
   const profileFields = useQuery(api.users.getProfileFields);
   const userSettings = useQuery(api.users.getSettings);
 
   // Use the data only when user is authenticated and loaded
-  const safePreferences = isLoaded && user ? preferences : null;
-  const safeProfileFields = isLoaded && user ? profileFields : null;
-  const safeUserSettings = isLoaded && user ? userSettings : null;
+  const safePreferences = isLoaded && user && preferences ? preferences : null;
+  const safeProfileFields = isLoaded && user && profileFields ? profileFields : null;
+  const safeUserSettings = isLoaded && user && userSettings ? userSettings : null;
 
   // Populate lecturerPrefs from preferences when tab is opened and data is available
   React.useEffect(() => {
