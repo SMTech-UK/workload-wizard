@@ -176,17 +176,73 @@ function DashboardContent() {
     }
   }, [activeTab]);
   
-  // Only make queries when authenticated
-  const lecturersQuery = isSignedIn ? useQuery(api.lecturers.getAll) : null;
-  const adminAllocations = isSignedIn ? (useQuery(api.admin_allocations.getAll) ?? []) : [];
-  const modules = isSignedIn ? (useQuery(api.modules.getAll) ?? []) : [];
+  // Always call hooks, but handle authentication in the data
+  const lecturersQuery = useQuery(api.lecturers.getAll);
+  const adminAllocationsQuery = useQuery(api.admin_allocations.getAll);
+  const modulesQuery = useQuery(api.modules.getAll);
   const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYears[0]);
   const convex = useConvex();
 
-  // Memoize lecturers to prevent unnecessary re-renders in useEffect
-  const lecturers = useMemo(() => lecturersQuery ?? [], [lecturersQuery]);
+  // Knock feed setup for recent changes - ALL HOOKS MUST BE CALLED UNCONDITIONALLY
+  const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
+  const knockApiKey = process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY;
+  const knockClient = useKnockClient();
+  const recentChangesFeedClient = useNotifications(
+    knockClient,
+    recentChangesChannelId || ""
+  );
+  const store = useNotificationStore(recentChangesFeedClient);
+  const router = useRouter();
+
+  // Memoize data to prevent unnecessary re-renders in useEffect
+  const lecturers = useMemo(() => (isSignedIn ? lecturersQuery ?? [] : []), [lecturersQuery, isSignedIn]);
+  const adminAllocations = useMemo(() => (isSignedIn ? adminAllocationsQuery ?? [] : []), [adminAllocationsQuery, isSignedIn]);
+  const modules = useMemo(() => (isSignedIn ? modulesQuery ?? [] : []), [modulesQuery, isSignedIn]);
   const memoizedLecturers = useMemo(() => lecturers, [lecturers]);
+
+  // Fallback logic after hooks are called
+  let recentChangesItems: any[] = [];
+  let loadingRecentChanges = false;
+  try {
+    recentChangesItems = store.items;
+    loadingRecentChanges = store.loading;
+  } catch (error) {
+    console.warn('Knock client not available:', error);
+    // Fallback to empty state
+  }
+
+  // All useEffect hooks must be called unconditionally at the top
+  useEffect(() => {
+    const updateStatuses = async () => {
+      const updates = memoizedLecturers.map((lecturer: any) => {
+        const newStatus = calculateLecturerStatus(lecturer.totalAllocated, lecturer.totalContract);
+        if (lecturer.status !== newStatus) {
+          // Wrap each call in a promise with error handling
+          return updateLecturerStatus({ id: lecturer._id, status: newStatus })
+            .catch((err: any) => {
+              console.error(`Failed to update status for lecturer ${lecturer._id}:`, err);
+              // Optionally, show a toast or notification here
+            });
+        }
+        return null;
+      }).filter(Boolean);
+      if (updates.length > 0) {
+        await Promise.all(updates);
+      }
+    };
+    updateStatuses();
+  }, [memoizedLecturers, updateLecturerStatus]);
+
+  useEffect(() => { 
+    if (isSignedIn && recentChangesChannelId && knockApiKey && recentChangesFeedClient) {
+      try {
+        recentChangesFeedClient.fetch(); 
+      } catch (error) {
+        console.warn('Failed to fetch recent changes:', error);
+      }
+    }
+  }, [recentChangesFeedClient, isSignedIn, recentChangesChannelId, knockApiKey]);
 
   // Handler functions
   const handleProfileClick = () => {
@@ -278,27 +334,6 @@ function DashboardContent() {
     return "available";
   }
 
-  useEffect(() => {
-    const updateStatuses = async () => {
-      const updates = memoizedLecturers.map((lecturer: any) => {
-        const newStatus = calculateLecturerStatus(lecturer.totalAllocated, lecturer.totalContract);
-        if (lecturer.status !== newStatus) {
-          // Wrap each call in a promise with error handling
-          return updateLecturerStatus({ id: lecturer._id, status: newStatus })
-            .catch((err: any) => {
-              console.error(`Failed to update status for lecturer ${lecturer._id}:`, err);
-              // Optionally, show a toast or notification here
-            });
-        }
-        return null;
-      }).filter(Boolean);
-      if (updates.length > 0) {
-        await Promise.all(updates);
-      }
-    };
-    updateStatuses();
-  }, [memoizedLecturers, updateLecturerStatus]);
-
   const handleOpenStaffProfileModal = (lecturerId: string) => {
     if (!lecturerId) return;
     const lecturer = lecturers.find((l: any) => l && l._id === lecturerId);
@@ -319,8 +354,6 @@ function DashboardContent() {
     }, 150);
   };
 
-
-
   const selectedAdminAllocations = selectedLecturer
     ? (adminAllocations.find((a: any) => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
     : [];
@@ -338,42 +371,7 @@ function DashboardContent() {
         };
       })
     : [];
-
-  // Knock feed setup for recent changes
-  const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
-  const knockApiKey = process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY;
-
-  // Always call hooks unconditionally at the top level
-  const knockClient = useKnockClient();
-  const recentChangesFeedClient = useNotifications(
-    knockClient,
-    recentChangesChannelId || ""
-  );
-  const store = useNotificationStore(recentChangesFeedClient);
-
-  // Fallback logic after hooks are called
-  let recentChangesItems: any[] = [];
-  let loadingRecentChanges = false;
-  try {
-    recentChangesItems = store.items;
-    loadingRecentChanges = store.loading;
-  } catch (error) {
-    console.warn('Knock client not available:', error);
-    // Fallback to empty state
-  }
   
-  useEffect(() => { 
-    if (isSignedIn && recentChangesChannelId && knockApiKey && recentChangesFeedClient) {
-      try {
-        recentChangesFeedClient.fetch(); 
-      } catch (error) {
-        console.warn('Failed to fetch recent changes:', error);
-      }
-    }
-  }, [recentChangesFeedClient, isSignedIn, recentChangesChannelId, knockApiKey]);
-
-  const router = useRouter();
-
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-900">
       {/* Navigation with custom user profile dropdown */}

@@ -5,6 +5,9 @@ import { query, mutation } from "./_generated/server";
 export const getAll = query({
   args: {},
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.query("lecturers").collect();
   },
 });
@@ -13,6 +16,9 @@ export const getAll = query({
 export const updateStatus = mutation({
   args: { id: v.id("lecturers"), status: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     await ctx.db.patch(args.id, { status: args.status });
   },
 });
@@ -38,6 +44,9 @@ export const createLecturer = mutation({
     fte: v.number(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.insert("lecturers", {
       ...args,
     });
@@ -65,6 +74,9 @@ export const updateLecturer = mutation({
     fte: v.number(),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     const { id, ...fields } = args;
     await ctx.db.patch(id, fields);
   },
@@ -73,6 +85,9 @@ export const updateLecturer = mutation({
 export const getById = query({
   args: { id: v.id("lecturers") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     return await ctx.db.get(args.id);
   },
 });
@@ -81,6 +96,9 @@ export const getById = query({
 export const deleteLecturer = mutation({
   args: { id: v.id("lecturers") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     await ctx.db.delete(args.id);
   },
 });
@@ -110,6 +128,9 @@ export const bulkImport = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     const results = [];
     for (const lecturerData of args.lecturers) {
       try {

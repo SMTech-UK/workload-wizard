@@ -303,18 +303,16 @@ describe('Academic Workload Calculator - Critical Business Logic', () => {
 
     it('should handle mixed positive and negative values correctly', () => {
       // Arrange
-      const testCases = [
-        { teaching: 20, admin: -5, expected: 15 },
-        { contract: 40, allocated: 15, expected: 25 },
-        { max: 25, allocated: -5, expected: 30 },
-        { max: 15, allocated: -3, expected: 18 }
-      ];
+      const testCase1 = { teaching: 20, admin: -5, expected: 15 };
+      const testCase2 = { contract: 40, allocated: 15, expected: 25 };
+      const testCase3 = { max: 25, allocated: -5, expected: 30 };
+      const testCase4 = { max: 15, allocated: -3, expected: 18 };
 
       // Act & Assert
-      expect(totalAllocated(testCases[0].teaching, testCases[0].admin)).toBe(testCases[0].expected);
-      expect(capacity(testCases[1].contract, testCases[1].allocated)).toBe(testCases[1].expected);
-      expect(teachingAvailability(testCases[2].max, testCases[2].allocated)).toBe(testCases[2].expected);
-      expect(adminAvailability(testCases[3].max, testCases[3].allocated)).toBe(testCases[3].expected);
+      expect(totalAllocated(testCase1.teaching, testCase1.admin)).toBe(testCase1.expected);
+      expect(capacity(testCase2.contract, testCase2.allocated)).toBe(testCase2.expected);
+      expect(teachingAvailability(testCase3.max, testCase3.allocated)).toBe(testCase3.expected);
+      expect(adminAvailability(testCase4.max, testCase4.allocated)).toBe(testCase4.expected);
     });
   });
 
