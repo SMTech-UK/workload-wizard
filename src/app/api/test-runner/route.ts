@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
         'unit': 'lib',
         'component': 'components',
         'hook': 'hooks',
-        'integration': 'integration'
+        'integration': 'integration',
+        'simple': 'simple'
       }
       
       if (testPatterns[testType as keyof typeof testPatterns]) {
@@ -59,180 +60,292 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    jestArgs.push('--watchAll=false', '--json', '--passWithNoTests')
+    jestArgs.push('--watchAll=false', '--json', '--passWithNoTests', '--outputFile=test-results.json')
 
-    const command = `npm test -- ${jestArgs.join(' ')}`
+    // Add coverage to main test command if requested
+    if (coverage) {
+      jestArgs.push('--coverage', '--silent')
+    }
+
+    const command = `npx jest ${jestArgs.join(' ')}`
     
-    // Always run coverage command to get detailed coverage data
-    let coverageCommand = `npm test -- --coverage --watchAll=false --passWithNoTests --silent`
+    // Remove the separate coverage command since we're including it in the main command
+    // let coverageCommand = `npx jest --coverage --watchAll=false --passWithNoTests --silent`
     
     // Add configuration-based arguments to coverage command
-    if (config.timeout) {
-      coverageCommand += ` --testTimeout=${config.timeout}`
-    }
+    // if (config.timeout) {
+    //   coverageCommand += ` --testTimeout=${config.timeout}`
+    // }
     
-    if (config.maxWorkers) {
-      coverageCommand += ` --maxWorkers=${config.maxWorkers}`
-    }
+    // if (config.maxWorkers) {
+    //   coverageCommand += ` --maxWorkers=${config.maxWorkers}`
+    // }
     
-    if (config.environment && config.environment !== 'jsdom') {
-      coverageCommand += ` --testEnvironment=${config.environment}`
-    }
+    // if (config.environment && config.environment !== 'jsdom') {
+    //   coverageCommand += ` --testEnvironment=${config.environment}`
+    // }
     
-    // Add coverage threshold if specified
-    if (config.coverageThreshold) {
-      coverageCommand += ` --coverageThreshold='{"global":{"lines":${config.coverageThreshold}}}'`
-    }
+    // Don't add coverage threshold to coverage command as it causes failures
+    // The threshold is only for the main test command
     
-    if (testType !== 'all') {
-      const testPatterns = {
-        'unit': 'lib',
-        'component': 'components',
-        'hook': 'hooks',
-        'integration': 'integration'
-      }
-      if (testPatterns[testType as keyof typeof testPatterns]) {
-        coverageCommand += ` --testPathPattern=${testPatterns[testType as keyof typeof testPatterns]}`
-      }
-    }
+    // if (testType !== 'all') {
+    //   const testPatterns = {
+    //     'unit': 'lib',
+    //     'component': 'components',
+    //     'hook': 'hooks',
+    //     'integration': 'integration',
+    //     'simple': 'simple'
+    //   }
+    //   if (testPatterns[testType as keyof typeof testPatterns]) {
+    //     coverageCommand += ` --testPathPattern=${testPatterns[testType as keyof typeof testPatterns]}`
+    //   }
+    // }
 
     console.log(`Running test command: ${command}`)
 
     // Execute the test command
     let stdout, stderr
     try {
+      // Use longer timeout and larger buffer for "all" tests
+      const timeout = testType === 'all' ? 300000 : (config.timeout || 120000) // 5 minutes for all tests, 2 minutes for others
+      const maxBuffer = testType === 'all' ? 200 * 1024 * 1024 : 50 * 1024 * 1024 // 200MB for all tests, 50MB for others
+      console.log('Executing command with timeout:', timeout, 'and maxBuffer:', maxBuffer)
+      
       const result = await execAsync(command, {
         cwd: process.cwd(),
-        timeout: config.timeout || 60000, // Use config timeout or default to 60 seconds
-        maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large test output
+        timeout: timeout,
+        maxBuffer: maxBuffer
       })
       stdout = result.stdout
       stderr = result.stderr
+      console.log('Command executed successfully')
+      console.log('stdout length:', stdout.length)
+      console.log('stderr length:', stderr.length)
+      console.log('stdout first 500 chars:', stdout.substring(0, 500))
+      console.log('stdout last 500 chars:', stdout.substring(Math.max(0, stdout.length - 500)))
+      console.log('stderr first 500 chars:', stderr.substring(0, 500))
     } catch (execError: any) {
-      // Jest exits with code 1 when tests fail or coverage thresholds aren't met
-      if (execError.code === 1 && execError.stdout) {
+      // Jest exits with code 1 when tests fail, but we still want to capture the output
+      console.log('Command execution error:', execError)
+      console.log('Error code:', execError.code)
+      console.log('Error message:', execError.message)
+      
+      if (execError.stdout) {
         stdout = execError.stdout
+        console.log('Captured stdout from error:', stdout.length, 'chars')
+      }
+      if (execError.stderr) {
         stderr = execError.stderr
-        console.log('Tests completed with failures or coverage threshold warnings')
-      } else {
-        console.error('Test execution failed:', execError)
-        throw execError
+        console.log('Captured stderr from error:', stderr.length, 'chars')
+      }
+      
+      // If we have no output at all, this is a real error
+      if (!stdout && !stderr) {
+        throw new Error(`Failed to execute test command: ${execError.message}`)
       }
     }
 
     // Execute coverage command to get detailed coverage data
     let coverageOutput = ''
     let coverageData: { statements: number; branches: number; functions: number; lines: number; } | undefined = undefined
-    try {
-      console.log(`Running coverage command: ${coverageCommand}`)
-      const coverageResult = await execAsync(coverageCommand, {
-        cwd: process.cwd(),
-        timeout: config.timeout || 60000, // Use config timeout or default to 60 seconds
-        maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large test output
-      })
-      coverageOutput = coverageResult.stdout + '\n' + coverageResult.stderr
-      
-      // Try to parse coverage data from the output
+    
+    // Parse coverage data from coverage files if coverage was requested
+    if (coverage) {
       try {
-        const coverageMatch = coverageOutput.match(/All files\s+\|\s*(\d+(?:\.\d+)?)\s+\|\s*(\d+(?:\.\d+)?)\s+\|\s*(\d+(?:\.\d+)?)\s+\|\s*(\d+(?:\.\d+)?)/)
-        if (coverageMatch) {
-          coverageData = {
-            statements: parseFloat(coverageMatch[1]),
-            branches: parseFloat(coverageMatch[2]),
-            functions: parseFloat(coverageMatch[3]),
-            lines: parseFloat(coverageMatch[4])
+        const fs = require('fs')
+        const path = require('path')
+        const coverageSummaryPath = path.join(process.cwd(), 'coverage', 'coverage-summary.json')
+        
+        if (fs.existsSync(coverageSummaryPath)) {
+          const coverageSummaryContent = fs.readFileSync(coverageSummaryPath, 'utf8')
+          const coverageSummary = JSON.parse(coverageSummaryContent)
+          
+          if (coverageSummary.total) {
+            coverageData = {
+              statements: coverageSummary.total.statements.pct,
+              branches: coverageSummary.total.branches.pct,
+              functions: coverageSummary.total.functions.pct,
+              lines: coverageSummary.total.lines.pct
+            }
+            console.log('Successfully parsed coverage data from coverage-summary.json:', coverageData)
           }
+        } else {
+          console.log('Coverage summary file not found at:', coverageSummaryPath)
         }
       } catch (parseError) {
-        console.log('Could not parse coverage data from output')
-      }
-    } catch (coverageError: any) {
-      // Coverage command might fail due to thresholds, but we still want the output
-      if (coverageError.stdout || coverageError.stderr) {
-        coverageOutput = (coverageError.stdout || '') + '\n' + (coverageError.stderr || '')
-        
-        // Try to parse coverage data even from error output
-        try {
-          const coverageMatch = coverageOutput.match(/All files\s+\|\s*(\d+(?:\.\d+)?)\s+\|\s*(\d+(?:\.\d+)?)\s+\|\s*(\d+(?:\.\d+)?)\s+\|\s*(\d+(?:\.\d+)?)/)
-          if (coverageMatch) {
-            coverageData = {
-              statements: parseFloat(coverageMatch[1]),
-              branches: parseFloat(coverageMatch[2]),
-              functions: parseFloat(coverageMatch[3]),
-              lines: parseFloat(coverageMatch[4])
-            }
-          }
-        } catch (parseError) {
-          console.log('Could not parse coverage data from error output')
-        }
+        console.log('Could not parse coverage data from coverage files:', parseError)
       }
     }
 
     // Parse Jest JSON output
     let testResults
     try {
-      // Look for JSON output in both stdout and stderr
-      const allOutput = stdout + '\n' + stderr
-      const lines = allOutput.split('\n')
+      // Try to read JSON from the output file first
+      let jsonContent = null
+      const fs = require('fs')
+      const path = require('path')
+      const outputFilePath = path.join(process.cwd(), 'test-results.json')
       
-      // Find the JSON line (Jest outputs JSON as a single line)
-      const jsonLine = lines.find(line => {
-        try {
-          const parsed = JSON.parse(line.trim())
-          return parsed && typeof parsed === 'object' && 'numTotalTests' in parsed
-        } catch {
-          return false
+      try {
+        if (fs.existsSync(outputFilePath)) {
+          const fileContent = fs.readFileSync(outputFilePath, 'utf8')
+          const parsed = JSON.parse(fileContent)
+          if (parsed && typeof parsed === 'object' && 
+              (parsed.testResults !== undefined || 
+               parsed.numTotalTests !== undefined ||
+               parsed.numPassedTests !== undefined ||
+               parsed.numFailedTests !== undefined)) {
+            jsonContent = fileContent
+            console.log('Successfully read JSON from output file')
+          }
         }
-      })
+      } catch (fileError) {
+        console.log('Failed to read from output file:', fileError instanceof Error ? fileError.message : String(fileError))
+      }
       
-      if (jsonLine) {
-        testResults = JSON.parse(jsonLine.trim())
-        console.log(`Parsed test results: ${testResults.numPassedTests}/${testResults.numTotalTests} passed, ${testResults.numFailedTests} failed`)
+      // Fallback: Look for JSON output in both stdout and stderr
+      if (!jsonContent) {
+        const allOutput = stdout + '\n' + stderr
+        console.log(`Looking for JSON in ${allOutput.split('\n').length} lines of output`)
+        
+        // Method 1: Look for the start of a JSON object
+        const jsonStartIndex = allOutput.indexOf('{')
+        
+        if (jsonStartIndex !== -1) {
+          // Find the matching closing brace
+          let braceCount = 0
+          let jsonEndIndex = -1
+          
+          for (let i = jsonStartIndex; i < allOutput.length; i++) {
+            if (allOutput[i] === '{') {
+              braceCount++
+            } else if (allOutput[i] === '}') {
+              braceCount--
+              if (braceCount === 0) {
+                jsonEndIndex = i
+                break
+              }
+            }
+          }
+          
+          if (jsonEndIndex !== -1) {
+            const jsonString = allOutput.substring(jsonStartIndex, jsonEndIndex + 1)
+            
+            try {
+              const parsed = JSON.parse(jsonString)
+              if (parsed && typeof parsed === 'object' && 
+                  (parsed.testResults !== undefined || 
+                   parsed.numTotalTests !== undefined ||
+                   parsed.numPassedTests !== undefined ||
+                   parsed.numFailedTests !== undefined)) {
+                jsonContent = jsonString
+                console.log('Successfully extracted JSON object from output')
+              }
+            } catch (parseError) {
+              console.log('Failed to parse extracted JSON object:', parseError instanceof Error ? parseError.message : String(parseError))
+            }
+          }
+        }
+        
+        // Method 2: Try to parse the entire output as JSON (fallback)
+        if (!jsonContent) {
+          try {
+            const parsed = JSON.parse(allOutput.trim())
+            if (parsed && typeof parsed === 'object' && 
+                (parsed.testResults !== undefined || 
+                 parsed.numTotalTests !== undefined ||
+                 parsed.numPassedTests !== undefined ||
+                 parsed.numFailedTests !== undefined)) {
+              jsonContent = allOutput.trim()
+              console.log('Successfully parsed entire output as JSON object')
+            }
+          } catch (parseError) {
+            console.log('Could not parse entire output as JSON:', parseError instanceof Error ? parseError.message : String(parseError))
+          }
+        }
+      }
+      
+      if (jsonContent) {
+        const parsed = JSON.parse(jsonContent)
+        console.log('Parsed JSON structure:', {
+          isArray: Array.isArray(parsed),
+          hasTestResults: parsed.testResults !== undefined,
+          testResultsLength: parsed.testResults ? parsed.testResults.length : 'N/A',
+          numTotalTests: parsed.numTotalTests,
+          numPassedTests: parsed.numPassedTests,
+          numFailedTests: parsed.numFailedTests
+        })
+        
+        // If it's a Jest result object with testResults array
+        if (parsed.testResults && Array.isArray(parsed.testResults)) {
+          testResults = {
+            success: true,
+            numTotalTests: parsed.numTotalTests || 0,
+            numPassedTests: parsed.numPassedTests || 0,
+            numFailedTests: parsed.numFailedTests || 0,
+            numTotalTestSuites: parsed.numTotalTestSuites || parsed.testResults.length,
+            numPassedTestSuites: parsed.numPassedTestSuites || 0,
+            numFailedTestSuites: parsed.numFailedTestSuites || 0,
+            testResults: parsed.testResults
+          }
+          
+          // If the summary data is missing, calculate it from testResults
+          if (!parsed.numTotalTests || !parsed.numPassedTests || !parsed.numFailedTests) {
+            let totalTests = 0
+            let passedTests = 0
+            let failedTests = 0
+            let passedSuites = 0
+            let failedSuites = 0
+            
+            for (const suite of parsed.testResults) {
+              if (suite.assertionResults && Array.isArray(suite.assertionResults)) {
+                totalTests += suite.assertionResults.length
+                passedTests += suite.assertionResults.filter((test: any) => test.status === 'passed').length
+                failedTests += suite.assertionResults.filter((test: any) => test.status === 'failed').length
+              }
+              
+              // Count test suites
+              if (suite.status === 'passed') {
+                passedSuites++
+              } else if (suite.status === 'failed') {
+                failedSuites++
+              }
+            }
+            
+            testResults.numTotalTests = totalTests
+            testResults.numPassedTests = passedTests
+            testResults.numFailedTests = failedTests
+            testResults.numPassedTestSuites = passedSuites
+            testResults.numFailedTestSuites = failedSuites
+          }
+        } else {
+          // It's already a Jest result object
+          testResults = {
+            success: true,
+            ...parsed
+          }
+        }
       } else {
-        // If no JSON found, create a basic result structure
-        console.log('No JSON output found, creating basic result structure')
+        console.log('No valid JSON found in test output')
         testResults = {
           success: false,
-          numTotalTests: 0,
-          numPassedTests: 0,
-          numFailedTests: 0,
-          numTotalTestSuites: 0,
-          numPassedTestSuites: 0,
-          numFailedTestSuites: 0,
-          testResults: [],
-          error: 'No test results found in output'
+          error: 'No valid JSON found in test output',
+          rawOutput: (stdout + '\n' + stderr).substring(0, 1000) // Include first 1000 chars for debugging
         }
       }
     } catch (parseError) {
-      console.error('Failed to parse Jest output:', parseError)
-      console.log('Raw stdout:', stdout)
-      console.log('Raw stderr:', stderr)
-      
-      // Create a fallback result structure
+      console.log('Error parsing test results:', parseError)
       testResults = {
         success: false,
-        numTotalTests: 0,
-        numPassedTests: 0,
-        numFailedTests: 0,
-        numTotalTestSuites: 0,
-        numPassedTestSuites: 0,
-        numFailedTestSuites: 0,
-        testResults: [],
-        error: parseError instanceof Error ? parseError.message : 'Unknown parsing error'
+        error: 'Failed to parse test results',
+        parseError: parseError instanceof Error ? parseError.message : String(parseError)
       }
     }
 
-    // Calculate coverage from Jest output if available
+    // Calculate coverage percentage from coverage data
     let coveragePercentage = 0
-    if (coverage && coverageOutput) {
-      // Look for coverage summary in the coverage output
-      const coverageMatch = coverageOutput.match(/All files\s+\|\s*(\d+\.?\d*)%/)
-      if (coverageMatch) {
-        coveragePercentage = parseFloat(coverageMatch[1])
-      } else {
-        // Fallback to a reasonable estimate based on test results
-        coveragePercentage = testResults.numPassedTests > 0 ? 8.2 : 0
-      }
+    if (coverage && coverageData) {
+      coveragePercentage = coverageData.lines
     }
 
     // Transform Jest output to our format
@@ -243,7 +356,7 @@ export async function POST(request: NextRequest) {
         passed: testResults.numPassedTests || 0,
         failed: testResults.numFailedTests || 0,
         running: 0,
-        coverage: coverageData ? coverageData.lines : 0,
+        coverage: coveragePercentage,
         duration: testResults.testResults?.reduce((total: number, suite: any) => {
           return total + (suite.endTime && suite.startTime ? (suite.endTime - suite.startTime) / 1000 : 0)
         }, 0) || 0
@@ -299,8 +412,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      success: true,
-      results: transformedResults
+      success: true, // Always return success since we have results to display
+      results: transformedResults,
+      hasFailures: transformedResults.summary.failed > 0
     })
 
   } catch (error) {

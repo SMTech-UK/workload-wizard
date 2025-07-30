@@ -41,12 +41,12 @@ const careerFamilies = [
 ]
 
 const teams = [
-  { value: "Computer Science", label: "Computer Science" },
-  { value: "Engineering", label: "Engineering" },
-  { value: "Mathematics", label: "Mathematics" },
-  { value: "Physics", label: "Physics" },
-  { value: "Business", label: "Business" },
-  { value: "Health Sciences", label: "Health Sciences" },
+  { value: "Adult", label: "Adult" },
+  { value: "Children", label: "Children" },
+  { value: "Learning Disability", label: "Learning Disability" },
+  { value: "Mental Health", label: "Mental Health" },
+  { value: "Simulation", label: "Simulation" },
+  { value: "Post-Registration", label: "Post-Registration" },
 ]
 
 

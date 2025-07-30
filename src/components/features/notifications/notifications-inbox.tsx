@@ -175,7 +175,7 @@ function NotificationsInboxInner() {
 
   // Filtering logic for Knock notifications
   const filteredNotifications = items.filter((notification: any) => {
-    const title = getNotificationTitle(notification).value.toLowerCase();
+    const title = getNotificationTitle(notification).toLowerCase();
     const matchesSearch =
       title.includes(searchQuery.toLowerCase()) ||
       notification.data?.description?.toLowerCase().includes(searchQuery.toLowerCase());

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,11 +23,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { Plus, Search, Edit, Eye, AlertTriangle, X } from "lucide-react"
-import StaffProfileModal from "./staff-profile-modal"
+import StaffProfileModal from "@/components/modals/staff-profile-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
 // Define the Lecturer interface at the top for type safety
 export interface Lecturer {

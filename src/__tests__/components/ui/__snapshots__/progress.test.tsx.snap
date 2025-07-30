@@ -48,6 +48,50 @@ exports[`Progress Component Accessibility should have proper role attribute 1`] 
 </div>
 `;
 
+exports[`Progress Component Component Structure should render progress indicator with correct styling 1`] = `
+<div>
+  <div
+    aria-valuemax="100"
+    aria-valuemin="0"
+    aria-valuenow="50"
+    aria-valuetext="50%"
+    class="relative h-2 w-full overflow-hidden rounded-full bg-primary/20"
+    data-max="100"
+    data-state="loading"
+    data-value="50"
+    role="progressbar"
+  >
+    <div
+      class="h-full w-full flex-1 bg-primary transition-all"
+      data-max="100"
+      data-state="loading"
+      data-value="50"
+      style="transform: translateX(-50%);"
+    />
+  </div>
+</div>
+`;
+
+exports[`Progress Component Edge Cases should handle negative values gracefully 1`] = `
+<div>
+  <div
+    aria-valuemax="100"
+    aria-valuemin="0"
+    class="relative h-2 w-full overflow-hidden rounded-full bg-primary/20"
+    data-max="100"
+    data-state="indeterminate"
+    role="progressbar"
+  >
+    <div
+      class="h-full w-full flex-1 bg-primary transition-all"
+      data-max="100"
+      data-state="indeterminate"
+      style="transform: translateX(-110%);"
+    />
+  </div>
+</div>
+`;
+
 exports[`Progress Component Edge Cases should handle undefined value gracefully 1`] = `
 <div>
   <div
@@ -63,6 +107,26 @@ exports[`Progress Component Edge Cases should handle undefined value gracefully 
       data-max="100"
       data-state="indeterminate"
       style="transform: translateX(-100%);"
+    />
+  </div>
+</div>
+`;
+
+exports[`Progress Component Edge Cases should handle values over 100 gracefully 1`] = `
+<div>
+  <div
+    aria-valuemax="100"
+    aria-valuemin="0"
+    class="relative h-2 w-full overflow-hidden rounded-full bg-primary/20"
+    data-max="100"
+    data-state="indeterminate"
+    role="progressbar"
+  >
+    <div
+      class="h-full w-full flex-1 bg-primary transition-all"
+      data-max="100"
+      data-state="indeterminate"
+      style="transform: translateX(--50%);"
     />
   </div>
 </div>
@@ -279,6 +343,30 @@ exports[`Progress Component Snapshot Testing should maintain consistent UI struc
       data-state="loading"
       data-value="60"
       style="transform: translateX(-40%);"
+    />
+  </div>
+</div>
+`;
+
+exports[`Progress Component Styling should have proper base styling classes 1`] = `
+<div>
+  <div
+    aria-valuemax="100"
+    aria-valuemin="0"
+    aria-valuenow="50"
+    aria-valuetext="50%"
+    class="relative h-2 w-full overflow-hidden rounded-full bg-primary/20"
+    data-max="100"
+    data-state="loading"
+    data-value="50"
+    role="progressbar"
+  >
+    <div
+      class="h-full w-full flex-1 bg-primary transition-all"
+      data-max="100"
+      data-state="loading"
+      data-value="50"
+      style="transform: translateX(-50%);"
     />
   </div>
 </div>

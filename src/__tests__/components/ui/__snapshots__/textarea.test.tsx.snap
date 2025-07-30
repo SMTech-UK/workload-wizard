@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Textarea Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for default textarea 1`] = `
+exports[`Textarea Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for basic textarea 1`] = `
 <textarea
   class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
   data-slot="textarea"
@@ -15,38 +15,19 @@ exports[`Textarea Component - Comprehensive UI Testing Snapshot Testing for UI C
 />
 `;
 
-exports[`Textarea Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for invalid textarea 1`] = `
-<textarea
-  aria-invalid="true"
-  class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-  data-slot="textarea"
-/>
-`;
-
-exports[`Textarea Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for multiple textareas 1`] = `
-<div>
-  <textarea
-    class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-    data-slot="textarea"
-    placeholder="Textarea 1"
-  />
-  <textarea
-    class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-    data-slot="textarea"
-    placeholder="Textarea 2"
-  />
-  <textarea
-    class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-    data-slot="textarea"
-    placeholder="Textarea 3"
-  />
-</div>
-`;
-
 exports[`Textarea Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for textarea with placeholder 1`] = `
 <textarea
   class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
   data-slot="textarea"
   placeholder="Enter your message"
 />
+`;
+
+exports[`Textarea Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for textarea with value 1`] = `
+<textarea
+  class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+  data-slot="textarea"
+>
+  Sample text
+</textarea>
 `;

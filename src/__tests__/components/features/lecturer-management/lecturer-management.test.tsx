@@ -32,18 +32,13 @@ jest.mock('@/lib/recentActivity', () => ({
 }));
 
 // Mock API
-jest.mock('../../../../convex/_generated/api', () => ({
+jest.mock('convex/_generated/api', () => ({
   api: {
     lecturers: {
       getAll: 'lecturers.getAll',
-      createLecturer: 'lecturers.createLecturer',
-      deleteLecturer: 'lecturers.deleteLecturer',
-    },
-    admin_allocations: {
-      getAll: 'admin_allocations.getAll',
-    },
-    modules: {
-      getAll: 'modules.getAll',
+      create: 'lecturers.create',
+      update: 'lecturers.update',
+      delete: 'lecturers.delete',
     },
   },
 }));
@@ -129,6 +124,24 @@ describe('LecturerManagement Component', () => {
     const { useQuery, useMutation } = require('convex/react');
     useQuery.mockImplementation(mockUseQuery);
     useMutation.mockImplementation(mockUseMutation);
+    
+    // Mock the api object
+    const { api } = require('convex/_generated/api');
+    jest.doMock('convex/_generated/api', () => ({
+      api: {
+        lecturers: {
+          getAll: 'lecturers.getAll',
+          createLecturer: 'lecturers.createLecturer',
+          deleteLecturer: 'lecturers.deleteLecturer',
+        },
+        admin_allocations: {
+          getAll: 'admin_allocations.getAll',
+        },
+        modules: {
+          getAll: 'modules.getAll',
+        },
+      },
+    }));
   });
 
   describe('Component Rendering', () => {

@@ -143,9 +143,9 @@ describe('DashboardMetricCard Component', () => {
   describe('Styling', () => {
     it('should have proper base styling classes', () => {
       // Arrange
-      const title = 'Styled Card';
+      const title = 'Test Card';
       const value = '100';
-      const subtitle = 'Styled subtitle';
+      const subtitle = 'Test subtitle';
       
       // Act
       render(
@@ -157,16 +157,17 @@ describe('DashboardMetricCard Component', () => {
       );
       
       // Assert
-      const card = screen.getByText(title).closest('div');
-      expect(card).toHaveClass('rounded-lg', 'border', 'p-6', 'bg-white', 'dark:bg-zinc-900', 'shadow-sm');
+      // Use the data-testid to get the main card container
+      const cardContainer = screen.getByTestId('dashboard-metric-card');
+      expect(cardContainer).toHaveClass('rounded-lg', 'border', 'p-6', 'bg-white', 'dark:bg-zinc-900', 'shadow-sm');
     });
 
     it('should apply custom value className correctly', () => {
       // Arrange
-      const title = 'Custom Styled';
-      const value = '200';
-      const subtitle = 'Custom styled subtitle';
-      const valueClassName = 'text-blue-600 font-bold';
+      const title = 'Test Card';
+      const value = '100';
+      const subtitle = 'Test subtitle';
+      const customValueClass = 'text-red-500';
       
       // Act
       render(
@@ -174,13 +175,13 @@ describe('DashboardMetricCard Component', () => {
           title={title}
           value={value}
           subtitle={subtitle}
-          valueClassName={valueClassName}
+          valueClassName={customValueClass}
         />
       );
       
       // Assert
       const valueElement = screen.getByText(value);
-      expect(valueElement).toHaveClass('text-blue-600', 'font-bold');
+      expect(valueElement).toHaveClass(customValueClass);
     });
   });
 
@@ -244,8 +245,9 @@ describe('DashboardMetricCard Component', () => {
       );
       
       // Assert
-      const card = screen.getByRole('generic');
-      expect(card).toBeInTheDocument();
+      // Check that the component renders without crashing by looking for the card structure
+      const cardContainer = screen.getByTestId('dashboard-metric-card');
+      expect(cardContainer).toBeInTheDocument();
     });
 
     it('should handle very long text content', () => {
@@ -327,7 +329,7 @@ describe('DashboardMetricCard Component', () => {
       
       testCases.forEach(({ value, expected }) => {
         // Act
-        render(
+        const { unmount } = render(
           <DashboardMetricCard
             title="Test Card"
             value={value}
@@ -337,6 +339,9 @@ describe('DashboardMetricCard Component', () => {
         
         // Assert
         expect(screen.getByText(expected)).toBeInTheDocument();
+        
+        // Clean up
+        unmount();
       });
     });
   });

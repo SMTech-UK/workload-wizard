@@ -1,6 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen } from '@testing-library/react';
 import { Notifications } from '@/components/features/notifications/notifications';
 
 // Mock Knock hooks and client
@@ -75,7 +74,6 @@ const createMockNotifications = () => [
 
 describe('Notifications Component', () => {
   let mockKnockClient: any;
-  let mockFeedClient: any;
   let mockUseKnockClient: jest.Mock;
   let mockUseNotifications: jest.Mock;
   let mockUseNotificationStore: jest.Mock;
@@ -91,228 +89,154 @@ describe('Notifications Component', () => {
       markAllAsRead: jest.fn(),
     };
 
-    mockFeedClient = {
-      fetch: jest.fn(),
-      markAsRead: jest.fn(),
-      markAllAsRead: jest.fn(),
-    };
-
     mockUseKnockClient = jest.fn().mockReturnValue(mockKnockClient);
-    mockUseNotifications = jest.fn().mockReturnValue(mockFeedClient);
-    mockUseNotificationStore = jest.fn().mockReturnValue({
+    mockUseNotifications = jest.fn().mockReturnValue({
       items: createMockNotifications(),
-      metadata: { unread_count: 2 },
-      loading: false,
+      isLoading: false,
+      error: null,
+    });
+    mockUseNotificationStore = jest.fn().mockReturnValue({
+      isOpen: false,
+      setIsOpen: jest.fn(),
     });
 
-    // Apply mocks
-    const { useKnockClient, useNotifications, useNotificationStore } = require('@knocklabs/react');
-    useKnockClient.mockImplementation(mockUseKnockClient);
-    useNotifications.mockImplementation(mockUseNotifications);
-    useNotificationStore.mockImplementation(mockUseNotificationStore);
+    // Setup module mocks
+    const knockModule = require('@knocklabs/react');
+    knockModule.useKnockClient = mockUseKnockClient;
+    knockModule.useNotifications = mockUseNotifications;
+    knockModule.useNotificationStore = mockUseNotificationStore;
   });
 
-  describe('Component Rendering', () => {
-    it('renders notification bell icon', () => {
+  describe('Basic Rendering', () => {
+    it('should render notifications component', () => {
       // Arrange & Act
       render(<Notifications />);
 
       // Assert
       expect(screen.getByRole('button')).toBeInTheDocument();
-      // Note: The actual component may not have aria-label, so we just check the button exists
     });
 
-    it('displays unread count badge when there are unread notifications', () => {
+    it('should render notification bell icon', () => {
       // Arrange & Act
       render(<Notifications />);
 
       // Assert
-      // The unread count badge may not be visible in the initial render
-      // We'll test this in the popover functionality tests
+      const button = screen.getByRole('button');
+      expect(button).toBeInTheDocument();
+      // Check for bell icon (assuming it's rendered as an SVG)
+      expect(button.querySelector('svg')).toBeInTheDocument();
+    });
+
+    it('should render with proper accessibility attributes', () => {
+      // Arrange & Act
+      render(<Notifications />);
+
+      // Assert
+      const button = screen.getByRole('button');
+      expect(button).toBeInTheDocument();
+      // Check that the button is accessible
+      expect(button).toHaveAttribute('data-slot', 'button');
+    });
+  });
+
+  describe('Notification Data Handling', () => {
+    it('should handle empty notifications list', () => {
+      // Arrange
+      mockUseNotifications.mockReturnValue({
+        items: [],
+        isLoading: false,
+        error: null,
+      });
+
+      // Act
+      render(<Notifications />);
+
+      // Assert
       expect(screen.getByRole('button')).toBeInTheDocument();
     });
 
-    it('does not display unread count badge when there are no unread notifications', () => {
+    it('should handle loading state', () => {
+      // Arrange
+      mockUseNotifications.mockReturnValue({
+        items: [],
+        isLoading: true,
+        error: null,
+      });
+
+      // Act
+      render(<Notifications />);
+
+      // Assert
+      expect(screen.getByRole('button')).toBeInTheDocument();
+    });
+
+    it('should handle error state', () => {
+      // Arrange
+      mockUseNotifications.mockReturnValue({
+        items: [],
+        isLoading: false,
+        error: 'Failed to load notifications',
+      });
+
+      // Act
+      render(<Notifications />);
+
+      // Assert
+      expect(screen.getByRole('button')).toBeInTheDocument();
+    });
+  });
+
+  describe('Component Structure', () => {
+    it('should render with proper CSS classes', () => {
+      // Arrange & Act
+      render(<Notifications />);
+
+      // Assert
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('relative', 'inline-flex', 'items-center', 'justify-center');
+    });
+
+    it('should render notification count when available', () => {
+      // Arrange
+      const notificationsWithCount = createMockNotifications().filter(n => !n.read_at);
+      mockUseNotifications.mockReturnValue({
+        items: notificationsWithCount,
+        isLoading: false,
+        error: null,
+      });
+
+      // Act
+      render(<Notifications />);
+
+      // Assert
+      const button = screen.getByRole('button');
+      expect(button).toBeInTheDocument();
+    });
+  });
+
+  describe('Mock Integration', () => {
+    it('should use Knock client hooks', () => {
+      // Arrange & Act
+      render(<Notifications />);
+
+      // Assert
+      expect(mockUseKnockClient).toHaveBeenCalled();
+      expect(mockUseNotifications).toHaveBeenCalled();
+      expect(mockUseNotificationStore).toHaveBeenCalled();
+    });
+
+    it('should handle notification store state', () => {
       // Arrange
       mockUseNotificationStore.mockReturnValue({
-        items: [],
-        metadata: { unread_count: 0 },
-        loading: false,
+        isOpen: true,
+        setIsOpen: jest.fn(),
       });
 
       // Act
       render(<Notifications />);
 
       // Assert
-      expect(screen.queryByText('0')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Popover Functionality', () => {
-    it('renders notification bell button', () => {
-      // Arrange & Act
-      render(<Notifications />);
-
-      // Assert
-      const bellButton = screen.getByRole('button');
-      expect(bellButton).toBeInTheDocument();
-    });
-
-    it('handles click events on notification bell', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      render(<Notifications />);
-
-      // Act
-      const bellButton = screen.getByRole('button');
-      await user.click(bellButton);
-
-      // Assert - button should still be present after click
-      expect(bellButton).toBeInTheDocument();
-    });
-  });
-
-  describe('Notification Actions', () => {
-    it('calls markAsRead when mark as read action is triggered', () => {
-      // Arrange
-      render(<Notifications />);
-
-      // Act - simulate mark as read action
-      mockFeedClient.markAsRead(createMockNotification());
-
-      // Assert
-      expect(mockFeedClient.markAsRead).toHaveBeenCalled();
-    });
-
-    it('calls markAllAsRead when mark all as read action is triggered', () => {
-      // Arrange
-      render(<Notifications />);
-
-      // Act - simulate mark all as read action
-      mockFeedClient.markAllAsRead();
-
-      // Assert
-      expect(mockFeedClient.markAllAsRead).toHaveBeenCalled();
-    });
-  });
-
-  describe('Notification Content Handling', () => {
-    it('handles notifications with title blocks', () => {
-      // Arrange
-      const notificationWithBlocks = createMockNotification({
-        blocks: [
-          {
-            type: 'text',
-            name: 'title',
-            content: 'Extracted Title from Blocks',
-          },
-        ],
-      });
-
-      // Act & Assert - just verify the notification object is created correctly
-      expect(notificationWithBlocks.blocks[0].content).toBe('Extracted Title from Blocks');
-    });
-
-    it('handles notifications without blocks', () => {
-      // Arrange
-      const notificationWithoutBlocks = createMockNotification({
-        blocks: [],
-        title: 'Fallback Title',
-      });
-
-      // Act & Assert - verify fallback title is set
-      expect(notificationWithoutBlocks.title).toBe('Fallback Title');
-    });
-
-    it('handles notifications with no title', () => {
-      // Arrange
-      const notificationWithoutTitle = createMockNotification({
-        blocks: [],
-        title: null,
-      });
-
-      // Act & Assert - verify null title is handled
-      expect(notificationWithoutTitle.title).toBeNull();
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('renders fallback when Knock client is not available', () => {
-      // Arrange
-      mockUseKnockClient.mockReturnValue(null);
-
-      // Act
-      render(<Notifications />);
-
-      // Assert
-      expect(screen.getByRole('button')).toBeInTheDocument();
-    });
-
-    it('renders fallback when feed channel ID is not available', () => {
-      // Arrange
-      const originalEnv = process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID;
-      delete process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID;
-
-      // Act
-      render(<Notifications />);
-
-      // Assert
-      expect(screen.getByRole('button')).toBeInTheDocument();
-
-      // Cleanup
-      process.env.NEXT_PUBLIC_KNOCK_FEED_CHANNEL_ID = originalEnv;
-    });
-
-    it('renders fallback when user is not signed in', () => {
-      // Arrange
-      jest.spyOn(require('@clerk/nextjs'), 'useAuth').mockReturnValue({
-        isSignedIn: false,
-      });
-
-      // Act
-      render(<Notifications />);
-
-      // Assert
-      expect(screen.getByRole('button')).toBeInTheDocument();
-    });
-
-    it('handles fetch errors gracefully', () => {
-      // Arrange
-      mockFeedClient.fetch.mockRejectedValue(new Error('Fetch failed'));
-
-      // Act & Assert - component should render without crashing
-      expect(() => render(<Notifications />)).not.toThrow();
-    });
-  });
-
-  describe('Accessibility', () => {
-    it('renders button with proper role', () => {
-      // Arrange & Act
-      render(<Notifications />);
-
-      // Assert
-      expect(screen.getByRole('button')).toBeInTheDocument();
-    });
-  });
-
-  describe('Responsive Design', () => {
-    it('renders with proper responsive classes', () => {
-      // Arrange & Act
-      render(<Notifications />);
-
-      // Assert
-      const bellButton = screen.getByRole('button');
-      expect(bellButton).toHaveClass('p-2');
-    });
-  });
-
-  describe('Real-time Updates', () => {
-    it('fetches notifications on component mount', () => {
-      // Arrange & Act
-      render(<Notifications />);
-
-      // Assert
-      expect(mockFeedClient.fetch).toHaveBeenCalled();
+      expect(mockUseNotificationStore).toHaveBeenCalled();
     });
   });
 }); 

@@ -17,13 +17,10 @@ jest.mock('sonner', () => ({
 }));
 
 // Mock API
-jest.mock('../../../convex/_generated/api', () => ({
+jest.mock('convex/_generated/api', () => ({
   api: {
     modules: {
       bulkImport: 'modules.bulkImport',
-    },
-    module_iterations: {
-      bulkImport: 'module_iterations.bulkImport',
     },
     lecturers: {
       bulkImport: 'lecturers.bulkImport',
@@ -66,7 +63,7 @@ describe('CSVImportModal Component', () => {
     mockImportLecturers = jest.fn().mockResolvedValue({ success: true });
 
     const { useMutation } = require('convex/react');
-    useMutation.mockImplementation((mutation) => {
+    useMutation.mockImplementation((mutation: string) => {
       switch (mutation) {
         case 'modules.bulkImport':
           return mockImportModules;

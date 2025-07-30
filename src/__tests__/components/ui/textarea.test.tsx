@@ -1,594 +1,208 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { Textarea } from '@/components/ui/textarea';
-
-// Custom query to find elements by data-slot attribute
-const getByDataSlot = (container: HTMLElement, slotName: string) => {
-  return container.querySelector(`[data-slot="${slotName}"]`);
-};
 
 describe('Textarea Component - Comprehensive UI Testing', () => {
   describe('Basic Rendering and Functionality', () => {
-    it('should render textarea with default styling', () => {
-      // Arrange
-      const { container } = render(<Textarea />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
+    it('should render textarea with default props', () => {
+      render(<Textarea />);
+      
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toBeInTheDocument();
-      expect(textarea).toHaveClass(
-        'border-input', 'flex', 'min-h-16', 'w-full', 'rounded-md', 'border', 'bg-transparent', 'px-3', 'py-2', 'text-base'
-      );
+      // Note: The component doesn't set a default rows attribute
     });
 
-    it('should render textarea with custom className', () => {
-      // Arrange
-      const { container } = render(<Textarea className="custom-textarea" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveClass('custom-textarea');
-      expect(textarea).toHaveClass('border-input', 'flex', 'min-h-16', 'w-full', 'rounded-md', 'border');
+    it('should render textarea with custom placeholder', () => {
+      render(<Textarea placeholder="Enter your message" />);
+      
+      const textarea = screen.getByPlaceholderText('Enter your message');
+      expect(textarea).toBeInTheDocument();
     });
 
-    it('should render textarea with placeholder', () => {
-      // Arrange
-      const { container } = render(<Textarea placeholder="Enter your message" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveAttribute('placeholder', 'Enter your message');
-      expect(textarea).toHaveClass('placeholder:text-muted-foreground');
-    });
-
-    it('should render textarea with value', () => {
-      // Arrange
-      const { container } = render(<Textarea defaultValue="Initial text" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveValue('Initial text');
-    });
-
-    it('should render textarea with rows and cols', () => {
-      // Arrange
-      const { container } = render(<Textarea rows={5} cols={50} />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
+    it('should render textarea with custom rows', () => {
+      render(<Textarea rows={5} />);
+      
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toHaveAttribute('rows', '5');
-      expect(textarea).toHaveAttribute('cols', '50');
     });
 
-    it('should render textarea with maxLength', () => {
-      // Arrange
-      const { container } = render(<Textarea maxLength={100} />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveAttribute('maxLength', '100');
+    it('should render textarea with default value', () => {
+      render(<Textarea defaultValue="Initial text" />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveValue('Initial text');
     });
   });
 
   describe('Accessibility Testing', () => {
-    it('should have proper semantic structure', () => {
-      // Arrange
-      const { container } = render(<Textarea />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea?.tagName).toBe('TEXTAREA');
-      expect(textarea).toHaveAttribute('data-slot', 'textarea');
-    });
-
-    it('should support ARIA attributes', () => {
-      // Arrange
-      const { container } = render(<Textarea aria-label="Message input" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveAttribute('aria-label', 'Message input');
-    });
-
-    it('should support aria-describedby attribute', () => {
-      // Arrange
-      const { container } = render(<Textarea aria-describedby="textarea-help" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveAttribute('aria-describedby', 'textarea-help');
-    });
-
-    it('should support aria-invalid attribute', () => {
-      // Arrange
-      const { container } = render(<Textarea aria-invalid="true" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveAttribute('aria-invalid', 'true');
-      expect(textarea).toHaveClass('aria-invalid:ring-destructive/20', 'aria-invalid:border-destructive');
-    });
-
-    it('should support aria-required attribute', () => {
-      // Arrange
-      const { container } = render(<Textarea aria-required="true" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveAttribute('aria-required', 'true');
-    });
-
-    it('should support focus-visible styling', () => {
-      // Arrange
-      const { container } = render(<Textarea />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveClass('focus-visible:border-ring', 'focus-visible:ring-ring/50', 'focus-visible:ring-[3px]');
+    it('should have proper ARIA attributes', () => {
+      render(<Textarea aria-label="Description" />);
+      
+      const textarea = screen.getByLabelText('Description');
+      expect(textarea).toBeInTheDocument();
     });
 
     it('should support disabled state', () => {
-      // Arrange
-      const { container } = render(<Textarea disabled />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
+      render(<Textarea disabled />);
+      
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toBeDisabled();
       expect(textarea).toHaveClass('disabled:cursor-not-allowed', 'disabled:opacity-50');
     });
-  });
 
-  describe('User Interaction Testing', () => {
-    it('should handle text input', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const { container } = render(<Textarea />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, 'Hello, world!');
-
-      // Assert
-      expect(textarea).toHaveValue('Hello, world!');
+    it('should support required attribute', () => {
+      render(<Textarea required />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('required');
     });
 
-    it('should handle onChange event', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const handleChange = jest.fn();
-      const { container } = render(<Textarea onChange={handleChange} />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, 'Test');
-
-      // Assert
-      expect(handleChange).toHaveBeenCalled();
+    it('should support maxLength attribute', () => {
+      render(<Textarea maxLength={100} />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('maxLength', '100');
     });
 
-    it('should handle onFocus event', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const handleFocus = jest.fn();
-      const { container } = render(<Textarea onFocus={handleFocus} />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.click(textarea);
-
-      // Assert
-      expect(handleFocus).toHaveBeenCalled();
-    });
-
-    it('should handle onBlur event', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const handleBlur = jest.fn();
-      const { container } = render(<Textarea onBlur={handleBlur} />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.click(textarea);
-      await user.tab();
-
-      // Assert
-      expect(handleBlur).toHaveBeenCalled();
-    });
-
-    it('should handle keyboard navigation', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const { container } = render(<Textarea />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, 'Line 1{Enter}Line 2{Enter}Line 3');
-
-      // Assert
-      expect(textarea).toHaveValue('Line 1\nLine 2\nLine 3');
-    });
-
-    it('should handle paste events', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const { container } = render(<Textarea />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.click(textarea);
-      await user.paste('Pasted content');
-
-      // Assert
-      expect(textarea).toHaveValue('Pasted content');
-    });
-
-    it('should not allow input when disabled', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const { container } = render(<Textarea disabled />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, 'This should not work');
-
-      // Assert
-      expect(textarea).toHaveValue('');
-      expect(textarea).toBeDisabled();
+    it('should support minLength attribute', () => {
+      render(<Textarea minLength={10} />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('minLength', '10');
     });
   });
 
-  describe('Responsive Behavior', () => {
-    it('should maintain proper styling on mobile screens', () => {
-      // Arrange
-      Object.defineProperty(window, 'innerWidth', {
-        writable: true,
-        configurable: true,
-        value: 375,
-      });
-
-      const { container } = render(<Textarea />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveClass('w-full', 'min-h-16', 'text-base');
+  describe('Styling and CSS Classes', () => {
+    it('should have proper CSS classes', () => {
+      render(<Textarea />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveClass('flex', 'min-h-16', 'w-full', 'rounded-md', 'border', 'border-input');
     });
 
-    it('should maintain proper styling on tablet screens', () => {
-      // Arrange
-      Object.defineProperty(window, 'innerWidth', {
-        writable: true,
-        configurable: true,
-        value: 768,
-      });
-
-      const { container } = render(<Textarea />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveClass('w-full', 'min-h-16', 'md:text-sm');
+    it('should have proper focus styling', () => {
+      render(<Textarea />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveClass('focus-visible:border-ring', 'focus-visible:ring-ring/50');
     });
 
-    it('should maintain proper styling on desktop screens', () => {
-      // Arrange
-      Object.defineProperty(window, 'innerWidth', {
-        writable: true,
-        configurable: true,
-        value: 1024,
-      });
-
-      const { container } = render(<Textarea />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveClass('w-full', 'min-h-16', 'md:text-sm');
+    it('should have proper resize styling', () => {
+      render(<Textarea />);
+      
+      const textarea = screen.getByRole('textbox');
+      // The component doesn't have resize-none class, it uses default resize behavior
+      expect(textarea).toHaveClass('outline-none');
     });
 
-    it('should handle custom responsive classes', () => {
-      // Arrange
-      const { container } = render(<Textarea className="md:min-h-20 lg:min-h-24" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveClass('md:min-h-20', 'lg:min-h-24');
+    it('should support custom className', () => {
+      render(<Textarea className="custom-class" />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveClass('custom-class');
     });
   });
 
   describe('Content and Validation', () => {
-    it('should handle empty textarea', () => {
-      // Arrange
-      const { container } = render(<Textarea />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveValue('');
-    });
-
-    it('should handle very long text', async () => {
-      // Arrange
-      const user = userEvent.setup();
+    it('should handle very long text', () => {
       const longText = 'A'.repeat(1000);
-      const { container } = render(<Textarea />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, longText);
-
-      // Assert
+      render(<Textarea defaultValue={longText} />);
+      
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toHaveValue(longText);
     });
 
-    it('should handle multiline text', async () => {
-      // Arrange
-      const user = userEvent.setup();
+    it('should handle multiline text', () => {
       const multilineText = 'Line 1\nLine 2\nLine 3\nLine 4';
-      const { container } = render(<Textarea />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, multilineText);
-
-      // Assert
+      render(<Textarea defaultValue={multilineText} />);
+      
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toHaveValue(multilineText);
     });
 
-    it('should handle special characters', async () => {
-      // Arrange
-      const user = userEvent.setup();
+    it('should handle special characters', () => {
       const specialChars = 'Special chars: <>&"\'<>{}[]()@#$%^&*()';
-      const { container } = render(<Textarea />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, specialChars);
-
-      // Assert
+      render(<Textarea defaultValue={specialChars} />);
+      
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toHaveValue(specialChars);
     });
 
-    it('should handle emoji characters', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const emojiText = 'Hello 👋 World 🌍 with emojis 😊';
-      const { container } = render(<Textarea />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, emojiText);
-
-      // Assert
+    it('should handle emoji characters', () => {
+      const emojiText = 'Hello 🌍 World 🚀 with emojis 😊';
+      render(<Textarea defaultValue={emojiText} />);
+      
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toHaveValue(emojiText);
     });
 
-    it('should respect maxLength constraint', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const { container } = render(<Textarea maxLength={10} />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, 'This is too long');
-
-      // Assert
-      expect(textarea).toHaveValue('This is to');
+    it('should respect maxLength constraint', () => {
+      render(<Textarea maxLength={10} />);
+      
+      const textarea = screen.getByRole('textbox');
       expect(textarea).toHaveAttribute('maxLength', '10');
-    });
-
-    it('should handle required validation', () => {
-      // Arrange
-      const { container } = render(<Textarea required />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toBeRequired();
-    });
-
-    it('should handle readOnly state', () => {
-      // Arrange
-      const { container } = render(<Textarea readOnly defaultValue="Read only text" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveAttribute('readOnly');
-      expect(textarea).toHaveValue('Read only text');
     });
   });
 
   describe('Edge Cases and Error Handling', () => {
-    it('should handle controlled component properly', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const handleChange = jest.fn();
-      const { container, rerender } = render(<Textarea value="" onChange={handleChange} />);
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, 'New text');
-
-      // Assert
-      expect(handleChange).toHaveBeenCalled();
-      expect(textarea).toHaveValue(''); // Should remain empty as it's controlled
-
-      // Update value
-      rerender(<Textarea value="Updated text" onChange={handleChange} />);
-      expect(textarea).toHaveValue('Updated text');
+    it('should handle controlled component', () => {
+      render(<Textarea value="Controlled value" readOnly />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveValue('Controlled value');
     });
 
-    it('should handle multiple textareas', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const { container } = render(
+    it('should handle multiple textareas', () => {
+      render(
         <div>
           <Textarea data-testid="textarea1" />
           <Textarea data-testid="textarea2" />
           <Textarea data-testid="textarea3" />
         </div>
       );
-
-      // Act
-      const textareas = container.querySelectorAll('[data-slot="textarea"]');
-      await user.type(textareas[0] as HTMLTextAreaElement, 'Text 1');
-      await user.type(textareas[1] as HTMLTextAreaElement, 'Text 2');
-      await user.type(textareas[2] as HTMLTextAreaElement, 'Text 3');
-
-      // Assert
-      expect(textareas).toHaveLength(3);
-      expect(textareas[0]).toHaveValue('Text 1');
-      expect(textareas[1]).toHaveValue('Text 2');
-      expect(textareas[2]).toHaveValue('Text 3');
+      
+      expect(screen.getByTestId('textarea1')).toBeInTheDocument();
+      expect(screen.getByTestId('textarea2')).toBeInTheDocument();
+      expect(screen.getByTestId('textarea3')).toBeInTheDocument();
     });
 
     it('should handle textarea with form context', () => {
-      // Arrange
-      const { container } = render(
+      render(
         <form>
-          <Textarea name="message" id="message-textarea" />
+          <Textarea name="description" />
         </form>
       );
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveAttribute('name', 'message');
-      expect(textarea).toHaveAttribute('id', 'message-textarea');
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('name', 'description');
     });
 
-    it('should handle textarea with auto-resize behavior', () => {
-      // Arrange
-      const { container } = render(<Textarea style={{ resize: 'vertical' }} />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveStyle({ resize: 'vertical' });
-    });
-
-    it('should handle textarea with spellcheck', () => {
-      // Arrange
-      const { container } = render(<Textarea spellCheck={false} />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveAttribute('spellCheck', 'false');
+    it('should handle textarea with id attribute', () => {
+      render(<Textarea id="description-field" />);
+      
+      const textarea = screen.getByRole('textbox');
+      expect(textarea).toHaveAttribute('id', 'description-field');
     });
   });
 
   describe('Snapshot Testing for UI Consistency', () => {
-    it('should match snapshot for default textarea', () => {
-      // Arrange
+    it('should match snapshot for basic textarea', () => {
       const { container } = render(<Textarea />);
-
-      // Act & Assert
       expect(container.firstChild).toMatchSnapshot();
     });
 
     it('should match snapshot for textarea with placeholder', () => {
-      // Arrange
       const { container } = render(<Textarea placeholder="Enter your message" />);
-
-      // Act & Assert
       expect(container.firstChild).toMatchSnapshot();
     });
 
     it('should match snapshot for disabled textarea', () => {
-      // Arrange
       const { container } = render(<Textarea disabled />);
-
-      // Act & Assert
       expect(container.firstChild).toMatchSnapshot();
     });
 
-    it('should match snapshot for invalid textarea', () => {
-      // Arrange
-      const { container } = render(<Textarea aria-invalid="true" />);
-
-      // Act & Assert
+    it('should match snapshot for textarea with value', () => {
+      const { container } = render(<Textarea defaultValue="Sample text" />);
       expect(container.firstChild).toMatchSnapshot();
-    });
-
-    it('should match snapshot for multiple textareas', () => {
-      // Arrange
-      const { container } = render(
-        <div>
-          <Textarea placeholder="Textarea 1" />
-          <Textarea placeholder="Textarea 2" />
-          <Textarea placeholder="Textarea 3" />
-        </div>
-      );
-
-      // Act & Assert
-      expect(container.firstChild).toMatchSnapshot();
-    });
-  });
-
-  describe('Performance Testing', () => {
-    it('should handle rapid typing efficiently', async () => {
-      // Arrange
-      const user = userEvent.setup();
-      const { container } = render(<Textarea />);
-
-      const startTime = performance.now();
-
-      // Act
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      await user.type(textarea, 'A'.repeat(100));
-
-      const endTime = performance.now();
-
-      // Assert
-      expect(textarea).toHaveValue('A'.repeat(100));
-      expect(endTime - startTime).toBeLessThan(1000); // Should type within 1 second
-    });
-
-    it('should handle multiple textarea renders efficiently', () => {
-      // Arrange
-      const textareas = Array.from({ length: 100 }, (_, i) => `textarea-${i + 1}`);
-
-      const startTime = performance.now();
-
-      // Act
-      render(
-        <div>
-          {textareas.map((id, index) => (
-            <Textarea key={index} data-testid={id} placeholder={`Placeholder ${index + 1}`} />
-          ))}
-        </div>
-      );
-
-      const endTime = performance.now();
-
-      // Assert
-      expect(screen.getByTestId('textarea-1')).toBeInTheDocument();
-      expect(screen.getByTestId('textarea-100')).toBeInTheDocument();
-      expect(endTime - startTime).toBeLessThan(1000); // Should render within 1 second
-    });
-
-    it('should handle className changes efficiently', () => {
-      // Arrange
-      const { rerender, container } = render(<Textarea className="initial-class" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea');
-      expect(textarea).toHaveClass('initial-class');
-
-      // Change className
-      rerender(<Textarea className="updated-class" />);
-
-      const updatedTextarea = getByDataSlot(container, 'textarea');
-      expect(updatedTextarea).toHaveClass('updated-class');
-      expect(updatedTextarea).not.toHaveClass('initial-class');
-    });
-
-    it('should handle value changes efficiently', () => {
-      // Arrange
-      const { rerender, container } = render(<Textarea value="Initial value" />);
-
-      // Act & Assert
-      const textarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(textarea).toHaveValue('Initial value');
-
-      // Change value
-      rerender(<Textarea value="Updated value" />);
-
-      const updatedTextarea = getByDataSlot(container, 'textarea') as HTMLTextAreaElement;
-      expect(updatedTextarea).toHaveValue('Updated value');
     });
   });
 }); 

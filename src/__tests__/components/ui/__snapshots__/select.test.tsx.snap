@@ -3,7 +3,7 @@
 exports[`Select Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for basic select 1`] = `
 <button
   aria-autocomplete="none"
-  aria-controls="radix-:r5e:"
+  aria-controls="radix-:r47:"
   aria-expanded="false"
   class="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
   data-placeholder=""
@@ -37,10 +37,47 @@ exports[`Select Component - Comprehensive UI Testing Snapshot Testing for UI Con
 </button>
 `;
 
+exports[`Select Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for opened select 1`] = `
+<button
+  aria-autocomplete="none"
+  aria-controls="radix-:r4f:"
+  aria-expanded="true"
+  class="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
+  data-placeholder=""
+  data-state="open"
+  dir="ltr"
+  role="combobox"
+  type="button"
+>
+  <span
+    style="pointer-events: none;"
+  >
+    Select an option
+  </span>
+  <svg
+    aria-hidden="true"
+    class="lucide lucide-chevron-down h-4 w-4 opacity-50"
+    fill="none"
+    height="24"
+    stroke="currentColor"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="2"
+    viewBox="0 0 24 24"
+    width="24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="m6 9 6 6 6-6"
+    />
+  </svg>
+</button>
+`;
+
 exports[`Select Component - Comprehensive UI Testing Snapshot Testing for UI Consistency should match snapshot for select with default value 1`] = `
 <button
   aria-autocomplete="none"
-  aria-controls="radix-:r5i:"
+  aria-controls="radix-:r4b:"
   aria-expanded="false"
   class="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
   data-state="closed"

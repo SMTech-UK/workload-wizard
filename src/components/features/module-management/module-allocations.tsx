@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
 // Define interfaces for the allocation system
 interface ModuleIterationForAllocation {
@@ -73,6 +73,11 @@ interface LecturerForAllocation {
   contract: string;
   capacity: number;
   totalAllocated: number;
+  totalContract: number;
+  maxTeachingHours: number;
+  allocatedTeachingHours: number;
+  allocatedAdminHours: number;
+  teachingAvailability: number;
   team: string;
   specialism: string;
   status: string;
@@ -185,15 +190,23 @@ export default function ModuleAllocations() {
       .filter(group => group.assignedLecturerId === lecturer._id)
       .map(group => group.id);
     
-    const totalAllocated = assignedGroupIds.reduce((sum, groupId) => {
+    // Calculate current allocation from assigned groups (this represents pending changes)
+    const currentGroupAllocation = assignedGroupIds.reduce((sum, groupId) => {
       const group = groupAssignments.find(g => g.id === groupId);
       return sum + (group ? group.teachingHours + group.markingHours : 0);
     }, 0);
     
+    // Calculate total allocated as admin hours + existing teaching hours + new group allocation
+    const totalAllocated = (lecturer.allocatedAdminHours || 0) + (lecturer.allocatedTeachingHours || 0) + currentGroupAllocation;
+    
+    // Calculate teaching availability as maxTeachingHours - (existing teaching hours + new group allocation)
+    const teachingAvailability = Math.max(0, (lecturer.maxTeachingHours || 0) - ((lecturer.allocatedTeachingHours || 0) + currentGroupAllocation));
+    
     return {
       ...lecturer,
       assignedGroupIds,
-      totalAllocated
+      totalAllocated,
+      teachingAvailability
     };
   });
 
@@ -259,14 +272,17 @@ export default function ModuleAllocations() {
         if (!iteration) return
 
         // Remove this lecturer from the assigned lecturers
-        const updatedAssignedLecturerIds = iteration.assignedLecturerIds.filter((_: string, index: number) => {
-          // Remove the lecturer at the position corresponding to this group
-          const groupIndex = groupAssignments
-            .filter(g => g.moduleIterationId === iteration._id)
-            .findIndex(g => g.id === group.id)
-          return index !== groupIndex
-        })
+        const updatedAssignedLecturerIds = [...iteration.assignedLecturerIds];
+        const groupIndex = groupAssignments
+          .filter(g => g.moduleIterationId === iteration._id)
+          .findIndex(g => g.id === group.id)
+        if (groupIndex >= 0 && groupIndex < updatedAssignedLecturerIds.length) {
+          updatedAssignedLecturerIds.splice(groupIndex, 1);
+        }
 
+        // Filter out empty strings to avoid Convex validation errors
+        const validLecturerIds = updatedAssignedLecturerIds.filter(id => id !== "");
+        
         await updateIteration({
           id: iteration._id,
           moduleCode: iteration.moduleCode,
@@ -276,9 +292,9 @@ export default function ModuleAllocations() {
           teachingStartDate: iteration.teachingStartDate,
           teachingHours: iteration.teachingHours,
           markingHours: iteration.markingHours,
-          assignedLecturerId: updatedAssignedLecturerIds.find((id: string) => id !== "") || "",
-          assignedLecturerIds: updatedAssignedLecturerIds,
-          assignedStatus: updatedAssignedLecturerIds.length === 0 ? "unassigned" : "assigned",
+          assignedLecturerId: validLecturerIds.length > 0 ? validLecturerIds[0] : "",
+          assignedLecturerIds: validLecturerIds,
+          assignedStatus: validLecturerIds.length === 0 ? "unassigned" : "assigned",
           notes: iteration.notes,
           assessments: iteration.assessments,
           sites: iteration.sites,
@@ -307,11 +323,12 @@ export default function ModuleAllocations() {
     if (lecturerIdx === -1) return
     const lecturer = lecturers[lecturerIdx]
 
-    // Validation: check if adding this group would exceed capacity
+    // Validation: check if adding this group would exceed teaching availability
     const groupHours = group.teachingHours + group.markingHours;
-    const newAssigned = lecturer.totalAllocated + groupHours
-    if (newAssigned > lecturer.capacity) {
-      alert(`${lecturer.fullName} does not have enough capacity for this group.`)
+    const newTeachingHours = (lecturer.allocatedTeachingHours || 0) + groupHours;
+    const maxTeachingHours = lecturer.maxTeachingHours || 0;
+    if (newTeachingHours > maxTeachingHours) {
+      alert(`${lecturer.fullName} does not have enough teaching availability for this group.`)
       return
     }
 
@@ -320,18 +337,12 @@ export default function ModuleAllocations() {
       const iteration = iterations.find(i => i._id === group.moduleIterationId)
       if (!iteration) return
 
-      // Add lecturer to the appropriate position in assigned lecturers
-      const updatedAssignedLecturerIds = [...iteration.assignedLecturerIds]
-      const groupIndex = groupAssignments
-        .filter(g => g.moduleIterationId === iteration._id)
-        .findIndex(g => g.id === group.id)
-      
-      // Ensure the array is long enough
-      while (updatedAssignedLecturerIds.length <= groupIndex) {
-        updatedAssignedLecturerIds.push("")
-      }
-      updatedAssignedLecturerIds[groupIndex] = lecturer._id
+      // Add lecturer to the assigned lecturers array
+      const updatedAssignedLecturerIds = [...iteration.assignedLecturerIds, lecturer._id]
 
+      // Filter out empty strings to avoid Convex validation errors
+      const validLecturerIds = updatedAssignedLecturerIds.filter(id => id !== "");
+      
       await updateIteration({
         id: iteration._id,
         moduleCode: iteration.moduleCode,
@@ -341,9 +352,9 @@ export default function ModuleAllocations() {
         teachingStartDate: iteration.teachingStartDate,
         teachingHours: iteration.teachingHours,
         markingHours: iteration.markingHours,
-        assignedLecturerId: updatedAssignedLecturerIds.find(id => id !== "") || "",
-        assignedLecturerIds: updatedAssignedLecturerIds,
-        assignedStatus: newAssigned > lecturer.capacity ? "overloaded" : "assigned",
+        assignedLecturerId: validLecturerIds.length > 0 ? validLecturerIds[0] : "",
+        assignedLecturerIds: validLecturerIds,
+        assignedStatus: newTeachingHours > maxTeachingHours ? "overloaded" : "assigned",
         notes: iteration.notes,
         assessments: iteration.assessments,
         sites: iteration.sites,
@@ -376,17 +387,13 @@ export default function ModuleAllocations() {
     const iteration = iterations.find(i => i._id === group.moduleIterationId);
     if (!iteration) return;
 
-    // Remove lecturer from the appropriate position in assigned lecturers
-    const updatedAssignedLecturerIds = [...iteration.assignedLecturerIds];
-    const groupIndex = groupAssignments
-      .filter(g => g.moduleIterationId === iteration._id)
-      .findIndex(g => g.id === groupId);
-    
-    if (groupIndex >= 0 && groupIndex < updatedAssignedLecturerIds.length) {
-      updatedAssignedLecturerIds[groupIndex] = "";
-    }
+    // Remove lecturer from the assigned lecturers array
+    const updatedAssignedLecturerIds = iteration.assignedLecturerIds.filter((id: string) => id !== lecturerId);
     
     try {
+      // Filter out empty strings to avoid Convex validation errors
+      const validLecturerIds = updatedAssignedLecturerIds.filter((id: string) => id !== "");
+      
       await updateIteration({
         id: iteration._id,
         moduleCode: iteration.moduleCode,
@@ -396,9 +403,9 @@ export default function ModuleAllocations() {
         teachingStartDate: iteration.teachingStartDate,
         teachingHours: iteration.teachingHours,
         markingHours: iteration.markingHours,
-        assignedLecturerId: updatedAssignedLecturerIds.find(id => id !== "") || "",
-        assignedLecturerIds: updatedAssignedLecturerIds,
-        assignedStatus: updatedAssignedLecturerIds.filter(id => id !== "").length === 0 ? "unassigned" : "assigned",
+        assignedLecturerId: validLecturerIds.length > 0 ? validLecturerIds[0] : "",
+        assignedLecturerIds: validLecturerIds,
+        assignedStatus: validLecturerIds.length === 0 ? "unassigned" : "assigned",
         notes: iteration.notes,
         assessments: iteration.assessments,
         sites: iteration.sites,
@@ -466,34 +473,42 @@ export default function ModuleAllocations() {
         const iterationGroups = groupAssignments.filter(g => g.moduleIterationId === iteration._id);
         iterationGroups.forEach(group => {
           if (group.assignedLecturerId) {
-            // Ensure the array is long enough
-            while (assignedLecturerIds.length <= group.groupNumber - 1) {
-              assignedLecturerIds.push("");
-            }
-            assignedLecturerIds[group.groupNumber - 1] = group.assignedLecturerId;
+            assignedLecturerIds.push(group.assignedLecturerId);
           }
         });
 
         allocations.push({
           moduleIterationId: iteration._id,
-          assignedLecturerIds: assignedLecturerIds.filter(id => id !== "").map(id => id as Id<'lecturers'>),
-          assignedStatus: assignedLecturerIds.filter(id => id !== "").length > 0 ? "assigned" : "unassigned"
+          assignedLecturerIds: assignedLecturerIds.filter((id: string) => id !== "").map(id => id as Id<'lecturers'>),
+          assignedStatus: assignedLecturerIds.filter((id: string) => id !== "").length > 0 ? "assigned" : "unassigned"
         });
       });
 
       // Process each lecturer to update their allocation data
       lecturers.forEach(lecturer => {
         const assignedGroups = groupAssignments.filter(g => g.assignedLecturerId === lecturer._id);
-        const totalTeachingHours = assignedGroups.reduce((sum, group) => sum + group.teachingHours, 0);
-        const totalMarkingHours = assignedGroups.reduce((sum, group) => sum + group.markingHours, 0);
-        const totalAllocated = totalTeachingHours + totalMarkingHours;
+        const newTeachingHours = assignedGroups.reduce((sum, group) => sum + group.teachingHours, 0);
+        const newMarkingHours = assignedGroups.reduce((sum, group) => sum + group.markingHours, 0);
+        
+        // Calculate total teaching hours for this assignment (teaching + marking)
+        const totalNewHours = newTeachingHours + newMarkingHours;
+        
+        // For now, we'll replace the allocatedTeachingHours with the new total
+        // This assumes that the current assignments represent the complete state
+        const updatedAllocatedTeachingHours = totalNewHours;
+        
+        // Calculate totalAllocated as allocatedAdminHours + allocatedTeachingHours
+        const totalAllocated = (lecturer.allocatedAdminHours || 0) + updatedAllocatedTeachingHours;
+        
+        // Calculate teachingAvailability as maxTeachingHours - allocatedTeachingHours
+        const updatedTeachingAvailability = Math.max(0, (lecturer.maxTeachingHours || 0) - updatedAllocatedTeachingHours);
 
         lecturerUpdates.push({
           lecturerId: lecturer._id,
-          allocatedTeachingHours: totalTeachingHours, // Set to new total
-          totalAllocated: totalAllocated, // Set to new total
-          teachingAvailability: Math.max(0, lecturer.teachingAvailability - totalTeachingHours), // Reduce availability
-          capacity: lecturer.capacity
+          allocatedTeachingHours: updatedAllocatedTeachingHours,
+          totalAllocated: totalAllocated,
+          teachingAvailability: updatedTeachingAvailability,
+          capacity: lecturer.capacity // Keep existing capacity as it's based on contract
         });
 
         // Create module allocation records for each assigned group
@@ -733,11 +748,11 @@ export default function ModuleAllocations() {
                     <div>
                       <CardTitle className="text-lg text-gray-900 dark:text-white">{lecturer.fullName}</CardTitle>
                       <CardDescription className="text-gray-600 dark:text-gray-300">
-                        {lecturer.contract} • {lecturer.totalAllocated}h / {lecturer.capacity}h capacity
+                        {lecturer.contract} • {lecturer.allocatedTeachingHours || 0}h / {lecturer.maxTeachingHours || 0}h teaching • {lecturer.teachingAvailability || 0}h available
                       </CardDescription>
                     </div>
-                    <div className={`text-sm font-medium ${getCapacityColor(lecturer.totalAllocated, lecturer.capacity)}`}>
-                      {Math.round((lecturer.totalAllocated / lecturer.capacity) * 100)}%
+                    <div className={`text-sm font-medium ${getCapacityColor(lecturer.allocatedTeachingHours || 0, lecturer.maxTeachingHours || 0)}`}>
+                      {Math.round(((lecturer.allocatedTeachingHours || 0) / (lecturer.maxTeachingHours || 1)) * 100)}%
                     </div>
                   </div>
                 </CardHeader>

@@ -29,6 +29,12 @@ interface TestReport {
     coverage: number
     duration: number
   }
+  coverageDetails?: {
+    statements: number
+    branches: number
+    functions: number
+    lines: number
+  }
   suites: TestSuite[]
   timestamp: string
 }
@@ -70,11 +76,17 @@ export function useTestRunner(): UseTestRunnerReturn {
       
       if (data.success) {
         setTestReport(data.results)
-        // Clear any previous errors since the API call succeeded
+        // Don't set error for test failures - they're expected outcomes
         setError(null)
       } else {
-        setError(data.error || 'Test execution failed')
-        setTestReport(null)
+        // Only set error if there's no test results to display
+        if (data.results) {
+          setTestReport(data.results)
+          setError(null) // Don't show error if we have results
+        } else {
+          setError(data.error || 'Test execution failed')
+          setTestReport(null)
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
@@ -116,10 +128,17 @@ export function useTestRunner(): UseTestRunnerReturn {
       
       if (data.success) {
         setTestReport(data.results)
+        // Don't set error for test failures - they're expected outcomes
         setError(null)
       } else {
-        setError(data.error || 'Individual test execution failed')
-        setTestReport(null)
+        // Only set error if there's no test results to display
+        if (data.results) {
+          setTestReport(data.results)
+          setError(null) // Don't show error if we have results
+        } else {
+          setError(data.error || 'Individual test execution failed')
+          setTestReport(null)
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
