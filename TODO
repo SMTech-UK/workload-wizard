@@ -1,98 +1,186 @@
 
 Todo:
-  ☐ **INTEGRATION & E2E TESTING** - Priority: MEDIUM
-    ☐ Add integration tests:
-      ☐ Cross-component interaction testing
-      ☐ User workflow testing (login → dashboard → module allocation)
-      ☐ Data flow testing between frontend and Convex backend
-      ☐ Real-time update testing with Convex subscriptions
-    ☐ Add E2E testing setup:
-      ☐ Configure Playwright or Cypress for E2E tests
-      ☐ Test complete user journeys
-      ☐ Test authentication flows
-      ☐ Test notification systems
-    ☐ Add performance testing:
-      ☐ Load testing for dashboard performance
-      ☐ Stress testing for large datasets
-      ☐ Memory leak detection
-      ☐ API response time testing
+  ☐ Add files to gitignore
+  ☐ Add npx convex deploy --cmd 'npm run build' back to vercel
+  ☐ Group limit for workloading 32
+  ☐ Get rid of following logs/errors
+    - [Fast Refresh]
+    - [Vercel Web Analytics
+- Auto set level of module based on module code
+- Auto set marking hours based on teaching hours (double)
+- Default module teaching hours to 42
+- Add teaching end date in module itteration
+- add teaching/session dates so can be exported to timetabling
+- mark due date auto to 15 or 20 days after assessment submission date
+- Delivery time, do dropdown for day + dropdown for AM/PM/All Day
+- Adjust module iteration modal to be more UI friendly and allow editing assessments etc
+- Add course to module itterations
+- fix module itterations submission convex issue
+- proper implementation of module data
+- proper implementation of itteration data
+- proper implementation of module allocation data
+- Fix drag & drop module allocation convex error (Sem)
+- Allow report a bug to show on top of page and not making ui dissappear
+- 42 hours in module iteration, showing as 41 hours in allocation page
 
-  ☐ **TEST COVERAGE & QUALITY** - Priority: MEDIUM
-    ☐ Fix test-runner API mocking issues (non-critical, can be addressed later)
-    ☐ Achieve comprehensive test coverage:
-      ☐ Target 90%+ code coverage for critical business logic
-      ☐ Add coverage reporting and CI integration
-      ☐ Identify and test uncovered code paths
-      ☐ Add mutation testing for critical functions
-    ☐ Improve test quality:
-      ☐ Add test documentation and examples
-      ☐ Implement test data factories and builders
-      ☐ Add test utilities and helpers
-      ☐ Standardize test patterns across the codebase
-    ☐ Add test monitoring and reporting:
-      ☐ Test execution time monitoring
-      ☐ Flaky test detection and fixing
-      ☐ Test failure analysis and reporting
-      ☐ Performance regression testing
+    ## v0.1.0 Testing Preparation Tasks
 
-  ☐ **DEVTOOLS COMPLETION & TESTING** - Priority: HIGH
-    ☐ Add comprehensive unit tests for all devtools components:
-      ☐ DevToolsPage component tests
-      ☐ DevRouteGuard component tests  
-      ☐ TestDataManager component tests
-      ☐ useDevMode hook tests
-    ☐ Complete API route implementations:
-      ☐ Connect add-test-lecturer to actual Convex mutations
-      ☐ Connect add-test-module to actual Convex mutations
-      ☐ Implement clear-test-data with proper Convex cleanup
-      ☐ Add API route tests for all dev endpoints
-    ☐ Add integration tests for devtools workflow
-    ☐ Implement real-time monitoring in DevToolsPage:
-      ☐ Connect to actual Convex queries for system metrics
-      ☐ Add live database connection status
-      ☐ Implement real API performance monitoring
-    ☐ Add comprehensive error handling and logging to devtools
-    ☐ Ensure all devtools are properly protected by admin authentication
-    ☐ Add test coverage reporting and CI/CD integration
-    ☐ Fix devtools tool dropdown to be able to run tests
+### Critical Issues (Week 1)
+☐ **Environment Variables Setup**
+  - Create `.env.local` with all required variables
+  - Test Clerk authentication integration
+  - Verify Convex connection
+  - Test Knock notifications setup
+  - Verify Sentry error reporting
 
-  ☐ **TESTING AUTOMATION & CI/CD** - Priority: MEDIUM
-    ☐ Set up automated testing pipeline:
-      ☐ Configure GitHub Actions for test automation
-      ☐ Add test result reporting and notifications
-      ☐ Implement test failure alerts
-      ☐ Add test performance monitoring
-    ☐ Add pre-commit hooks:
-      ☐ Run tests before commits
-      ☐ Check test coverage thresholds
-      ☐ Validate test file structure
-      ☐ Ensure all tests pass before merge
-    ☐ Add test environment management:
-      ☐ Separate test database setup
-      ☐ Test data seeding and cleanup
-      ☐ Environment-specific test configurations
-      ☐ Mock external service configurations
+☐ **User Roles & Permissions Implementation**
+  - Implement role-based access control (Admin, Professional Lead, Lecturer, Academic Manager)
+  - Add role validation to all Convex queries and mutations
+  - Create role-based UI components and navigation
+  - Test permission boundaries for each user role
+  - Add role-based dashboard views and functionality
+  - Implement role-based CSV import permissions
 
-  ☐ **DOCUMENTATION & TRAINING** - Priority: LOW
-    ☐ Create testing documentation:
-      ☐ Testing guidelines and best practices
-      ☐ Test writing standards and conventions
-      ☐ Debugging test failures guide
-      ☐ Performance testing guidelines
-    ☐ Add test examples and templates:
-      ☐ Component test templates
-      ☐ API test templates
-      ☐ Integration test templates
-      ☐ E2E test templates
+☐ **Backend Schema Fixes**
+  - Complete `convex/modules.ts` implementation
+  - Add proper error handling to all Convex queries
+  - Test data persistence and real-time updates
+  - Verify authentication middleware
 
-  ☐ **FEATURE DEVELOPMENT** - Priority: MEDIUM
-    ☐ Complete module allocation feature after auth and notifications are set up
-    ☐ Update Clerk user details and avatar from website
-    ☐ Work on styling/colors (https://www.youtube.com/watch?v=vvPklRN0Tco)
-    ☐ Add dropdown for extending notifications
-    ☐ Add notification click URL
-    ☐ Fix navbar links
-    ☐ Add notification sonners/pop-ups
+☐ **Error Handling & Sentry**
+  - Add Sentry error capture to critical components
+  - Update global error boundary with Sentry
+  - Add try-catch blocks to all async operations
+  - Test error reporting in development
+
+### UI/UX Issues (Week 2)
+☐ **Navigation & Routing**
+  - Test dashboard access from landing page
+  - Verify tab navigation functionality
+  - Test mobile responsiveness
+  - Check protected route access
+  - Implement role-based navigation menus
+
+☐ **Component Functionality**
+  - Test CSV import for all data types
+  - Verify staff profile modal displays
+  - Test team capacity calculations
+  - Verify recent activity feed integration
+
+☐ **Lecturer Availability Calendar Feature**
+  - Add availability indicator for lecturers based on teaching day of week
+  - Show lecturer availability/unavailability during module start/finish periods
+  - Implement calendar-style view similar to room booking systems
+  - Display lecturers as available when not teaching on specific weeks
+  - Show lecturers as unavailable when they have teaching commitments
+  - Add filtering by date range and lecturer availability status
+  - Integrate with existing module allocation system
+
+☐ **Form Validation**
+  - Add input validation to all forms
+  - Implement user-friendly error messages
+  - Add success confirmation messages
+  - Test form submission flows
+
+### Performance & Accessibility (Week 3)
+☐ **Performance Optimization**
+  - Add loading states and skeleton loaders
+  - Optimize bundle size
+  - Test image optimization
+  - Verify Convex query performance
+
+☐ **Accessibility Compliance**
+  - Add ARIA labels to all components
+  - Test keyboard navigation
+  - Verify screen reader compatibility
+  - Check color contrast ratios
+
+### Documentation & Testing (Week 4)
+☐ **Documentation Updates**
+  - Update README with setup instructions
+  - Create environment setup guide
+  - Document testing procedures
+  - Add user testing checklist
+  - Document user roles and permissions
+
+☐ **Testing Infrastructure**
+  - Verify dev tools functionality
+  - Test sample data imports
+  - Verify error logging works
+  - Test user journey scenarios
+
+### Security & Compliance
+☐ **Security Testing**
+  - Test role-based access control
+  - Verify API endpoint protection
+  - Test data validation
+  - Check authentication flows
+
+☐ **Compliance Verification**
+  - Verify privacy policy content
+  - Check terms of service
+  - Test cookie consent
+  - Verify GDPR compliance
+
+### Knock Notifications Implementation
+☐ **Comprehensive Activity Tracking**
+  - Implement Knock notifications for all CRUD operations
+  - Add notifications for lecturer profile updates
+  - Add notifications for module assignments
+  - Add notifications for workload allocation changes
+  - Add notifications for CSV import/export activities
+  - Add notifications for system configuration changes
+  - Add notifications for user role changes
+  - Add notifications for capacity alerts and warnings
+
+☐ **Notification Channels & Preferences**
+  - Set up different notification channels (in-app, email, push)
+  - Implement user notification preferences
+  - Add notification frequency controls
+  - Create notification templates for each activity type
+  - Add notification grouping and threading
+
+☐ **Real-time Activity Feed**
+  - Enhance recent activity feed with all system activities
+  - Add activity filtering by type and user
+  - Implement activity search and pagination
+  - Add activity export functionality
+  - Create activity analytics and reporting
+
+### User Journey Testing
+☐ **New User Flow**
+  - Sign up → Dashboard → Import data → View allocations
+☐ **Existing User Flow**
+  - Sign in → Dashboard → View reports → Edit allocations
+☐ **Admin Flow**
+  - Manage users → System settings → Data management
+☐ **Role-based User Flows**
+  - Professional Lead: Manage lecturers and modules
+  - Lecturer: View personal workload and preferences
+  - Academic Manager: Review allocations and reports
+
+### Data Management Testing
+☐ **CSV Import/Export**
+  - Test lecturers import
+  - Test modules import
+  - Test module iterations import
+  - Verify data validation
+☐ **Real-time Features**
+  - Test Knock notifications
+  - Verify Convex real-time updates
+  - Test activity feed display
+
+### Final Testing Checklist
+☐ **Pre-deployment Testing**
+  - Run full test suite
+  - Test all user journeys
+  - Verify error handling
+  - Check performance metrics
+  - Test accessibility features
+  - Verify security measures
+  - Test all notification scenarios
+  - Verify role-based access control
+  - Calendar function/view
 
 ### Completed Tasks:
 ✔ Jest/React Testing Library setup working correctly @done(25-07-28 21:19)

@@ -93,7 +93,7 @@ export const updateIteration = mutation({
     teachingHours: v.float64(),
     markingHours: v.float64(),
     assignedLecturerId: v.string(),
-    assignedLecturerIds: v.array(v.id("lecturers")),
+    assignedLecturerIds: v.array(v.string()),
     assignedStatus: v.string(),
     notes: v.string(),
     assessments: v.array(
@@ -118,8 +118,46 @@ export const updateIteration = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    console.log('updateIteration called with args:', JSON.stringify(args, null, 2));
+    
     const { id, ...updateData } = args;
-    return await ctx.db.patch(id, updateData);
+    
+    // Validate the data before updating
+    if (!updateData.moduleCode || !updateData.title || !updateData.cohortId || !updateData.teachingStartDate) {
+      throw new Error("Missing required fields for module iteration update");
+    }
+    
+    // Ensure assignedLecturerIds is always an array
+    if (!Array.isArray(updateData.assignedLecturerIds)) {
+      updateData.assignedLecturerIds = [];
+    }
+    
+    // Filter out any invalid IDs
+    updateData.assignedLecturerIds = updateData.assignedLecturerIds.filter(id => id && typeof id === 'string' && id.trim() !== '');
+    
+    // Ensure other arrays are properly initialized
+    if (!Array.isArray(updateData.assessments)) {
+      updateData.assessments = [];
+    }
+    if (!Array.isArray(updateData.sites)) {
+      updateData.sites = [];
+    }
+    
+    // Ensure string fields are not undefined
+    updateData.notes = updateData.notes || "";
+    updateData.assignedLecturerId = updateData.assignedLecturerId || "";
+    updateData.assignedStatus = updateData.assignedStatus || "unassigned";
+    
+    try {
+      return await ctx.db.patch(id, updateData);
+    } catch (error) {
+      console.error('Error updating module iteration:', error);
+      console.error('Data that caused error:', JSON.stringify(updateData, null, 2));
+      throw error;
+    }
   },
 });
 
@@ -137,7 +175,7 @@ export const batchSaveAllocations = mutation({
     allocations: v.array(
       v.object({
         moduleIterationId: v.id("module_iterations"),
-        assignedLecturerIds: v.array(v.id("lecturers")),
+        assignedLecturerIds: v.array(v.string()),
         assignedStatus: v.string(),
       })
     ),
@@ -164,12 +202,30 @@ export const batchSaveAllocations = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    console.log('batchSaveAllocations called with args:', JSON.stringify(args, null, 2));
+    
     // Update module iterations with new assigned lecturers
     for (const allocation of args.allocations) {
-      await ctx.db.patch(allocation.moduleIterationId, {
-        assignedLecturerIds: allocation.assignedLecturerIds,
-        assignedStatus: allocation.assignedStatus,
-      });
+      console.log('Updating allocation:', allocation);
+      
+      // Validate and clean the data
+      const validLecturerIds = Array.isArray(allocation.assignedLecturerIds) 
+        ? allocation.assignedLecturerIds.filter(id => id && typeof id === 'string' && id.trim() !== '')
+        : [];
+      
+      try {
+        await ctx.db.patch(allocation.moduleIterationId, {
+          assignedLecturerIds: validLecturerIds,
+          assignedStatus: allocation.assignedStatus || "unassigned",
+        });
+      } catch (error) {
+        console.error('Error updating allocation:', error);
+        console.error('Allocation data that caused error:', JSON.stringify(allocation, null, 2));
+        throw error;
+      }
     }
 
     // Update lecturers with new allocation data

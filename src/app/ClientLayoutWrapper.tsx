@@ -39,6 +39,7 @@ function KnockProviderWrapper({ children }: { children: React.ReactNode }) {
     <KnockProvider
       apiKey={knockApiKey}
       user={{ id: userId }}
+      logLevel="error"
     >
       {children}
     </KnockProvider>

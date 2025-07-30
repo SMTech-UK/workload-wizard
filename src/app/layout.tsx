@@ -12,9 +12,8 @@ import { KnockProvider } from "@knocklabs/react";
 import { LoadingOverlayProvider } from "@/hooks/useLoadingOverlay";
 import ClientLayoutWrapper from "./ClientLayoutWrapper";
 import FloatingDevToolbar from "@/components/features/dev-tools/FloatingDevToolbar";
-
-
 import DevSettingsModalWrapper from "@/components/features/dev-tools/DevSettingsModalWrapper";
+import { SentryFeedbackButton } from "@/components/ui/sentry-feedback-button";
 
 const geistSans = localFont({
   src: "../fonts/GeistVF.woff",
@@ -119,14 +118,15 @@ export default function RootLayout({
                 </ClientLayoutWrapper>
                 <FloatingDevToolbar />
                 <DevSettingsModalWrapper />
+                <SentryFeedbackButton />
                 </KnockProvider>
               </ConvexClientProvider>
               <Toaster position="top-right" richColors closeButton />
             </LoadingOverlayProvider>
           </ThemeProvider>
         </ClerkProvider>
-        <SpeedInsights/>
-        <Analytics/>
+        <SpeedInsights debug={false}/>
+        <Analytics debug={false}/>
       </body>
     </html>
   );

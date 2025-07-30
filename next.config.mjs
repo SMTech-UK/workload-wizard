@@ -1,6 +1,19 @@
 import {withSentryConfig} from '@sentry/nextjs';
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  devIndicators: {
+    buildActivity: false,
+    buildActivityPosition: 'bottom-left',
+  },
+  productionBrowserSourceMaps: false,
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.devtool = false;
+    }
+    return config;
+  },
+
+};
 
 export default withSentryConfig(nextConfig, {
 // For all available options, see:

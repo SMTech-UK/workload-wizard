@@ -12,7 +12,8 @@ Sentry.init({
 
   // Enable logs to be sent to Sentry
   enableLogs: true,
-
+  // Disable slow execution detection logs
+  // enableTracing: false,
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
 });

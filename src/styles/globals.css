@@ -88,6 +88,17 @@
   text-wrap: balance;
 }
 
+/* Ensure Sentry feedback widget appears above modals */
+#sentry-feedback {
+  z-index: 9999 !important;
+}
+
+/* Force pointer events on Sentry feedback button */
+button[aria-label="Report a bug or give feedback"] {
+  pointer-events: auto !important;
+  z-index: 99999 !important;
+}
+
 /* Hide number input spinners for all browsers */
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button {
