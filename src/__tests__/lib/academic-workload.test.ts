@@ -490,21 +490,21 @@ describe('Academic Workload - Critical Business Logic', () => {
 
     it('should ensure minimum staff coverage for modules', () => {
       // Arrange
-      const module = createMockModule({ credits: 20 });
-      const minimumStaffHours = module.credits * 0.5; // 0.5 hours per credit
+      const testModule = createMockModule({ credits: 20 });
+      const minimumStaffHours = testModule.credits * 0.5; // 0.5 hours per credit
       
       // Act & Assert
       expect(minimumStaffHours).toBe(10);
-      expect(module.defaultTeachingHours + module.defaultMarkingHours).toBeGreaterThanOrEqual(minimumStaffHours);
+      expect(testModule.defaultTeachingHours + testModule.defaultMarkingHours).toBeGreaterThanOrEqual(minimumStaffHours);
     });
 
     it('should validate module leader assignments', () => {
       // Arrange
-      const module = createMockModule({ moduleLeader: 'Dr. Smith' });
+      const testModule = createMockModule({ moduleLeader: 'Dr. Smith' });
       const lecturer = createMockLecturer({ fullName: 'Dr. Smith' });
       
       // Act & Assert
-      expect(lecturer.fullName).toBe(module.moduleLeader);
+      expect(lecturer.fullName).toBe(testModule.moduleLeader);
       // This would typically be validated in the allocation process
     });
   });

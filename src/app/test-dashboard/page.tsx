@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -119,7 +119,7 @@ export default function TestDashboardPage() {
 
   // Get the most recent test result for display
   const mostRecentResult = history.length > 0 ? history[0] : null
-  const displayReport = testReport || (mostRecentResult ? {
+  const displayReport = useMemo(() => testReport || (mostRecentResult ? {
     summary: {
       total: mostRecentResult.summary.total,
       passed: mostRecentResult.summary.passed,
@@ -131,7 +131,7 @@ export default function TestDashboardPage() {
     coverageDetails: mostRecentResult.coverageDetails || null,
     suites: mostRecentResult.suites,
     timestamp: mostRecentResult.timestamp
-  } : null)
+  } : null), [testReport, mostRecentResult]);
 
   // Debug logging
   useEffect(() => {
@@ -144,6 +144,21 @@ export default function TestDashboardPage() {
       })
     }
   }, [mostRecentResult, displayReport])
+
+  const handleRunTests = useCallback(async (testType: string = "all") => {
+    await runTests(testType, true, testConfig)
+    // Refresh history after test run
+    setTimeout(() => refreshHistory(), 1000)
+  }, [runTests, testConfig, refreshHistory]);
+
+  // Load most recent test result from history if no current test report
+  useEffect(() => {
+    if (!testReport && history.length > 0) {
+      const mostRecent = history[0]
+      // Convert history entry to test report format for display
+      // For now, we'll just use the history data directly
+    }
+  }, [testReport, history])
 
   // Handle URL parameters for auto-running tests
   useEffect(() => {
@@ -162,22 +177,7 @@ export default function TestDashboardPage() {
         window.history.replaceState({}, '', newUrl.toString())
       }
     }
-  }, [isRunning, displayReport])
-
-  // Load most recent test result from history if no current test report
-  useEffect(() => {
-    if (!testReport && history.length > 0) {
-      const mostRecent = history[0]
-      // Convert history entry to test report format for display
-      // For now, we'll just use the history data directly
-    }
-  }, [testReport, history])
-
-  const handleRunTests = async (testType: string = "all") => {
-    await runTests(testType, true, testConfig)
-    // Refresh history after test run
-    setTimeout(() => refreshHistory(), 1000)
-  }
+  }, [isRunning, displayReport, handleRunTests]);
 
   const toggleSuiteDetails = (suiteName: string) => {
     const newExpanded = new Set(expandedSuites)

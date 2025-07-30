@@ -1,9 +1,9 @@
 "use client";
 
 import React from 'react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
-import { useDevSettings } from '../hooks/useDevSettings';
+import { useDevSettings } from '@/hooks/useDevSettings';
 
 export default function FloatingDevSettingsButton() {
   const { openDevSettings } = useDevSettings();

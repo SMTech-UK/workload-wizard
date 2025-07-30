@@ -24,6 +24,7 @@ Sentry.init({
     Sentry.feedbackIntegration({
       colorScheme: "system",
       nameLabel: "Name",
+      showBranding: false,
     }),
   ],
 
