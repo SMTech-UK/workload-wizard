@@ -148,6 +148,7 @@ const getChangeIcon = (type: string) => {
 }
 
 function DashboardContent() {
+  const { isSignedIn, userId } = useAuth();
   const [staffProfileModalOpen, setStaffProfileModalOpen] = useState(false);
   const [selectedLecturer, setSelectedLecturer] = useState<any>(undefined);
   const [userProfileModalOpen, setUserProfileModalOpen] = useState(false);
@@ -174,9 +175,11 @@ function DashboardContent() {
       window.location.hash = activeTab;
     }
   }, [activeTab]);
-  const lecturersQuery = useQuery(api.lecturers.getAll);
-  const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
-  const modules = useQuery(api.modules.getAll) ?? [];
+  
+  // Only make queries when authenticated
+  const lecturersQuery = isSignedIn ? useQuery(api.lecturers.getAll) : null;
+  const adminAllocations = isSignedIn ? (useQuery(api.admin_allocations.getAll) ?? []) : [];
+  const modules = isSignedIn ? (useQuery(api.modules.getAll) ?? []) : [];
   const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYears[0]);
   const convex = useConvex();
@@ -184,6 +187,39 @@ function DashboardContent() {
   // Memoize lecturers to prevent unnecessary re-renders in useEffect
   const lecturers = useMemo(() => lecturersQuery ?? [], [lecturersQuery]);
   const memoizedLecturers = useMemo(() => lecturers, [lecturers]);
+
+  // Handler functions
+  const handleProfileClick = () => {
+    setUserProfileModalTab("profile");
+    setUserProfileModalOpen(true);
+  };
+  
+  const handleSettingsClick = () => {
+    setUserProfileModalTab("general");
+    setUserProfileModalOpen(true);
+  };
+
+  // Show loading state if not authenticated
+  if (!isSignedIn) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-900">
+        <div className="w-full bg-white dark:bg-zinc-900">
+          <Navigation 
+            activeTab={activeTab} 
+            setActiveTab={setActiveTab} 
+            onProfileClick={handleProfileClick} 
+            onSettingsClick={handleSettingsClick} 
+            onInboxClick={() => router.push("/inbox")}
+          />
+        </div>
+        <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center py-8">
+            <p className="text-gray-600 dark:text-gray-300">Please sign in to view the dashboard</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const totalLecturers = lecturers.length;
   // Example: get last academic year lecturer count (replace with real data if available)
@@ -283,14 +319,7 @@ function DashboardContent() {
     }, 150);
   };
 
-  const handleProfileClick = () => {
-    setUserProfileModalTab("profile");
-    setUserProfileModalOpen(true);
-  };
-  const handleSettingsClick = () => {
-    setUserProfileModalTab("general");
-    setUserProfileModalOpen(true);
-  };
+
 
   const selectedAdminAllocations = selectedLecturer
     ? (adminAllocations.find((a: any) => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
@@ -311,7 +340,6 @@ function DashboardContent() {
     : [];
 
   // Knock feed setup for recent changes
-  const { isSignedIn, userId } = useAuth();
   const recentChangesChannelId = process.env.NEXT_PUBLIC_KNOCK_RECENT_CHANGES_CHANNEL_ID;
   const knockApiKey = process.env.NEXT_PUBLIC_KNOCK_PUBLIC_API_KEY;
 
