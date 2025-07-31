@@ -7,27 +7,46 @@ import { mutation } from "./_generated/server";
 export default {
   profileId: v.id("module_profiles"), // Reference to the core module profile
   academicYearId: v.id("academic_years"), // Reference to academic year
+  
   // Year-specific data that resets each year
+  status: v.string(), // "active", "inactive", "suspended", "archived"
+  isActive: v.boolean(),
+  
+  // Year-specific notes and metadata
+  notes: v.optional(v.string()),
+  yearSpecificData: v.optional(v.any()),
+  
+  // Timestamps
   createdAt: v.number(),
   updatedAt: v.number(),
+  deletedAt: v.optional(v.number()),
 };
 
 export const getAll = query({
   args: {
     academicYearId: v.optional(v.id("academic_years")),
+    status: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    let modules;
+    let query = ctx.db.query("modules");
+    
     if (args.academicYearId) {
-      modules = await ctx.db.query("modules")
-        .filter((q) => q.eq(q.field("academicYearId"), args.academicYearId))
-        .collect();
-    } else {
-      modules = await ctx.db.query("modules").collect();
+      query = query.filter((q) => q.eq(q.field("academicYearId"), args.academicYearId));
     }
+    
+    if (args.status) {
+      query = query.filter((q) => q.eq(q.field("status"), args.status));
+    }
+    
+    if (args.isActive !== undefined) {
+      query = query.filter((q) => q.eq(q.field("isActive"), args.isActive));
+    }
+    
+    const modules = await query.collect();
     
     // Join with module profiles to get complete data
     const modulesWithProfiles = await Promise.all(
@@ -71,7 +90,9 @@ export const getAvailableProfiles = query({
     if (!identity) throw new Error("Not authenticated");
     
     // Get all module profiles
-    const allProfiles = await ctx.db.query("module_profiles").collect();
+    const allProfiles = await ctx.db.query("module_profiles")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
     
     // Get profiles that are already in this academic year
     const existingModules = await ctx.db.query("modules")
@@ -96,7 +117,19 @@ export const getById = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db.get(args.id);
+    const module = await ctx.db.get(args.id);
+    if (!module) return null;
+    
+    // Get profile data if available
+    if (module.profileId) {
+      const profile = await ctx.db.get(module.profileId);
+      return {
+        ...module,
+        profile,
+      };
+    }
+    
+    return module;
   },
 });
 
@@ -105,6 +138,9 @@ export const createModule = mutation({
   args: {
     profileId: v.id("module_profiles"),
     academicYearId: v.id("academic_years"),
+    status: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -113,6 +149,9 @@ export const createModule = mutation({
     return await ctx.db.insert("modules", {
       profileId: args.profileId,
       academicYearId: args.academicYearId,
+      status: args.status || "active",
+      isActive: args.isActive ?? true,
+      notes: args.notes,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -132,6 +171,10 @@ export const createNewModule = mutation({
     defaultMarkingHours: v.number(),
     // Academic year
     academicYearId: v.id("academic_years"),
+    // Year-specific data
+    status: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -146,6 +189,7 @@ export const createNewModule = mutation({
       moduleLeader: args.moduleLeader,
       defaultTeachingHours: args.defaultTeachingHours,
       defaultMarkingHours: args.defaultMarkingHours,
+      isActive: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -154,6 +198,9 @@ export const createNewModule = mutation({
     return await ctx.db.insert("modules", {
       profileId: profileId,
       academicYearId: args.academicYearId,
+      status: args.status || "active",
+      isActive: args.isActive ?? true,
+      notes: args.notes,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -164,31 +211,34 @@ export const createNewModule = mutation({
 export const updateModule = mutation({
   args: {
     id: v.id("modules"),
-    code: v.string(),
-    title: v.string(),
-    credits: v.number(),
-    level: v.number(),
-    moduleLeader: v.string(),
-    defaultTeachingHours: v.number(),
-    defaultMarkingHours: v.number(),
+    status: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
     const { id, ...updateData } = args;
-    return await ctx.db.patch(id, updateData);
+    return await ctx.db.patch(id, {
+      ...updateData,
+      updatedAt: Date.now(),
+    });
   },
 });
 
-// Mutation to delete a module
+// Mutation to delete a module (soft delete)
 export const deleteModule = mutation({
   args: { id: v.id("modules") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db.delete(args.id);
+    // Soft delete
+    return await ctx.db.patch(args.id, {
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -202,7 +252,9 @@ export const createForAcademicYear = mutation({
     if (!identity) throw new Error("Not authenticated");
     
     // Get all module profiles
-    const profiles = await ctx.db.query("module_profiles").collect();
+    const profiles = await ctx.db.query("module_profiles")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
     
     const results = [];
     for (const profile of profiles) {
@@ -222,6 +274,8 @@ export const createForAcademicYear = mutation({
           const moduleId = await ctx.db.insert("modules", {
             profileId: profile._id,
             academicYearId: args.academicYearId,
+            status: "active",
+            isActive: true,
             createdAt: Date.now(),
             updatedAt: Date.now(),
           });
@@ -265,13 +319,13 @@ export const addProfileToAcademicYear = mutation({
     return await ctx.db.insert("modules", {
       profileId: args.profileId,
       academicYearId: args.academicYearId,
+      status: "active",
+      isActive: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
   },
 });
-
-
 
 // Query to get all module allocations
 export const getAllAllocations = query({

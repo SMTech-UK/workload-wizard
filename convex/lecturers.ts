@@ -6,33 +6,52 @@ import { query, mutation } from "./_generated/server";
 export default {
   profileId: v.id("lecturer_profiles"), // Reference to the core lecturer profile
   academicYearId: v.id("academic_years"), // Reference to academic year
+  
   // Year-specific data that resets each year
-  status: v.string(),
+  status: v.string(), // "available", "unavailable", "on_leave", "sabbatical", "retired"
   teachingAvailability: v.number(),
   totalAllocated: v.number(),
   allocatedTeachingHours: v.number(),
   allocatedAdminHours: v.number(),
+  allocatedResearchHours: v.number(),
+  allocatedOtherHours: v.number(),
+  
+  // Year-specific notes and metadata
+  notes: v.optional(v.string()),
+  yearSpecificData: v.optional(v.any()),
+  
+  // Timestamps
   createdAt: v.number(),
   updatedAt: v.number(),
+  deletedAt: v.optional(v.number()),
 };
 
 // Query to get all lecturers with their profiles
 export const getAll = query({
   args: {
     academicYearId: v.optional(v.id("academic_years")),
+    status: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    let lecturers;
+    let query = ctx.db.query("lecturers");
+    
     if (args.academicYearId) {
-      lecturers = await ctx.db.query("lecturers")
-        .filter((q) => q.eq(q.field("academicYearId"), args.academicYearId))
-        .collect();
-    } else {
-      lecturers = await ctx.db.query("lecturers").collect();
+      query = query.filter((q) => q.eq(q.field("academicYearId"), args.academicYearId));
     }
+    
+    if (args.status) {
+      query = query.filter((q) => q.eq(q.field("status"), args.status));
+    }
+    
+    if (args.isActive !== undefined) {
+      query = query.filter((q) => q.eq(q.field("isActive"), args.isActive));
+    }
+    
+    const lecturers = await query.collect();
     
     // Join with lecturer profiles to get complete data
     const lecturersWithProfiles = await Promise.all(
@@ -80,7 +99,9 @@ export const getAvailableProfiles = query({
     if (!identity) throw new Error("Not authenticated");
     
     // Get all lecturer profiles
-    const allProfiles = await ctx.db.query("lecturer_profiles").collect();
+    const allProfiles = await ctx.db.query("lecturer_profiles")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
     
     // Get profiles that are already in this academic year
     const existingLecturers = await ctx.db.query("lecturers")
@@ -105,7 +126,10 @@ export const updateStatus = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    await ctx.db.patch(args.id, { status: args.status });
+    await ctx.db.patch(args.id, { 
+      status: args.status,
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -119,6 +143,9 @@ export const createLecturer = mutation({
     totalAllocated: v.optional(v.number()),
     allocatedTeachingHours: v.optional(v.number()),
     allocatedAdminHours: v.optional(v.number()),
+    allocatedResearchHours: v.optional(v.number()),
+    allocatedOtherHours: v.optional(v.number()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -136,6 +163,9 @@ export const createLecturer = mutation({
       totalAllocated: args.totalAllocated ?? 0,
       allocatedTeachingHours: args.allocatedTeachingHours ?? 0,
       allocatedAdminHours: args.allocatedAdminHours ?? 0,
+      allocatedResearchHours: args.allocatedResearchHours ?? 0,
+      allocatedOtherHours: args.allocatedOtherHours ?? 0,
+      notes: args.notes,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -165,6 +195,9 @@ export const createNewLecturer = mutation({
     totalAllocated: v.optional(v.number()),
     allocatedTeachingHours: v.optional(v.number()),
     allocatedAdminHours: v.optional(v.number()),
+    allocatedResearchHours: v.optional(v.number()),
+    allocatedOtherHours: v.optional(v.number()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -183,6 +216,7 @@ export const createNewLecturer = mutation({
       capacity: args.capacity,
       maxTeachingHours: args.maxTeachingHours,
       totalContract: args.totalContract,
+      isActive: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -196,6 +230,9 @@ export const createNewLecturer = mutation({
       totalAllocated: args.totalAllocated ?? 0,
       allocatedTeachingHours: args.allocatedTeachingHours ?? 0,
       allocatedAdminHours: args.allocatedAdminHours ?? 0,
+      allocatedResearchHours: args.allocatedResearchHours ?? 0,
+      allocatedOtherHours: args.allocatedOtherHours ?? 0,
+      notes: args.notes,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -205,29 +242,24 @@ export const createNewLecturer = mutation({
 export const updateLecturer = mutation({
   args: {
     id: v.id("lecturers"),
-    fullName: v.string(),
-    team: v.string(),
-    specialism: v.string(),
-    contract: v.string(),
-    email: v.string(),
-    capacity: v.number(),
-    maxTeachingHours: v.number(),
-    role: v.string(),
-    status: v.string(),
-    teachingAvailability: v.number(),
-    totalAllocated: v.number(),
-    totalContract: v.number(),
-    allocatedTeachingHours: v.number(),
-    allocatedAdminHours: v.number(),
-    family: v.string(),
-    fte: v.number(),
+    status: v.optional(v.string()),
+    teachingAvailability: v.optional(v.number()),
+    totalAllocated: v.optional(v.number()),
+    allocatedTeachingHours: v.optional(v.number()),
+    allocatedAdminHours: v.optional(v.number()),
+    allocatedResearchHours: v.optional(v.number()),
+    allocatedOtherHours: v.optional(v.number()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, ...fields } = args;
-    await ctx.db.patch(id, fields);
+    const { id, ...updateData } = args;
+    await ctx.db.patch(id, {
+      ...updateData,
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -237,18 +269,34 @@ export const getById = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db.get(args.id);
+    const lecturer = await ctx.db.get(args.id);
+    if (!lecturer) return null;
+    
+    // Get profile data if available
+    if (lecturer.profileId) {
+      const profile = await ctx.db.get(lecturer.profileId);
+      return {
+        ...lecturer,
+        profile,
+      };
+    }
+    
+    return lecturer;
   },
 });
 
-// NEW: Delete lecturer mutation
+// NEW: Delete lecturer mutation (soft delete)
 export const deleteLecturer = mutation({
   args: { id: v.id("lecturers") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    await ctx.db.delete(args.id);
+    // Soft delete
+    await ctx.db.patch(args.id, {
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -262,7 +310,9 @@ export const createForAcademicYear = mutation({
     if (!identity) throw new Error("Not authenticated");
     
     // Get all lecturer profiles
-    const profiles = await ctx.db.query("lecturer_profiles").collect();
+    const profiles = await ctx.db.query("lecturer_profiles")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
     
     const results = [];
     for (const profile of profiles) {
@@ -287,6 +337,8 @@ export const createForAcademicYear = mutation({
             totalAllocated: 0,
             allocatedTeachingHours: 0,
             allocatedAdminHours: 0,
+            allocatedResearchHours: 0,
+            allocatedOtherHours: 0,
             createdAt: Date.now(),
             updatedAt: Date.now(),
           });
@@ -339,6 +391,8 @@ export const addProfileToAcademicYear = mutation({
       totalAllocated: 0,
       allocatedTeachingHours: 0,
       allocatedAdminHours: 0,
+      allocatedResearchHours: 0,
+      allocatedOtherHours: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });

@@ -12,17 +12,6 @@ interface UserPatchData {
   email: string;
   updatedAt: string;
   tokenIdentifier: string;
-  jobTitle?: string;
-  team?: string;
-  specialism?: string;
-  settings?: {
-    theme: string;
-    language: string;
-    timezone: string;
-    notifyEmail: boolean;
-    notifyPush: boolean;
-    profilePublic: boolean;
-  };
 }
 
 export const store = mutation({
@@ -56,15 +45,71 @@ export const store = mutation({
     };
 
     if (user) {
-      // Only update jobTitle, team, specialism, and theme if provided
+      // Update core user data
       const patchData: UserPatchData = { ...userData };
-      if (args.jobTitle !== undefined) patchData.jobTitle = args.jobTitle;
-      if (args.team !== undefined) patchData.team = args.team;
-      if (args.specialism !== undefined) patchData.specialism = args.specialism;
-      if (args.theme !== undefined) {
-        patchData.settings = { ...(user.settings || {}), theme: args.theme };
-      }
       await ctx.db.patch(user._id, patchData);
+      
+      // Update or create user profile
+      let userProfile = await ctx.db.query("user_profiles")
+        .filter(q => q.eq(q.field("userId"), identity.subject))
+        .unique();
+      
+      if (userProfile) {
+        // Update existing profile
+        await ctx.db.patch(userProfile._id, {
+          firstName: identity.givenName ?? "",
+          lastName: identity.familyName ?? "",
+          email: identity.email ?? "",
+          updatedAt: Date.now(),
+        });
+      } else {
+        // Create new profile
+        await ctx.db.insert("user_profiles", {
+          userId: identity.subject,
+          firstName: identity.givenName ?? "",
+          lastName: identity.familyName ?? "",
+          email: identity.email ?? "",
+          isActive: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+      
+      // Update user settings if theme provided
+      if (args.theme !== undefined) {
+        let userSettings = await ctx.db.query("user_settings")
+          .filter(q => q.eq(q.field("userId"), identity.subject))
+          .unique();
+        
+        if (userSettings) {
+          await ctx.db.patch(userSettings._id, {
+            theme: args.theme,
+            updatedAt: Date.now(),
+          });
+        } else {
+          await ctx.db.insert("user_settings", {
+            userId: identity.subject,
+            theme: args.theme,
+            language: "en",
+            timezone: "GMT",
+            dateFormat: "DD/MM/YYYY",
+            timeFormat: "24h",
+            notifications: {
+              email: true,
+              push: true,
+              inApp: true,
+            },
+            dashboard: {
+              defaultView: "overview",
+              showNotifications: true,
+              showRecentActivity: true,
+            },
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+        }
+      }
+      
       // Knock integration
       if (process.env.KNOCK_API_KEY) {
         const { identifyKnockUser } = await import("../src/lib/knock-server");
@@ -72,40 +117,63 @@ export const store = mutation({
       }
       return user._id;
     } else {
+      // Create new user
       const newUser = {
         ...userData,
-        jobTitle: args.jobTitle ?? "",
-        team: args.team ?? "",
-        specialism: args.specialism ?? "",
         systemRole: "user", // Default system role
-        // Default settings for new users
-        settings: {
-          theme: args.theme ?? "system",
-          language: "en",
-          timezone: "GMT",
-          notifyEmail: true,
-          notifyPush: true,
-          profilePublic: true,
-          keyboardShortcuts: true,
-          showTooltips: true,
-          compactMode: false,
-          landingPage: "dashboard",
-          experimental: false,
-        },
-        preferences: {
-          interests: [],
-          sessionCampus: "",
-          sessionDay: "",
-          sessionTime: "",
-        },
       };
-      const id = await ctx.db.insert("users", newUser);
+      const userId = await ctx.db.insert("users", newUser);
+      
+      // Create user profile
+      await ctx.db.insert("user_profiles", {
+        userId: identity.subject,
+        firstName: identity.givenName ?? "",
+        lastName: identity.familyName ?? "",
+        email: identity.email ?? "",
+        isActive: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      
+      // Create user settings
+      await ctx.db.insert("user_settings", {
+        userId: identity.subject,
+        theme: args.theme ?? "system",
+        language: "en",
+        timezone: "GMT",
+        dateFormat: "DD/MM/YYYY",
+        timeFormat: "24h",
+        notifications: {
+          email: true,
+          push: true,
+          inApp: true,
+        },
+        dashboard: {
+          defaultView: "overview",
+          showNotifications: true,
+          showRecentActivity: true,
+        },
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      
+      // Create user preferences
+      await ctx.db.insert("user_preferences", {
+        userId: identity.subject,
+        key: "interests",
+        value: "[]",
+        category: "general",
+        isSystem: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      
       // Knock integration
       if (process.env.KNOCK_API_KEY) {
         const { identifyKnockUser } = await import("../src/lib/knock-server");
         await identifyKnockUser(identity.subject, newUser);
       }
-      return id;
+      return userId;
     }
   },
 });
@@ -118,20 +186,27 @@ export const getPreferences = query({
       // Return null instead of throwing error for better UX
       return null;
     }
-    const user = await ctx.db.query("users")
-      .filter(q => q.eq(q.field("subject"), identity.subject))
-      .unique();
-    if (!user) return {
-      interests: [],
-      sessionCampus: "",
-      sessionDay: "",
-      sessionTime: "",
-    };
-    return user.preferences ?? {
-      interests: [],
-      sessionCampus: "",
-      sessionDay: "",
-      sessionTime: "",
+    
+    // Get user preferences from the new user_preferences table
+    const preferences = await ctx.db.query("user_preferences")
+      .filter(q => q.eq(q.field("userId"), identity.subject))
+      .collect();
+    
+    // Convert to the expected format
+    const preferencesMap: any = {};
+    preferences.forEach(pref => {
+      try {
+        preferencesMap[pref.key] = JSON.parse(pref.value);
+      } catch {
+        preferencesMap[pref.key] = pref.value;
+      }
+    });
+    
+    return {
+      interests: preferencesMap.interests || [],
+      sessionCampus: preferencesMap.sessionCampus || "",
+      sessionDay: preferencesMap.sessionDay || "",
+      sessionTime: preferencesMap.sessionTime || "",
     };
   },
 });
@@ -148,15 +223,47 @@ export const setPreferences = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
-    const user = await ctx.db.query("users")
-      .filter(q => q.eq(q.field("subject"), identity.subject))
-      .unique();
-    if (!user) throw new Error("User not found");
-    await ctx.db.patch(user._id, { preferences: args.preferences });
+    
+    // Update or create preferences in the new user_preferences table
+    const preferencesToUpdate = [
+      { key: "interests", value: JSON.stringify(args.preferences.interests) },
+      { key: "sessionCampus", value: args.preferences.sessionCampus },
+      { key: "sessionDay", value: args.preferences.sessionDay },
+      { key: "sessionTime", value: args.preferences.sessionTime },
+    ];
+    
+    for (const pref of preferencesToUpdate) {
+      let existingPref = await ctx.db.query("user_preferences")
+        .filter(q => 
+          q.and(
+            q.eq(q.field("userId"), identity.subject),
+            q.eq(q.field("key"), pref.key)
+          )
+        )
+        .unique();
+      
+      if (existingPref) {
+        await ctx.db.patch(existingPref._id, {
+          value: pref.value,
+          updatedAt: Date.now(),
+        });
+      } else {
+        await ctx.db.insert("user_preferences", {
+          userId: identity.subject,
+          key: pref.key,
+          value: pref.value,
+          category: "general",
+          isSystem: false,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    }
+    
     // Knock sync for notification-relevant data changes
     if (process.env.KNOCK_API_KEY) {
       const { identifyKnockUser, triggerKnockWorkflow } = await import("../src/lib/knock-server");
-      await identifyKnockUser(identity.subject, { ...user, preferences: args.preferences });
+      await identifyKnockUser(identity.subject, { preferences: args.preferences });
       await triggerKnockWorkflow('user-preferences-updated', [identity.subject], { preferences: args.preferences });
     }
     return true;
@@ -182,15 +289,56 @@ export const setSettings = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
-    const user = await ctx.db.query("users")
-      .filter(q => q.eq(q.field("subject"), identity.subject))
+    
+    // Update user settings in the new user_settings table
+    let userSettings = await ctx.db.query("user_settings")
+      .filter(q => q.eq(q.field("userId"), identity.subject))
       .unique();
-    if (!user) throw new Error("User not found");
-    await ctx.db.patch(user._id, { settings: args.settings });
+    
+    if (userSettings) {
+      await ctx.db.patch(userSettings._id, {
+        theme: args.settings.theme,
+        language: args.settings.language,
+        timezone: args.settings.timezone,
+        notifications: {
+          email: args.settings.notifyEmail,
+          push: args.settings.notifyPush,
+          inApp: true,
+        },
+        dashboard: {
+          defaultView: args.settings.landingPage || "overview",
+          showNotifications: true,
+          showRecentActivity: true,
+        },
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("user_settings", {
+        userId: identity.subject,
+        theme: args.settings.theme,
+        language: args.settings.language,
+        timezone: args.settings.timezone,
+        dateFormat: "DD/MM/YYYY",
+        timeFormat: "24h",
+        notifications: {
+          email: args.settings.notifyEmail,
+          push: args.settings.notifyPush,
+          inApp: true,
+        },
+        dashboard: {
+          defaultView: args.settings.landingPage || "overview",
+          showNotifications: true,
+          showRecentActivity: true,
+        },
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+    
     // Knock sync for notification-relevant data changes
     if (process.env.KNOCK_API_KEY) {
       const { identifyKnockUser, triggerKnockWorkflow } = await import("../src/lib/knock-server");
-      await identifyKnockUser(identity.subject, { ...user, settings: args.settings });
+      await identifyKnockUser(identity.subject, { settings: args.settings });
       await triggerKnockWorkflow('user-settings-updated', [identity.subject], { settings: args.settings });
     }
     return true;
@@ -205,14 +353,17 @@ export const getProfileFields = query({
       // Return null instead of throwing error for better UX
       return null;
     }
-    const user = await ctx.db.query("users")
-      .filter(q => q.eq(q.field("subject"), identity.subject))
+    
+    // Get user profile from the new user_profiles table
+    const userProfile = await ctx.db.query("user_profiles")
+      .filter(q => q.eq(q.field("userId"), identity.subject))
       .unique();
+    
     return {
-      jobTitle: user?.jobTitle ?? "",
-      team: user?.team ?? "",
-      specialism: user?.specialism ?? "",
-      systemRole: user?.systemRole ?? "",
+      jobTitle: userProfile?.jobTitle ?? "",
+      team: userProfile?.team ?? "",
+      specialism: userProfile?.specialism ?? "",
+      systemRole: "user", // Default system role
     };
   },
 });
@@ -225,21 +376,40 @@ export const getSettings = query({
       // Return null instead of throwing error for better UX
       return null;
     }
-    const user = await ctx.db.query("users")
-      .filter(q => q.eq(q.field("subject"), identity.subject))
+    
+    // Get user settings from the new user_settings table
+    const userSettings = await ctx.db.query("user_settings")
+      .filter(q => q.eq(q.field("userId"), identity.subject))
       .unique();
-    return user?.settings ?? {
-      theme: "system",
-      language: "en",
-      timezone: "GMT",
-      notifyEmail: true,
-      notifyPush: true,
-      profilePublic: true,
-      keyboardShortcuts: true,
-      showTooltips: true,
-      compactMode: false,
-      landingPage: "dashboard",
-      experimental: false,
+    
+    if (!userSettings) {
+      return {
+        theme: "system",
+        language: "en",
+        timezone: "GMT",
+        notifyEmail: true,
+        notifyPush: true,
+        profilePublic: true,
+        keyboardShortcuts: true,
+        showTooltips: true,
+        compactMode: false,
+        landingPage: "dashboard",
+        experimental: false,
+      };
+    }
+    
+    return {
+      theme: userSettings.theme,
+      language: userSettings.language,
+      timezone: userSettings.timezone,
+      notifyEmail: userSettings.notifications?.email ?? true,
+      notifyPush: userSettings.notifications?.push ?? true,
+      profilePublic: true, // Default value
+      keyboardShortcuts: true, // Default value
+      showTooltips: true, // Default value
+      compactMode: false, // Default value
+      landingPage: userSettings.dashboard?.defaultView ?? "dashboard",
+      experimental: false, // Default value
     };
   },
 });
@@ -250,13 +420,20 @@ export const getUserBySubject = query({
     const user = await ctx.db.query("users")
       .filter(q => q.eq(q.field("subject"), args.subject))
       .unique();
+    
     if (!user) return null;
+    
+    // Get user profile
+    const userProfile = await ctx.db.query("user_profiles")
+      .filter(q => q.eq(q.field("userId"), args.subject))
+      .unique();
+    
     return {
       systemRole: user.systemRole ?? null,
-      settings: user.settings ?? null,
-      specialism: user.specialism ?? null,
-      jobTitle: user.jobTitle ?? null,
-      team: user.team ?? null,
+      settings: null, // Settings are now in user_settings table
+      specialism: userProfile?.specialism ?? null,
+      jobTitle: userProfile?.jobTitle ?? null,
+      team: userProfile?.team ?? null,
     };
   }
 });

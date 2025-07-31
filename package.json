@@ -14,7 +14,8 @@
     "test:report": "npm run test:coverage && node scripts/run-tests.js",
     "test:check": "npm run test:coverage -- --passWithNoTests",
     "test:ui": "node scripts/test-ui.js",
-    "dev:tools": "node scripts/fix-test-issues.js"
+    "dev:tools": "node scripts/fix-test-issues.js",
+    "migrate": "node scripts/run-migrations.js"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.4.0",

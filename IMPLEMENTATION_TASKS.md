@@ -2,61 +2,10 @@
 
 ## Phase 1: Core Schema Implementation
 
-### 1.1 Create New Convex Schema Files
-
-#### Priority: CRITICAL
-- [ ] **convex/user_roles.ts** - User role definitions and API
-- [ ] **convex/user_profiles.ts** - User profile management
-- [ ] **convex/user_settings.ts** - User settings management
-- [ ] **convex/user_preferences.ts** - User preferences (key-value)
-- [ ] **convex/departments.ts** - Department structure
-- [ ] **convex/faculties.ts** - Faculty structure
-- [ ] **convex/semester_periods.ts** - Semester date management
-- [ ] **convex/sites.ts** - Physical location management
-- [ ] **convex/assessment_types.ts** - Assessment type definitions
-- [ ] **convex/allocation_types.ts** - Allocation type definitions
-- [ ] **convex/courses.ts** - Course management
-- [ ] **convex/cohorts.ts** - Cohort management
-- [ ] **convex/course_modules.ts** - Course-module relationships
-- [ ] **convex/cohort_module_plans.ts** - Cohort-specific module delivery
-- [ ] **convex/module_iteration_groups.ts** - Module iteration groups
-- [ ] **convex/module_iteration_assessments.ts** - Module assessments
-- [ ] **convex/team_summaries.ts** - Team metrics calculation
-- [ ] **convex/workload_reports.ts** - Workload reporting
-- [ ] **convex/workload_calculation_rules.ts** - Custom calculation rules
-- [ ] **convex/organisation_settings.ts** - Organization configuration
-- [ ] **convex/notification_settings.ts** - Notification preferences
-- [ ] **convex/external_systems.ts** - External system integrations
-- [ ] **convex/data_sync_logs.ts** - Sync operation tracking
-- [ ] **convex/report_templates.ts** - Report template management
-- [ ] **convex/scheduled_reports.ts** - Automated report scheduling
-- [ ] **convex/user_sessions.ts** - Session management
-- [ ] **convex/audit_logs.ts** - Audit trail system
-- [ ] **convex/data_migrations.ts** - Migration tracking
-- [ ] **convex/roles.ts** - RBAC role definitions
-- [ ] **convex/user_role_assignments.ts** - User-role relationships
-- [ ] **convex/events.ts** - Domain event tracking
-- [ ] **convex/file_attachments.ts** - File storage system
-- [ ] **convex/tags.ts** - Tagging system
-- [ ] **convex/taggables.ts** - Tag associations
-
-### 1.2 Update Existing Schema Files
-
-#### Priority: CRITICAL
-- [ ] **convex/organisations.ts** - Remove JSON fields, add new columns
-- [ ] **convex/users.ts** - Split into core + profile structure
-- [ ] **convex/teams.ts** - Add department/faculty relationships
-- [ ] **convex/lecturers.ts** - Update to use profile structure
-- [ ] **convex/modules.ts** - Update to use profile structure
-- [ ] **convex/module_iterations.ts** - Update relationships and structure
-- [ ] **convex/admin_allocations.ts** - Update to use new categories
-
 ### 1.3 Update Convex Schema Definition
 
 #### Priority: CRITICAL
 - [ ] **convex/schema.ts** - Add all new table definitions
-- [ ] **convex/auth.config.ts** - Update authentication rules for new tables
-- [ ] **convex/_generated/** - Regenerate API types after schema changes
 
 ## Phase 2: Data Migration Implementation
 

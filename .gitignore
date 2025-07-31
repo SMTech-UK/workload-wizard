@@ -40,6 +40,7 @@ jest-output.json
 PRD.md
 DATABASE_SCHEMA_REFERENCE.md
 IMPLEMENTATION_PLAN.md
+linear-import-script.js
 
 # debug
 npm-debug.log*

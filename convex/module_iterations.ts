@@ -4,56 +4,78 @@ import { mutation } from "./_generated/server";
 
 // Define the table schema
 export default {
-  moduleCode: v.string(),
+  // Core iteration info
+  moduleId: v.id("modules"), // Reference to the module
+  academicYearId: v.id("academic_years"), // Reference to academic year
+  semesterPeriodId: v.optional(v.id("semester_periods")), // Reference to semester period
+  
+  // Iteration details
+  iterationCode: v.string(), // Unique code for this iteration (e.g., "CS101-2024-S1")
   title: v.string(),
-  semester: v.float64(),
-  cohortId: v.string(),
-  teachingStartDate: v.string(),
-  teachingHours: v.float64(),
-  markingHours: v.float64(),
-  assignedLecturerId: v.string(),
-  assignedLecturerIds: v.array(v.id("lecturers")),
-  assignedStatus: v.string(),
-  notes: v.string(),
-  academicYearId: v.optional(v.id("academic_years")), // Reference to academic year
-  assessments: v.array(
-    v.object({
-      title: v.string(),
-      type: v.string(),
-      weighting: v.float64(),
-      submissionDate: v.string(),
-      marksDueDate: v.string(),
-      isSecondAttempt: v.boolean(),
-      externalExaminerRequired: v.boolean(),
-      alertsToTeam: v.boolean(),
-    })
-  ),
-  sites: v.array(
-    v.object({
-      name: v.string(),
-      deliveryTime: v.string(),
-      students: v.float64(),
-      groups: v.float64(),
-    })
-  ),
+  description: v.optional(v.string()),
+  
+  // Delivery information
+  deliveryMode: v.string(), // "face_to_face", "online", "hybrid", "blended"
+  deliveryLocation: v.optional(v.string()),
+  virtualRoomUrl: v.optional(v.string()),
+  
+  // Enrollment and capacity
+  expectedEnrollment: v.number(),
+  actualEnrollment: v.optional(v.number()),
+  maxEnrollment: v.optional(v.number()),
+  isFull: v.optional(v.boolean()),
+  
+  // Timing
+  startDate: v.number(),
+  endDate: v.number(),
+  teachingStartDate: v.optional(v.number()),
+  teachingEndDate: v.optional(v.number()),
+  
+  // Status and workflow
+  status: v.string(), // "planned", "confirmed", "active", "completed", "cancelled"
+  isActive: v.boolean(),
+  
+  // Notes and metadata
+  notes: v.optional(v.string()),
+  metadata: v.optional(v.any()),
+  
+  // Timestamps
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  deletedAt: v.optional(v.number()),
 };
 
 // Query to get all module iterations
 export const getAll = query({
   args: {
     academicYearId: v.optional(v.id("academic_years")),
+    moduleId: v.optional(v.id("modules")),
+    status: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
+    let query = ctx.db.query("module_iterations");
+    
     if (args.academicYearId) {
-      return await ctx.db.query("module_iterations")
-        .filter((q) => q.eq(q.field("academicYearId"), args.academicYearId))
-        .collect();
+      query = query.filter((q) => q.eq(q.field("academicYearId"), args.academicYearId));
     }
     
-    return await ctx.db.query("module_iterations").collect();
+    if (args.moduleId) {
+      query = query.filter((q) => q.eq(q.field("moduleId"), args.moduleId));
+    }
+    
+    if (args.status) {
+      query = query.filter((q) => q.eq(q.field("status"), args.status));
+    }
+    
+    if (args.isActive !== undefined) {
+      query = query.filter((q) => q.eq(q.field("isActive"), args.isActive));
+    }
+    
+    return await query.collect();
   },
 });
 
@@ -64,10 +86,25 @@ export const getByModuleCode = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db
-      .query("module_iterations")
-      .filter((q) => q.eq(q.field("moduleCode"), args.moduleCode))
+    // First get the module profile by code
+    const moduleProfile = await ctx.db.query("module_profiles")
+      .filter(q => q.eq(q.field("code"), args.moduleCode))
+      .first();
+    
+    if (!moduleProfile) return [];
+    
+    // Then get all modules for this profile
+    const modules = await ctx.db.query("modules")
+      .filter(q => q.eq(q.field("profileId"), moduleProfile._id))
       .collect();
+    
+    // Finally get all iterations for these modules
+    const moduleIds = modules.map(m => m._id);
+    const iterations = await ctx.db.query("module_iterations")
+      .filter(q => q.inArray(q.field("moduleId"), moduleIds))
+      .collect();
+    
+    return iterations;
   },
 });
 
@@ -78,51 +115,88 @@ export const getById = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db.get(args.id);
+    const iteration = await ctx.db.get(args.id);
+    if (!iteration) return null;
+    
+    // Get related data
+    const [module, academicYear, semesterPeriod] = await Promise.all([
+      ctx.db.get(iteration.moduleId),
+      ctx.db.get(iteration.academicYearId),
+      iteration.semesterPeriodId ? ctx.db.get(iteration.semesterPeriodId) : null,
+    ]);
+    
+    return {
+      ...iteration,
+      module,
+      academicYear,
+      semesterPeriod,
+    };
   },
 });
 
 // Mutation to create a new module iteration
 export const createIteration = mutation({
   args: {
-    moduleCode: v.string(),
+    moduleId: v.id("modules"),
+    academicYearId: v.id("academic_years"),
+    semesterPeriodId: v.optional(v.id("semester_periods")),
+    iterationCode: v.string(),
     title: v.string(),
-    semester: v.float64(),
-    cohortId: v.string(),
-    teachingStartDate: v.string(),
-    teachingHours: v.float64(),
-    markingHours: v.float64(),
-    assignedLecturerId: v.string(),
-    assignedLecturerIds: v.array(v.id("lecturers")),
-    assignedStatus: v.string(),
-    notes: v.string(),
-    academicYearId: v.optional(v.id("academic_years")),
-    assessments: v.array(
-      v.object({
-        title: v.string(),
-        type: v.string(),
-        weighting: v.float64(),
-        submissionDate: v.string(),
-        marksDueDate: v.string(),
-        isSecondAttempt: v.boolean(),
-        externalExaminerRequired: v.boolean(),
-        alertsToTeam: v.boolean(),
-      })
-    ),
-    sites: v.array(
-      v.object({
-        name: v.string(),
-        deliveryTime: v.string(),
-        students: v.float64(),
-        groups: v.float64(),
-      })
-    ),
+    description: v.optional(v.string()),
+    deliveryMode: v.string(),
+    deliveryLocation: v.optional(v.string()),
+    virtualRoomUrl: v.optional(v.string()),
+    expectedEnrollment: v.number(),
+    maxEnrollment: v.optional(v.number()),
+    startDate: v.number(),
+    endDate: v.number(),
+    teachingStartDate: v.optional(v.number()),
+    teachingEndDate: v.optional(v.number()),
+    status: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db.insert("module_iterations", args);
+    // Validate iteration code uniqueness
+    const existingIteration = await ctx.db.query("module_iterations")
+      .filter(q => q.eq(q.field("iterationCode"), args.iterationCode))
+      .first();
+    
+    if (existingIteration) {
+      throw new Error("Iteration code must be unique");
+    }
+    
+    // Validate date ranges
+    if (args.startDate >= args.endDate) {
+      throw new Error("Start date must be before end date");
+    }
+    
+    if (args.teachingStartDate && args.teachingEndDate) {
+      if (args.teachingStartDate >= args.teachingEndDate) {
+        throw new Error("Teaching start date must be before teaching end date");
+      }
+      if (args.teachingStartDate < args.startDate || args.teachingEndDate > args.endDate) {
+        throw new Error("Teaching dates must be within iteration date range");
+      }
+    }
+    
+    // Validate enrollment
+    if (args.maxEnrollment && args.expectedEnrollment > args.maxEnrollment) {
+      throw new Error("Expected enrollment cannot exceed maximum enrollment");
+    }
+    
+    return await ctx.db.insert("module_iterations", {
+      ...args,
+      actualEnrollment: 0,
+      isFull: args.maxEnrollment ? args.expectedEnrollment >= args.maxEnrollment : false,
+      status: args.status || "planned",
+      isActive: args.isActive ?? true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -130,87 +204,109 @@ export const createIteration = mutation({
 export const updateIteration = mutation({
   args: {
     id: v.id("module_iterations"),
-    moduleCode: v.string(),
-    title: v.string(),
-    semester: v.float64(),
-    cohortId: v.string(),
-    teachingStartDate: v.string(),
-    teachingHours: v.float64(),
-    markingHours: v.float64(),
-    assignedLecturerId: v.string(),
-    assignedLecturerIds: v.array(v.string()),
-    assignedStatus: v.string(),
-    notes: v.string(),
-    assessments: v.array(
-      v.object({
-        title: v.string(),
-        type: v.string(),
-        weighting: v.float64(),
-        submissionDate: v.string(),
-        marksDueDate: v.string(),
-        isSecondAttempt: v.boolean(),
-        externalExaminerRequired: v.boolean(),
-        alertsToTeam: v.boolean(),
-      })
-    ),
-    sites: v.array(
-      v.object({
-        name: v.string(),
-        deliveryTime: v.string(),
-        students: v.float64(),
-        groups: v.float64(),
-      })
-    ),
+    semesterPeriodId: v.optional(v.id("semester_periods")),
+    iterationCode: v.optional(v.string()),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    deliveryMode: v.optional(v.string()),
+    deliveryLocation: v.optional(v.string()),
+    virtualRoomUrl: v.optional(v.string()),
+    expectedEnrollment: v.optional(v.number()),
+    actualEnrollment: v.optional(v.number()),
+    maxEnrollment: v.optional(v.number()),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
+    teachingStartDate: v.optional(v.number()),
+    teachingEndDate: v.optional(v.number()),
+    status: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    console.log('updateIteration called with args:', JSON.stringify(args, null, 2));
-    
     const { id, ...updateData } = args;
     
-    // Validate the data before updating
-    if (!updateData.moduleCode || !updateData.title || !updateData.cohortId || !updateData.teachingStartDate) {
-      throw new Error("Missing required fields for module iteration update");
+    // Validate iteration code uniqueness if being updated
+    if (updateData.iterationCode) {
+      const existingIteration = await ctx.db.query("module_iterations")
+        .filter(q => 
+          q.and(
+            q.eq(q.field("iterationCode"), updateData.iterationCode),
+            q.neq(q.field("_id"), id)
+          )
+        )
+        .first();
+      
+      if (existingIteration) {
+        throw new Error("Iteration code must be unique");
+      }
     }
     
-    // Ensure assignedLecturerIds is always an array
-    if (!Array.isArray(updateData.assignedLecturerIds)) {
-      updateData.assignedLecturerIds = [];
+    // Validate date ranges if dates are being updated
+    if (updateData.startDate !== undefined || updateData.endDate !== undefined) {
+      const currentIteration = await ctx.db.get(id);
+      if (currentIteration) {
+        const startDate = updateData.startDate ?? currentIteration.startDate;
+        const endDate = updateData.endDate ?? currentIteration.endDate;
+        
+        if (startDate >= endDate) {
+          throw new Error("Start date must be before end date");
+        }
+      }
     }
     
-    // Filter out any invalid IDs
-    updateData.assignedLecturerIds = updateData.assignedLecturerIds.filter(id => id && typeof id === 'string' && id.trim() !== '');
-    
-    // Ensure other arrays are properly initialized
-    if (!Array.isArray(updateData.assessments)) {
-      updateData.assessments = [];
+    if (updateData.teachingStartDate !== undefined || updateData.teachingEndDate !== undefined) {
+      const currentIteration = await ctx.db.get(id);
+      if (currentIteration) {
+        const teachingStartDate = updateData.teachingStartDate ?? currentIteration.teachingStartDate;
+        const teachingEndDate = updateData.teachingEndDate ?? currentIteration.teachingEndDate;
+        const startDate = updateData.startDate ?? currentIteration.startDate;
+        const endDate = updateData.endDate ?? currentIteration.endDate;
+        
+        if (teachingStartDate && teachingEndDate) {
+          if (teachingStartDate >= teachingEndDate) {
+            throw new Error("Teaching start date must be before teaching end date");
+          }
+          if (teachingStartDate < startDate || teachingEndDate > endDate) {
+            throw new Error("Teaching dates must be within iteration date range");
+          }
+        }
+      }
     }
-    if (!Array.isArray(updateData.sites)) {
-      updateData.sites = [];
+    
+    // Update isFull status if enrollment data changed
+    if (updateData.expectedEnrollment !== undefined || updateData.actualEnrollment !== undefined || updateData.maxEnrollment !== undefined) {
+      const currentIteration = await ctx.db.get(id);
+      if (currentIteration) {
+        const expectedEnrollment = updateData.expectedEnrollment ?? currentIteration.expectedEnrollment;
+        const actualEnrollment = updateData.actualEnrollment ?? currentIteration.actualEnrollment;
+        const maxEnrollment = updateData.maxEnrollment ?? currentIteration.maxEnrollment;
+        
+        updateData.isFull = maxEnrollment ? (actualEnrollment || expectedEnrollment) >= maxEnrollment : false;
+      }
     }
     
-    // Ensure string fields are not undefined
-    updateData.notes = updateData.notes || "";
-    updateData.assignedLecturerId = updateData.assignedLecturerId || "";
-    updateData.assignedStatus = updateData.assignedStatus || "unassigned";
-    
-    try {
-      return await ctx.db.patch(id, updateData);
-    } catch (error) {
-      console.error('Error updating module iteration:', error);
-      console.error('Data that caused error:', JSON.stringify(updateData, null, 2));
-      throw error;
-    }
+    return await ctx.db.patch(id, {
+      ...updateData,
+      updatedAt: Date.now(),
+    });
   },
 });
 
-// Mutation to delete a module iteration
+// Mutation to delete a module iteration (soft delete)
 export const deleteIteration = mutation({
   args: { id: v.id("module_iterations") },
   handler: async (ctx, args) => {
-    return await ctx.db.delete(args.id);
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Soft delete
+    return await ctx.db.patch(args.id, {
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -250,12 +346,8 @@ export const batchSaveAllocations = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    console.log('batchSaveAllocations called with args:', JSON.stringify(args, null, 2));
-    
     // Update module iterations with new assigned lecturers
     for (const allocation of args.allocations) {
-      console.log('Updating allocation:', allocation);
-      
       // Validate and clean the data
       const validLecturerIds = Array.isArray(allocation.assignedLecturerIds) 
         ? allocation.assignedLecturerIds.filter(id => id && typeof id === 'string' && id.trim() !== '')
@@ -265,10 +357,10 @@ export const batchSaveAllocations = mutation({
         await ctx.db.patch(allocation.moduleIterationId, {
           assignedLecturerIds: validLecturerIds,
           assignedStatus: allocation.assignedStatus || "unassigned",
+          updatedAt: Date.now(),
         });
       } catch (error) {
         console.error('Error updating allocation:', error);
-        console.error('Allocation data that caused error:', JSON.stringify(allocation, null, 2));
         throw error;
       }
     }
@@ -280,6 +372,7 @@ export const batchSaveAllocations = mutation({
         totalAllocated: lecturerUpdate.totalAllocated,
         teachingAvailability: lecturerUpdate.teachingAvailability,
         capacity: lecturerUpdate.capacity,
+        updatedAt: Date.now(),
       });
     }
 
@@ -310,59 +403,51 @@ export const bulkImport = mutation({
   args: {
     iterations: v.array(
       v.object({
-        moduleCode: v.string(),
+        moduleId: v.id("modules"),
+        academicYearId: v.id("academic_years"),
+        semesterPeriodId: v.optional(v.id("semester_periods")),
+        iterationCode: v.string(),
         title: v.string(),
-        semester: v.float64(),
-        cohortId: v.string(),
-        teachingStartDate: v.string(),
-        teachingHours: v.float64(),
-        markingHours: v.float64(),
-        assignedLecturerId: v.optional(v.string()),
-        assignedLecturerIds: v.optional(v.array(v.id("lecturers"))),
-        assignedStatus: v.optional(v.string()),
+        description: v.optional(v.string()),
+        deliveryMode: v.string(),
+        deliveryLocation: v.optional(v.string()),
+        virtualRoomUrl: v.optional(v.string()),
+        expectedEnrollment: v.number(),
+        maxEnrollment: v.optional(v.number()),
+        startDate: v.number(),
+        endDate: v.number(),
+        teachingStartDate: v.optional(v.number()),
+        teachingEndDate: v.optional(v.number()),
+        status: v.optional(v.string()),
+        isActive: v.optional(v.boolean()),
         notes: v.optional(v.string()),
-        assessments: v.optional(v.array(
-          v.object({
-            title: v.string(),
-            type: v.string(),
-            weighting: v.number(),
-            submissionDate: v.string(),
-            marksDueDate: v.string(),
-            isSecondAttempt: v.boolean(),
-            externalExaminerRequired: v.boolean(),
-            alertsToTeam: v.boolean(),
-          })
-        )),
-        sites: v.optional(v.array(
-          v.object({
-            name: v.string(),
-            deliveryTime: v.string(),
-            students: v.number(),
-            groups: v.number(),
-          })
-        )),
       })
     ),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
     const results = [];
     for (const iterationData of args.iterations) {
       try {
         // Set default values for optional fields
         const dataToInsert = {
           ...iterationData,
-          assignedLecturerId: iterationData.assignedLecturerId || "",
-          assignedLecturerIds: iterationData.assignedLecturerIds || [],
-          assignedStatus: iterationData.assignedStatus || "unassigned",
-          notes: iterationData.notes || "",
-          assessments: iterationData.assessments || [],
-          sites: iterationData.sites || [],
+          actualEnrollment: 0,
+          isFull: iterationData.maxEnrollment ? iterationData.expectedEnrollment >= iterationData.maxEnrollment : false,
+          status: iterationData.status || "planned",
+          isActive: iterationData.isActive ?? true,
         };
         
-        const iterationId = await ctx.db.insert("module_iterations", dataToInsert);
-        results.push({ success: true, id: iterationId, moduleCode: iterationData.moduleCode });
+        const iterationId = await ctx.db.insert("module_iterations", {
+          ...dataToInsert,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        results.push({ success: true, id: iterationId, iterationCode: iterationData.iterationCode });
       } catch (error) {
-        results.push({ success: false, moduleCode: iterationData.moduleCode, error: String(error) });
+        results.push({ success: false, iterationCode: iterationData.iterationCode, error: String(error) });
       }
     }
     return results;
