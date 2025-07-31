@@ -10,9 +10,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen, Loader2, Info } from "lucide-react"
+import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen, Loader2, Info, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
@@ -23,7 +24,7 @@ import { useTheme } from "next-themes";
 import { updateSettings as updateSettingsUtil } from "@/lib/utils";
 import { useDevMode } from "@/hooks/useDevMode";
 
-export type TabType = "profile" | "settings" | "general" | "lecturer-preferences" | "developer";
+export type TabType = "profile" | "settings" | "general" | "lecturer-preferences" | "developer" | "organisation-general";
 
 interface SettingsModalProps {
   open: boolean;
@@ -55,6 +56,12 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     landingPage: "dashboard",
     experimental: false,
   });
+
+  // Organisation settings state
+  const [organisationData, setOrganisationData] = useState({
+    standardClassSize: 30,
+  });
+  const [isSavingOrganisationSettings, setIsSavingOrganisationSettings] = useState(false);
 
   // Clerk user: only allow editing local fields, display Clerk user info
   const [profileData, setProfileData] = useState({
@@ -168,6 +175,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   const preferences = useQuery(api.users.getPreferences);
   const profileFields = useQuery(api.users.getProfileFields);
   const userSettings = useQuery(api.users.getSettings);
+  const organisationSettings = useQuery(api.organisations.get);
 
   // Use the data only when user is authenticated and loaded
   const safePreferences = isLoaded && user && preferences ? preferences : null;
@@ -254,6 +262,16 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     }
   }, [activeTab, safeUserSettings]);
 
+  // Populate organisation settings when organisation-general tab is opened and data is available
+  React.useEffect(() => {
+    if (activeTab === "organisation-general" && organisationSettings) {
+      setOrganisationData(prev => ({
+        ...prev,
+        standardClassSize: organisationSettings.standardClassSize ?? 30,
+      }));
+    }
+  }, [activeTab, organisationSettings]);
+
   // Sync theme with user's saved setting when settings are loaded
   React.useEffect(() => {
     if (activeTab === "settings" && safeUserSettings && safeUserSettings.theme) {
@@ -264,6 +282,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   const storeUser = useMutation(api.users.store);
   const setPreferences = useMutation(api.users.setPreferences);
   const setSettings = useMutation(api.users.setSettings);
+  const updateOrganisation = useMutation(api.organisations.updateStandardClassSize);
 
   const sidebarItems = [
     {
@@ -305,6 +324,21 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       icon: Shield,
       description: "Development tools & options",
     }] : []),
+  ];
+
+  // Organisation settings items
+  const organisationSidebarItems: Array<{
+    id: TabType;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    description: string;
+  }> = [
+    {
+      id: "organisation-general" as TabType,
+      label: "General",
+      icon: Settings,
+      description: "Organisation-wide settings",
+    },
   ];
 
   const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -506,6 +540,27 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                   <Separator className="flex-1" />
                 </div>
                 {appSidebarItems.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={cn(
+                      "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
+                      activeTab === item.id ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <div>
+                      <div className="font-medium text-sm">{item.label}</div>
+                      <div className={cn("text-xs", activeTab === item.id ? "text-primary-foreground/70" : "text-muted-foreground")}>{item.description}</div>
+                    </div>
+                  </button>
+                ))}
+                <div className="my-4 flex items-center space-x-2">
+                  <Separator className="flex-1" />
+                  <span className="text-xs font-semibold text-muted-foreground px-2 whitespace-nowrap">Organisation Settings</span>
+                  <Separator className="flex-1" />
+                </div>
+                {organisationSidebarItems.map(item => (
                   <button
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
@@ -1178,6 +1233,211 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           "Save Preferences"
                         )}
                       </Button>
+                    </div>
+                  )}
+
+                  {activeTab === "organisation-general" && (
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-2xl font-semibold">Organisation General Settings</h2>
+                          <p className="text-muted-foreground">Configure organisation-wide settings and preferences</p>
+                        </div>
+                      </div>
+                      <Separator />
+                      
+                      {/* Standard Class Size Setting */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-medium">Standard Class Size</h3>
+                            <p className="text-sm text-muted-foreground">Set the default class size used for workload calculations</p>
+                          </div>
+                          <Button
+                            onClick={async () => {
+                              if (isSavingOrganisationSettings) return;
+                              
+                              setIsSavingOrganisationSettings(true);
+                              
+                              try {
+                                await updateOrganisation({
+                                  standardClassSize: organisationData.standardClassSize,
+                                });
+                                toast.success("Standard class size updated successfully!");
+                              } catch (error) {
+                                console.error('Failed to update standard class size:', error);
+                                toast.error("Failed to update standard class size.", {
+                                  description: "Please check your connection and try again.",
+                                  duration: 6000,
+                                });
+                              } finally {
+                                setIsSavingOrganisationSettings(false);
+                              }
+                            }}
+                            disabled={isSavingOrganisationSettings}
+                            size="sm"
+                          >
+                            {isSavingOrganisationSettings ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              "Save"
+                            )}
+                          </Button>
+                        </div>
+                        <div className="max-w-xs">
+                          <Label htmlFor="standardClassSize">Default Class Size</Label>
+                          <Input
+                            id="standardClassSize"
+                            type="number"
+                            min="1"
+                            max="500"
+                            value={organisationData.standardClassSize}
+                            onChange={(e) => setOrganisationData(prev => ({
+                              ...prev,
+                              standardClassSize: parseInt(e.target.value) || 30,
+                            }))}
+                            placeholder="30"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            This value will be used as the default for new modules and workload calculations
+                          </p>
+                        </div>
+                      </div>
+
+                      <Separator />
+                      
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="outline" className="w-full justify-between">
+                            <span className="flex items-center gap-2">
+                              <Info className="h-4 w-4" />
+                              Coming Soon - Organisation Settings
+                            </span>
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="space-y-4 mt-4">
+                          {/* Organisation Information */}
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium">Organisation Information</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                <Label htmlFor="orgName">Organisation Name</Label>
+                                <Input
+                                  id="orgName"
+                                  placeholder="e.g. University of Example"
+                                  disabled
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="orgDomain">Primary Domain</Label>
+                                <Input
+                                  id="orgDomain"
+                                  placeholder="e.g. example.ac.uk"
+                                  disabled
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <Separator />
+
+                          {/* Academic Settings */}
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium">Academic Settings</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="space-y-2">
+                                <Label htmlFor="academicYear">Academic Year</Label>
+                                <Select disabled>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select academic year" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="2024-25">2024-25</SelectItem>
+                                    <SelectItem value="2025-26">2025-26</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="semester">Current Semester</Label>
+                                <Select disabled>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select semester" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="autumn">Autumn</SelectItem>
+                                    <SelectItem value="spring">Spring</SelectItem>
+                                    <SelectItem value="summer">Summer</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </div>
+
+                          <Separator />
+
+                          {/* System Settings */}
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium">System Settings</h3>
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Label>Enable Module Allocations</Label>
+                                  <p className="text-sm text-muted-foreground">Allow lecturers to be assigned to modules</p>
+                                </div>
+                                <Switch disabled checked />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Label>Enable Workload Tracking</Label>
+                                  <p className="text-sm text-muted-foreground">Track and monitor academic workload</p>
+                                </div>
+                                <Switch disabled checked />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Label>Enable Notifications</Label>
+                                  <p className="text-sm text-muted-foreground">Send notifications for workload changes</p>
+                                </div>
+                                <Switch disabled checked />
+                              </div>
+                            </div>
+                          </div>
+
+                          <Separator />
+
+                          {/* Access Control */}
+                          <div className="space-y-4">
+                            <h3 className="text-lg font-medium">Access Control</h3>
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Label>Require Admin Approval</Label>
+                                  <p className="text-sm text-muted-foreground">Require admin approval for major changes</p>
+                                </div>
+                                <Switch disabled checked />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <Label>Audit Trail</Label>
+                                  <p className="text-sm text-muted-foreground">Log all changes for audit purposes</p>
+                                </div>
+                                <Switch disabled checked />
+                              </div>
+                            </div>
+                          </div>
+
+                          <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertDescription>
+                              Organisation settings are managed by system administrators. Contact your administrator to make changes to these settings.
+                            </AlertDescription>
+                          </Alert>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </div>
                   )}
               </div>
