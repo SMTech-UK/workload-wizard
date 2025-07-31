@@ -1,14 +1,100 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 
-// Query to get all lecturers
+// Define the table schema
+// This contains year-specific lecturer data that changes between academic years
+export default {
+  profileId: v.id("lecturer_profiles"), // Reference to the core lecturer profile
+  academicYearId: v.id("academic_years"), // Reference to academic year
+  // Year-specific data that resets each year
+  status: v.string(),
+  teachingAvailability: v.number(),
+  totalAllocated: v.number(),
+  allocatedTeachingHours: v.number(),
+  allocatedAdminHours: v.number(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+};
+
+// Query to get all lecturers with their profiles
 export const getAll = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    academicYearId: v.optional(v.id("academic_years")),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db.query("lecturers").collect();
+    let lecturers;
+    if (args.academicYearId) {
+      lecturers = await ctx.db.query("lecturers")
+        .filter((q) => q.eq(q.field("academicYearId"), args.academicYearId))
+        .collect();
+    } else {
+      lecturers = await ctx.db.query("lecturers").collect();
+    }
+    
+    // Join with lecturer profiles to get complete data
+    const lecturersWithProfiles = await Promise.all(
+      lecturers.map(async (lecturer) => {
+        // Handle both old and new data structures
+        if (lecturer.profileId) {
+          // New structure: get profile data
+          const profile = await ctx.db.get(lecturer.profileId);
+          return {
+            ...lecturer,
+            // Include profile data
+            fullName: profile?.fullName || "",
+            team: profile?.team || "",
+            specialism: profile?.specialism || "",
+            contract: profile?.contract || "",
+            email: profile?.email || "",
+            role: profile?.role || "",
+            family: profile?.family || "",
+            fte: profile?.fte || 1.0,
+            capacity: profile?.capacity || 0,
+            maxTeachingHours: profile?.maxTeachingHours || 0,
+            totalContract: profile?.totalContract || 0,
+          };
+        } else {
+          // Old structure: data is already in the lecturer record
+          return {
+            ...lecturer,
+            profileId: null, // Ensure profileId is set for consistency
+          };
+        }
+      })
+    );
+    
+    return lecturersWithProfiles;
+  },
+});
+
+// NEW: Get available lecturer profiles that aren't in a specific academic year
+export const getAvailableProfiles = query({
+  args: {
+    academicYearId: v.id("academic_years"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get all lecturer profiles
+    const allProfiles = await ctx.db.query("lecturer_profiles").collect();
+    
+    // Get profiles that are already in this academic year
+    const existingLecturers = await ctx.db.query("lecturers")
+      .filter((q) => q.eq(q.field("academicYearId"), args.academicYearId))
+      .collect();
+    
+    const existingProfileIds = new Set(
+      existingLecturers
+        .filter(l => l.profileId) // Only include records with profileId
+        .map(l => l.profileId)
+    );
+    
+    // Return profiles that aren't in this academic year
+    return allProfiles.filter(profile => !existingProfileIds.has(profile._id));
   },
 });
 
@@ -23,32 +109,95 @@ export const updateStatus = mutation({
   },
 });
 
-// Mutation to create a new lecturer
+// Mutation to create a new lecturer for a specific academic year
 export const createLecturer = mutation({
   args: {
-    fullName: v.string(),
-    team: v.string(),
-    specialism: v.string(),
-    contract: v.string(),
-    email: v.string(),
-    capacity: v.number(),
-    maxTeachingHours: v.number(),
-    role: v.string(),
-    status: v.string(),
-    teachingAvailability: v.number(),
-    totalAllocated: v.number(),
-    totalContract: v.number(),
-    allocatedTeachingHours: v.number(),
-    allocatedAdminHours: v.number(),
-    family: v.string(),
-    fte: v.number(),
+    profileId: v.id("lecturer_profiles"),
+    academicYearId: v.id("academic_years"),
+    status: v.optional(v.string()),
+    teachingAvailability: v.optional(v.number()),
+    totalAllocated: v.optional(v.number()),
+    allocatedTeachingHours: v.optional(v.number()),
+    allocatedAdminHours: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
+    // Get the profile to set default values
+    const profile = await ctx.db.get(args.profileId);
+    if (!profile) throw new Error("Lecturer profile not found");
+    
     return await ctx.db.insert("lecturers", {
-      ...args,
+      profileId: args.profileId,
+      academicYearId: args.academicYearId,
+      status: args.status || "available",
+      teachingAvailability: args.teachingAvailability ?? profile.capacity,
+      totalAllocated: args.totalAllocated ?? 0,
+      allocatedTeachingHours: args.allocatedTeachingHours ?? 0,
+      allocatedAdminHours: args.allocatedAdminHours ?? 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// NEW: Create a new lecturer profile and instance for a specific academic year
+export const createNewLecturer = mutation({
+  args: {
+    // Profile data
+    fullName: v.string(),
+    team: v.string(),
+    specialism: v.string(),
+    contract: v.string(),
+    email: v.string(),
+    role: v.string(),
+    family: v.string(),
+    fte: v.number(),
+    capacity: v.number(),
+    maxTeachingHours: v.number(),
+    totalContract: v.number(),
+    // Academic year
+    academicYearId: v.id("academic_years"),
+    // Year-specific data
+    status: v.optional(v.string()),
+    teachingAvailability: v.optional(v.number()),
+    totalAllocated: v.optional(v.number()),
+    allocatedTeachingHours: v.optional(v.number()),
+    allocatedAdminHours: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Create the lecturer profile first
+    const profileId = await ctx.db.insert("lecturer_profiles", {
+      fullName: args.fullName,
+      team: args.team,
+      specialism: args.specialism,
+      contract: args.contract,
+      email: args.email,
+      role: args.role,
+      family: args.family,
+      fte: args.fte,
+      capacity: args.capacity,
+      maxTeachingHours: args.maxTeachingHours,
+      totalContract: args.totalContract,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    
+    // Create the lecturer instance for this specific academic year
+    return await ctx.db.insert("lecturers", {
+      profileId: profileId,
+      academicYearId: args.academicYearId,
+      status: args.status || "available",
+      teachingAvailability: args.teachingAvailability ?? args.capacity,
+      totalAllocated: args.totalAllocated ?? 0,
+      allocatedTeachingHours: args.allocatedTeachingHours ?? 0,
+      allocatedAdminHours: args.allocatedAdminHours ?? 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
   },
 });
@@ -103,56 +252,95 @@ export const deleteLecturer = mutation({
   },
 });
 
-// Mutation to bulk import lecturers
-export const bulkImport = mutation({
+// Mutation to create lecturer instances for a new academic year
+export const createForAcademicYear = mutation({
   args: {
-    lecturers: v.array(
-      v.object({
-        fullName: v.string(),
-        team: v.string(),
-        specialism: v.string(),
-        contract: v.string(),
-        email: v.string(),
-        capacity: v.number(),
-        maxTeachingHours: v.number(),
-        role: v.string(),
-        status: v.optional(v.string()),
-        teachingAvailability: v.optional(v.number()),
-        totalAllocated: v.optional(v.number()),
-        totalContract: v.optional(v.number()),
-        allocatedTeachingHours: v.optional(v.number()),
-        allocatedAdminHours: v.optional(v.number()),
-        family: v.optional(v.string()),
-        fte: v.optional(v.number()),
-      })
-    ),
+    academicYearId: v.id("academic_years"),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
+    // Get all lecturer profiles
+    const profiles = await ctx.db.query("lecturer_profiles").collect();
+    
     const results = [];
-    for (const lecturerData of args.lecturers) {
+    for (const profile of profiles) {
       try {
-        // Set default values for optional fields
-        const dataToInsert = {
-          ...lecturerData,
-          status: lecturerData.status || "available",
-          teachingAvailability: lecturerData.teachingAvailability || lecturerData.capacity,
-          totalAllocated: lecturerData.totalAllocated || 0,
-          totalContract: lecturerData.totalContract || lecturerData.capacity,
-          allocatedTeachingHours: lecturerData.allocatedTeachingHours || 0,
-          allocatedAdminHours: lecturerData.allocatedAdminHours || 0,
-          family: lecturerData.family || "",
-          fte: lecturerData.fte || 1.0,
-        };
+        // Check if lecturer already exists for this academic year
+        const existing = await ctx.db.query("lecturers")
+          .filter((q) => 
+            q.and(
+              q.eq(q.field("profileId"), profile._id),
+              q.eq(q.field("academicYearId"), args.academicYearId)
+            )
+          )
+          .first();
         
-        const lecturerId = await ctx.db.insert("lecturers", dataToInsert);
-        results.push({ success: true, id: lecturerId, email: lecturerData.email });
+        if (!existing) {
+          // Create new lecturer instance for this academic year with default values
+          const lecturerId = await ctx.db.insert("lecturers", {
+            profileId: profile._id,
+            academicYearId: args.academicYearId,
+            status: "available",
+            teachingAvailability: profile.capacity,
+            totalAllocated: 0,
+            allocatedTeachingHours: 0,
+            allocatedAdminHours: 0,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+          results.push({ success: true, id: lecturerId, email: profile.email });
+        } else {
+          results.push({ success: false, email: profile.email, error: "Already exists for this academic year" });
+        }
       } catch (error) {
-        results.push({ success: false, email: lecturerData.email, error: String(error) });
+        results.push({ success: false, email: profile.email, error: String(error) });
       }
     }
     return results;
+  },
+});
+
+// NEW: Add a specific lecturer profile to an academic year
+export const addProfileToAcademicYear = mutation({
+  args: {
+    profileId: v.id("lecturer_profiles"),
+    academicYearId: v.id("academic_years"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Check if lecturer already exists for this academic year
+    const existing = await ctx.db.query("lecturers")
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("profileId"), args.profileId),
+          q.eq(q.field("academicYearId"), args.academicYearId)
+        )
+      )
+      .first();
+    
+    if (existing) {
+      throw new Error("Lecturer already exists for this academic year");
+    }
+    
+    // Get the profile to set default values
+    const profile = await ctx.db.get(args.profileId);
+    if (!profile) throw new Error("Lecturer profile not found");
+    
+    // Create new lecturer instance for this academic year with default values
+    return await ctx.db.insert("lecturers", {
+      profileId: args.profileId,
+      academicYearId: args.academicYearId,
+      status: "available",
+      teachingAvailability: profile.capacity,
+      totalAllocated: 0,
+      allocatedTeachingHours: 0,
+      allocatedAdminHours: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
   },
 });

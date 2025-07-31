@@ -27,6 +27,7 @@ import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useAcademicYear } from "@/hooks/useAcademicYear";
 
 // Define the Assessment interface
 interface Assessment {
@@ -74,9 +75,12 @@ export default function ModuleIterations() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const iterations = useQuery(api.module_iterations.getAll) ?? [];
-  const modules = useQuery(api.modules.getAll) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll) ?? [];
+  const { currentAcademicYearId, currentAcademicYear } = useAcademicYear();
+  
+  const iterations = useQuery(api.module_iterations.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
+  const modules = useQuery(api.modules.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
+  const lecturers = useQuery(api.lecturers.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
+  const organisationSettings = useQuery(api.organisations.get);
   const createIteration = useMutation(api.module_iterations.createIteration)
   const updateIteration = useMutation(api.module_iterations.updateIteration)
   const deleteIteration = useMutation(api.module_iterations.deleteIteration)
@@ -114,6 +118,8 @@ export default function ModuleIterations() {
     assessments: [] as Assessment[],
     sites: [] as Site[],
   })
+
+
   const [submitting, setSubmitting] = useState(false)
 
   // Assessment form state
@@ -136,14 +142,30 @@ export default function ModuleIterations() {
     groups: 1,
   });
 
+  // Validation state for site form
+  const [siteFormErrors, setSiteFormErrors] = useState<{
+    students?: string;
+  }>({});
+
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [id]: id === "semester" || id === "teachingHours" || id === "markingHours" 
-        ? Number(value) 
-        : value
-    }));
+    
+    if (id === "teachingHours") {
+      setForm((prev) => ({
+        ...prev,
+        teachingHours: Number(value)
+      }));
+    } else if (id === "markingHours") {
+      setForm((prev) => ({
+        ...prev,
+        markingHours: Number(value)
+      }));
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        [id]: id === "semester" ? Number(value) : value
+      }));
+    }
   }
 
   const handleSelectChange = (field: string, value: string | number) => {
@@ -153,14 +175,29 @@ export default function ModuleIterations() {
     }));
   }
 
+  // Validate students input
+  const validateStudents = (value: number): string | undefined => {
+    const maxStudents = organisationSettings?.standardClassSize || 30;
+    
+    if (value < 0) {
+      return "Number of students cannot be negative";
+    }
+    if (value > maxStudents) {
+      return `Number of students cannot exceed ${maxStudents}`;
+    }
+    return undefined;
+  }
+
   const handleModuleCodeChange = (moduleCode: string) => {
     const selectedModule = modules.find(m => m.code === moduleCode);
+    const defaultTeachingHours = organisationSettings?.defaultTeachingHours || 42;
+    
     setForm(prev => ({
       ...prev,
       moduleCode,
       title: selectedModule?.title || "",
-      teachingHours: selectedModule?.defaultTeachingHours || 0,
-      markingHours: selectedModule?.defaultMarkingHours || 0,
+      teachingHours: selectedModule?.defaultTeachingHours || defaultTeachingHours,
+      markingHours: selectedModule?.defaultMarkingHours || defaultTeachingHours, // Use module's default marking hours
     }));
   }
 
@@ -228,14 +265,15 @@ export default function ModuleIterations() {
   }
 
   const resetForm = () => {
+    const defaultTeachingHours = organisationSettings?.defaultTeachingHours || 42;
     setForm({
       moduleCode: "",
       title: "",
       semester: 1,
       cohortId: "",
       teachingStartDate: "",
-      teachingHours: 0,
-      markingHours: 0,
+      teachingHours: defaultTeachingHours,
+      markingHours: defaultTeachingHours,
       assignedLecturerId: "",
       assignedLecturerIds: [],
       assignedStatus: "unassigned",
@@ -259,6 +297,7 @@ export default function ModuleIterations() {
       students: 0,
       groups: 1,
     });
+    setSiteFormErrors({});
   }
 
   const handleOpenCreateModal = () => {
@@ -267,12 +306,13 @@ export default function ModuleIterations() {
     resetForm()
     if (moduleFilter) {
       const selectedModule = modules.find(m => m.code === moduleFilter);
+      const defaultTeachingHours = organisationSettings?.defaultTeachingHours || 42;
       setForm(prev => ({
         ...prev,
         moduleCode: moduleFilter,
         title: selectedModule?.title || "",
-        teachingHours: selectedModule?.defaultTeachingHours || 0,
-        markingHours: selectedModule?.defaultMarkingHours || 0,
+        teachingHours: selectedModule?.defaultTeachingHours || defaultTeachingHours,
+        markingHours: selectedModule?.defaultMarkingHours || defaultTeachingHours,
       }));
     }
     setModalOpen(true)
@@ -328,6 +368,16 @@ export default function ModuleIterations() {
 
   // Site management
   const addSite = () => {
+    // Validate students before adding
+    const studentsError = validateStudents(siteForm.students);
+    if (studentsError) {
+      setSiteFormErrors(prev => ({
+        ...prev,
+        students: studentsError
+      }));
+      return;
+    }
+
     if (siteForm.name && siteForm.deliveryTime) {
       setForm(prev => ({
         ...prev,
@@ -339,6 +389,8 @@ export default function ModuleIterations() {
         students: 0,
         groups: 1,
       });
+      // Clear errors when successfully adding
+      setSiteFormErrors({});
     }
   };
 
@@ -410,6 +462,21 @@ export default function ModuleIterations() {
 
   return (
     <div className="space-y-6 bg-white dark:bg-zinc-900 min-h-screen">
+      {/* Academic Year Header */}
+      {currentAcademicYear && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <span className="font-medium text-blue-900 dark:text-blue-100">
+              Viewing data for Academic Year: {currentAcademicYear.name}
+            </span>
+            {currentAcademicYear.isActive && (
+              <Badge variant="default" className="text-xs">Active</Badge>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -757,9 +824,31 @@ export default function ModuleIterations() {
                     id="siteStudents" 
                     type="number" 
                     min={0} 
+                    max={organisationSettings?.standardClassSize || 30}
                     value={siteForm.students} 
-                    onChange={(e) => setSiteForm(prev => ({ ...prev, students: Number(e.target.value) }))} 
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setSiteForm(prev => ({ ...prev, students: value }));
+                      
+                      // Validate the input
+                      const error = validateStudents(value);
+                      setSiteFormErrors(prev => ({
+                        ...prev,
+                        students: error
+                      }));
+                    }}
+                    placeholder={`Max: ${organisationSettings?.standardClassSize || 30}`}
+                    className={siteFormErrors.students ? "border-red-500 focus:border-red-500" : ""}
                   />
+                  {siteFormErrors.students ? (
+                    <p className="text-xs text-red-500">
+                      {siteFormErrors.students}
+                    </p>
+                  ) : organisationSettings?.standardClassSize ? (
+                    <p className="text-xs text-muted-foreground dark:text-gray-300">
+                      Maximum class size: {organisationSettings.standardClassSize} students
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="siteGroups" className="text-gray-900 dark:text-white">Number of Groups</Label>

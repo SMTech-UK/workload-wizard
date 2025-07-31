@@ -6,6 +6,7 @@ export default defineTable({
   name: v.string(),
   domain: v.optional(v.string()),
   standardClassSize: v.optional(v.number()),
+  defaultTeachingHours: v.optional(v.number()),
   academicYear: v.optional(v.string()),
   currentSemester: v.optional(v.string()),
   settings: v.optional(v.object({
@@ -32,6 +33,7 @@ export const get = query({
 export const update = mutation({
   args: {
     standardClassSize: v.optional(v.number()),
+    defaultTeachingHours: v.optional(v.number()),
     academicYear: v.optional(v.string()),
     currentSemester: v.optional(v.string()),
     settings: v.optional(v.object({
@@ -80,6 +82,30 @@ export const updateStandardClassSize = mutation({
       return await ctx.db.insert("organisations", {
         name: "Default Organisation",
         standardClassSize: args.standardClassSize,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+// Update default teaching hours specifically
+export const updateDefaultTeachingHours = mutation({
+  args: {
+    defaultTeachingHours: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const organisation = await ctx.db.query("organisations").first();
+    
+    if (organisation) {
+      return await ctx.db.patch(organisation._id, {
+        defaultTeachingHours: args.defaultTeachingHours,
+        updatedAt: Date.now(),
+      });
+    } else {
+      return await ctx.db.insert("organisations", {
+        name: "Default Organisation",
+        defaultTeachingHours: args.defaultTeachingHours,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });

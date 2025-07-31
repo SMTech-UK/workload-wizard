@@ -113,23 +113,11 @@ function getNotificationTitle(notification: any) {
 function formatNotificationTimestamp(timestamp: string) {
   // timestamp is ISO string
   const date = typeof timestamp === 'string' ? parseISO(timestamp) : new Date(timestamp);
-  const now = new Date();
-  const hoursAgo = differenceInHours(now, date);
-  if (hoursAgo < 24) {
-    // Show relative time with tooltip
-    return {
-      display: formatDistanceToNow(date, { addSuffix: true }),
-      tooltip: format(date, 'PPpp'),
-      showTooltip: true,
-    };
-  } else {
-    // Show full date, no tooltip
-    return {
-      display: format(date, 'PPpp'),
-      tooltip: '',
-      showTooltip: false,
-    };
-  }
+  return {
+    display: format(date, 'MMM d, yyyy'), // e.g., Jul 28, 2025
+    tooltip: format(date, 'PPpp'), // full date and time
+    showTooltip: true,
+  };
 }
 
 const getChangeIcon = (type: string) => {
@@ -180,6 +168,7 @@ function DashboardContent() {
   const lecturersQuery = useQuery(api.lecturers.getAll);
   const adminAllocationsQuery = useQuery(api.admin_allocations.getAll);
   const modulesQuery = useQuery(api.modules.getAll);
+  const moduleIterationsQuery = useQuery(api.module_iterations.getAll);
   const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYears[0]);
   const convex = useConvex();
@@ -199,6 +188,11 @@ function DashboardContent() {
   const lecturers = useMemo(() => (isSignedIn ? lecturersQuery ?? [] : []), [lecturersQuery, isSignedIn]);
   const adminAllocations = useMemo(() => (isSignedIn ? adminAllocationsQuery ?? [] : []), [adminAllocationsQuery, isSignedIn]);
   const modules = useMemo(() => (isSignedIn ? modulesQuery ?? [] : []), [modulesQuery, isSignedIn]);
+  const moduleIterations = useMemo(() => (isSignedIn ? moduleIterationsQuery ?? [] : []), [moduleIterationsQuery, isSignedIn]);
+  const unallocatedIterations = moduleIterations.filter((iter: any) =>
+    !iter.assignedLecturerIds || iter.assignedLecturerIds.length === 0 || iter.assignedStatus === 'unassigned'
+  );
+  const unallocatedIterationsCount = unallocatedIterations.length;
   const memoizedLecturers = useMemo(() => lecturers, [lecturers]);
 
   // Fallback logic after hooks are called
@@ -651,6 +645,17 @@ function DashboardContent() {
                       });
                     }
                     
+                    // Check for unallocated module iterations
+                    if (unallocatedIterationsCount > 0) {
+                      alerts.push({
+                        type: 'warning',
+                        title: 'Unallocated Module Iterations',
+                        message: `${unallocatedIterationsCount} module iteration${unallocatedIterationsCount !== 1 ? 's' : ''} need allocation`,
+                        recommendation: 'Assign module iterations to available staff members',
+                        iterations: unallocatedIterationsCount
+                      });
+                    }
+                    
                     if (alerts.length === 0) {
                       return (
                         <div className="text-center py-8">
@@ -721,71 +726,73 @@ function DashboardContent() {
                   <CardDescription>Latest workload management activities</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
-                  <ScrollArea className="max-h-64">
-                    <div className="space-y-4 pr-2">
-                      <TooltipProvider>
-                        {loadingRecentChanges ? (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
-                          <span className="ml-2 text-sm text-gray-600">Loading...</span>
-                        </div>
-                      ) : recentChangesItems.length === 0 ? (
-                        <div className="text-center py-8">
-                          <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600">No recent activity</p>
-                        </div>
-                      ) : (
-                        recentChangesItems
-                          .slice(0, 5)
-                          .map((notification: any) => {
-                            const titleObj = getNotificationTitle(notification);
-                            return (
-                              <div key={notification.id} className="flex items-start gap-3 pb-1 border-b border-gray-200 last:border-b-0">
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-1
-                                  ${notification.data?.type === 'create' ? 'bg-green-100 text-green-700' :
-                                    notification.data?.type === 'edit' ? 'bg-orange-100 text-orange-700' :
-                                    notification.data?.type === 'delete' ? 'bg-red-100 text-red-700' :
-                                    'bg-gray-100 text-gray-600'}`}
-                                >
-                                  {notification.data?.type === 'create' ? <PlusCircle className="h-4 w-4" /> :
-                                   notification.data?.type === 'edit' ? <Pencil className="h-4 w-4" /> :
-                                   notification.data?.type === 'delete' ? <Trash2 className="h-4 w-4" /> :
-                                   getChangeIcon(notification.data?.type)}
-                                </div>
-                                <div className="flex-1 min-w-0 flex items-center justify-between">
-                                  <div>
-                                    <span className="text-sm font-medium text-gray-900">
-                                      {titleObj.isHtml ? (
-                                        <span dangerouslySetInnerHTML={{ __html: titleObj.value }} />
-                                      ) : (
-                                        titleObj.value
-                                      )}
-                                    </span>
-                                    {notification.data?.description && (
-                                      <p className="text-xs text-gray-600 mt-1">{notification.data.description}</p>
-                                    )}
+                  <div className="flex-1 min-h-0">
+                    <ScrollArea className="h-64">
+                      <div className="space-y-4 pr-2">
+                        <TooltipProvider>
+                          {loadingRecentChanges ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+                            <span className="ml-2 text-sm text-gray-600">Loading...</span>
+                          </div>
+                        ) : recentChangesItems.length === 0 ? (
+                          <div className="text-center py-8">
+                            <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-600">No recent activity</p>
+                          </div>
+                        ) : (
+                          recentChangesItems
+                            .slice(0, 5)
+                            .map((notification: any) => {
+                              const titleObj = getNotificationTitle(notification);
+                              return (
+                                <div key={notification.id} className="flex items-start gap-3 pb-1 border-b border-gray-200 last:border-b-0">
+                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-1
+                                    ${notification.data?.type === 'create' ? 'bg-green-100 text-green-700' :
+                                      notification.data?.type === 'edit' ? 'bg-orange-100 text-orange-700' :
+                                      notification.data?.type === 'delete' ? 'bg-red-100 text-red-700' :
+                                      'bg-gray-100 text-gray-600'}`}
+                                  >
+                                    {notification.data?.type === 'create' ? <PlusCircle className="h-4 w-4" /> :
+                                     notification.data?.type === 'edit' ? <Pencil className="h-4 w-4" /> :
+                                     notification.data?.type === 'delete' ? <Trash2 className="h-4 w-4" /> :
+                                     getChangeIcon(notification.data?.type)}
                                   </div>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="text-xs text-gray-500 cursor-help ml-4 whitespace-nowrap">
-                                        {formatNotificationTimestamp(notification.inserted_at).display}
+                                  <div className="flex-1 min-w-0 flex items-center justify-between">
+                                    <div>
+                                      <span className="text-xs font-medium text-gray-900 leading-tight">
+                                        {titleObj.isHtml ? (
+                                          <span dangerouslySetInnerHTML={{ __html: titleObj.value }} />
+                                        ) : (
+                                          titleObj.value
+                                        )}
                                       </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p>{formatNotificationTimestamp(notification.inserted_at).tooltip}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                      {notification.data?.description && (
+                                        <p className="text-xs text-gray-500 mt-1 leading-tight">{notification.data.description}</p>
+                                      )}
+                                    </div>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-[10px] text-gray-400 cursor-help ml-4 whitespace-nowrap">
+                                          {formatNotificationTimestamp(notification.inserted_at).display}
+                                        </span>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p className="text-xs">{formatNotificationTimestamp(notification.inserted_at).tooltip}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                                                     })
-                       )}
-                      </TooltipProvider>
-                    </div>
-                  </ScrollArea>
+                              );
+                                                       })
+                         )}
+                        </TooltipProvider>
+                      </div>
+                    </ScrollArea>
+                  </div>
                   <Button
                     variant="outline"
-                    className="w-full mt-2"
+                    className="w-full mt-4"
                     onClick={() => router.push("/inbox#recent-changes")}
                   >
                     View all activity
@@ -797,44 +804,46 @@ function DashboardContent() {
             {/* Quick Actions */}
             <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Quick Actions
+                  <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
+                    Coming Soon
+                  </span>
+                </CardTitle>
                 <CardDescription>Common workload management tasks</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 opacity-50">
                   <Button 
                     variant="outline" 
-                    className="h-20 flex-col gap-2 bg-transparent"
-                    onClick={() => {
-                      setCsvImportType("lecturers");
-                      setCsvImportModalOpen(true);
-                    }}
+                    className="h-20 flex-col gap-2 bg-transparent cursor-not-allowed"
+                    disabled
                   >
                     <Users className="w-6 h-6" />
                     Import Lecturers
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="h-20 flex-col gap-2 bg-transparent"
-                    onClick={() => {
-                      setCsvImportType("modules");
-                      setCsvImportModalOpen(true);
-                    }}
+                    className="h-20 flex-col gap-2 bg-transparent cursor-not-allowed"
+                    disabled
                   >
                     <BookOpen className="w-6 h-6" />
                     Import Modules
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="h-20 flex-col gap-2 bg-transparent"
-                    onClick={() => {
-                      setCsvImportType("module-iterations");
-                      setCsvImportModalOpen(true);
-                    }}
+                    className="h-20 flex-col gap-2 bg-transparent cursor-not-allowed"
+                    disabled
                   >
                     <FileText className="w-6 h-6" />
                     Import Module Iterations
                   </Button>
+                </div>
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Info className="w-4 h-4" />
+                    <span>Quick actions will be available in a future update</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>

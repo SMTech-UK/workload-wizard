@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { AcademicYearSelector } from "@/components/ui/academic-year-selector";
 
 interface NavigationProps {
   activeTab: string
@@ -106,6 +107,12 @@ export default function Navigation({ activeTab, setActiveTab, onProfileClick, on
                 WorkloadWizard{shouldShowDevTools && <span className="text-yellow-600 dark:text-yellow-400"> Dev</span>}
               </span>
             </div>
+            
+            {/* Academic Year Selector */}
+            <div className="hidden lg:flex items-center ml-6">
+              <AcademicYearSelector />
+            </div>
+            
             {/* Desktop nav */}
             <nav className="hidden lg:flex items-center gap-1 ml-8">
               {navItems.map((item) => {

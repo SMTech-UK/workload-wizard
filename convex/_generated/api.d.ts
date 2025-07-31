@@ -13,11 +13,15 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as academic_years from "../academic_years.js";
 import type * as admin_allocations from "../admin_allocations.js";
 import type * as cohorts from "../cohorts.js";
 import type * as dept_summary from "../dept_summary.js";
+import type * as lecturer_profiles from "../lecturer_profiles.js";
 import type * as lecturers from "../lecturers.js";
+import type * as migrations from "../migrations.js";
 import type * as module_iterations from "../module_iterations.js";
+import type * as module_profiles from "../module_profiles.js";
 import type * as modules from "../modules.js";
 import type * as organisations from "../organisations.js";
 import type * as recent_activity from "../recent_activity.js";
@@ -32,11 +36,15 @@ import type * as users from "../users.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  academic_years: typeof academic_years;
   admin_allocations: typeof admin_allocations;
   cohorts: typeof cohorts;
   dept_summary: typeof dept_summary;
+  lecturer_profiles: typeof lecturer_profiles;
   lecturers: typeof lecturers;
+  migrations: typeof migrations;
   module_iterations: typeof module_iterations;
+  module_profiles: typeof module_profiles;
   modules: typeof modules;
   organisations: typeof organisations;
   recent_activity: typeof recent_activity;

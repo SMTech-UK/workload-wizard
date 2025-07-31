@@ -32,6 +32,8 @@ import {
   XCircle,
   Code
 } from "lucide-react"
+import { AcademicYearTest } from "../academic-year-test";
+import { DataMigration } from "../data-migration";
 
 export default function DevToolsPage() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -67,6 +69,8 @@ export default function DevToolsPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          <AcademicYearTest />
+          <DataMigration />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="pb-2">

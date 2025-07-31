@@ -13,7 +13,8 @@ import { Switch } from "@/components/ui/switch"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen, Loader2, Info, ChevronDown } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Camera, User, Settings, Bell, Shield, Palette, X, Check, BookOpen, Loader2, Info, ChevronDown, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
@@ -24,7 +25,7 @@ import { useTheme } from "next-themes";
 import { updateSettings as updateSettingsUtil } from "@/lib/utils";
 import { useDevMode } from "@/hooks/useDevMode";
 
-export type TabType = "profile" | "settings" | "general" | "lecturer-preferences" | "developer" | "organisation-general";
+export type TabType = "profile" | "settings" | "general" | "lecturer-preferences" | "developer" | "organisation-general" | "organisation-academic-years";
 
 interface SettingsModalProps {
   open: boolean;
@@ -60,8 +61,50 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   // Organisation settings state
   const [organisationData, setOrganisationData] = useState({
     standardClassSize: 30,
+    defaultTeachingHours: 42,
   });
   const [isSavingOrganisationSettings, setIsSavingOrganisationSettings] = useState(false);
+  const [hasOrganisationSettingsChanged, setHasOrganisationSettingsChanged] = useState(false);
+  const [originalOrganisationSettings, setOriginalOrganisationSettings] = useState({
+    standardClassSize: 30,
+    defaultTeachingHours: 42,
+  });
+
+  // Academic year management state
+  const [academicYearData, setAcademicYearData] = useState({
+    name: "",
+    startDate: "",
+    endDate: "",
+    description: "",
+    isActive: false,
+    isStaging: false,
+  });
+
+  // Function to calculate end date based on start date (academic year is roughly 1 year)
+  const calculateEndDate = (startDate: string) => {
+    if (!startDate) return "";
+    
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + 1);
+    
+    // Format as YYYY-MM-DD
+    return end.toISOString().split('T')[0];
+  };
+
+  // Handle start date change and auto-calculate end date
+  const handleStartDateChange = (startDate: string) => {
+    const endDate = calculateEndDate(startDate);
+    setAcademicYearData(prev => ({
+      ...prev,
+      startDate,
+      endDate,
+    }));
+  };
+  const [isCreatingAcademicYear, setIsCreatingAcademicYear] = useState(false);
+  const [isDeletingAcademicYear, setIsDeletingAcademicYear] = useState(false);
+  const [isEditingAcademicYear, setIsEditingAcademicYear] = useState(false);
+  const [editingAcademicYearId, setEditingAcademicYearId] = useState<string | null>(null);
 
   // Clerk user: only allow editing local fields, display Clerk user info
   const [profileData, setProfileData] = useState({
@@ -176,6 +219,8 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   const profileFields = useQuery(api.users.getProfileFields);
   const userSettings = useQuery(api.users.getSettings);
   const organisationSettings = useQuery(api.organisations.get);
+  const academicYears = useQuery(api.academic_years.getAll);
+  const activeAcademicYear = useQuery(api.academic_years.getActive);
 
   // Use the data only when user is authenticated and loaded
   const safePreferences = isLoaded && user && preferences ? preferences : null;
@@ -265,10 +310,19 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   // Populate organisation settings when organisation-general tab is opened and data is available
   React.useEffect(() => {
     if (activeTab === "organisation-general" && organisationSettings) {
+      const loadedOrganisationSettings = {
+        standardClassSize: organisationSettings.standardClassSize ?? 30,
+        defaultTeachingHours: organisationSettings.defaultTeachingHours ?? 42,
+      };
+      
       setOrganisationData(prev => ({
         ...prev,
-        standardClassSize: organisationSettings.standardClassSize ?? 30,
+        ...loadedOrganisationSettings,
       }));
+      
+      // Set original values and reset change tracking
+      setOriginalOrganisationSettings(loadedOrganisationSettings);
+      setHasOrganisationSettingsChanged(false);
     }
   }, [activeTab, organisationSettings]);
 
@@ -282,7 +336,12 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   const storeUser = useMutation(api.users.store);
   const setPreferences = useMutation(api.users.setPreferences);
   const setSettings = useMutation(api.users.setSettings);
-  const updateOrganisation = useMutation(api.organisations.updateStandardClassSize);
+  const updateOrganisation = useMutation(api.organisations.update);
+  const createAcademicYear = useMutation(api.academic_years.create);
+  const updateAcademicYear = useMutation(api.academic_years.update);
+  const deleteAcademicYear = useMutation(api.academic_years.remove);
+  const setActiveAcademicYear = useMutation(api.academic_years.setActive);
+  const setStagingAcademicYear = useMutation(api.academic_years.setStaging);
 
   const sidebarItems = [
     {
@@ -338,6 +397,12 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       label: "General",
       icon: Settings,
       description: "Organisation-wide settings",
+    },
+    {
+      id: "organisation-academic-years" as TabType,
+      label: "Academic Years",
+      icon: Calendar,
+      description: "Manage academic years",
     },
   ];
 
@@ -451,6 +516,93 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       );
       
       setHasGeneralSettingsChanged(hasChanges);
+    }
+  };
+
+  const handleUpdateOrganisationSettings = (key: string, value: any) => {
+    setOrganisationData(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+    
+    // Track changes for organisation settings
+    const currentOrganisation = {
+      ...organisationData,
+      [key]: value,
+    };
+    
+    const hasChanges = Object.keys(originalOrganisationSettings).some(
+      (settingKey) => currentOrganisation[settingKey as keyof typeof currentOrganisation] !== originalOrganisationSettings[settingKey as keyof typeof originalOrganisationSettings]
+    );
+    
+    setHasOrganisationSettingsChanged(hasChanges);
+  };
+
+  // Function to start editing an academic year
+  const handleStartEditAcademicYear = (year: any) => {
+    setEditingAcademicYearId(year._id);
+    setAcademicYearData({
+      name: year.name,
+      startDate: year.startDate,
+      endDate: year.endDate,
+      description: year.description || "",
+      isActive: year.isActive,
+      isStaging: year.isStaging,
+    });
+    setIsEditingAcademicYear(true);
+  };
+
+  // Function to cancel editing
+  const handleCancelEditAcademicYear = () => {
+    setEditingAcademicYearId(null);
+    setAcademicYearData({
+      name: "",
+      startDate: "",
+      endDate: "",
+      description: "",
+      isActive: false,
+      isStaging: false,
+    });
+    setIsEditingAcademicYear(false);
+  };
+
+  // Function to save edited academic year
+  const handleSaveEditAcademicYear = async () => {
+    if (!editingAcademicYearId || !academicYearData.name || !academicYearData.startDate || !academicYearData.endDate) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setIsEditingAcademicYear(true);
+    try {
+      await updateAcademicYear({
+        id: editingAcademicYearId as any,
+        name: academicYearData.name,
+        startDate: academicYearData.startDate,
+        endDate: academicYearData.endDate,
+        description: academicYearData.description,
+        isActive: academicYearData.isActive,
+        isStaging: academicYearData.isStaging,
+      });
+      
+      // Reset form
+      setAcademicYearData({
+        name: "",
+        startDate: "",
+        endDate: "",
+        description: "",
+        isActive: false,
+        isStaging: false,
+      });
+      setEditingAcademicYearId(null);
+      setIsEditingAcademicYear(false);
+      
+      toast.success("Academic year updated successfully");
+    } catch (error) {
+      console.error('Failed to update academic year:', error);
+      toast.error("Failed to update academic year");
+    } finally {
+      setIsEditingAcademicYear(false);
     }
   };
 
@@ -1126,6 +1278,263 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                     </div>
                   )}
 
+                  {activeTab === "organisation-academic-years" && (
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h2 className="text-2xl font-semibold">Academic Year Management</h2>
+                          <p className="text-muted-foreground">Manage academic years and their settings</p>
+                        </div>
+                      </div>
+                      <Separator />
+
+                      {/* Current Active Academic Year */}
+                      {activeAcademicYear && (
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">Active Academic Year</h4>
+                              <p className="text-sm text-muted-foreground">{activeAcademicYear.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(activeAcademicYear.startDate).toLocaleDateString()} - {new Date(activeAcademicYear.endDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge variant="secondary">Active</Badge>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Academic Years List */}
+                      {academicYears && academicYears.length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="font-medium">All Academic Years</h4>
+                          <div className="space-y-2">
+                            {academicYears.map((year) => (
+                              <div key={year._id} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex-1">
+                                                                      <div className="flex items-center gap-2">
+                                      <span className="font-medium">{year.name}</span>
+                                      {year.isActive && <Badge variant="default">Active</Badge>}
+                                      {year.isStaging && <Badge variant="secondary">Staging</Badge>}
+                                    </div>
+                                  <p className="text-sm text-muted-foreground">
+                                    {new Date(year.startDate).toLocaleDateString()} - {new Date(year.endDate).toLocaleDateString()}
+                                  </p>
+                                  {year.description && (
+                                    <p className="text-xs text-muted-foreground">{year.description}</p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleStartEditAcademicYear(year)}
+                                  >
+                                    Edit
+                                  </Button>
+                                  {!year.isActive && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        try {
+                                          await setActiveAcademicYear({ id: year._id });
+                                          toast.success(`${year.name} set as active academic year`);
+                                        } catch (error) {
+                                          console.error('Failed to set active academic year:', error);
+                                          toast.error("Failed to set active academic year");
+                                        }
+                                      }}
+                                    >
+                                      Set Active
+                                    </Button>
+                                  )}
+                                  {!year.isStaging && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        try {
+                                          await setStagingAcademicYear({ id: year._id });
+                                          toast.success(`${year.name} set as staging academic year`);
+                                        } catch (error) {
+                                          console.error('Failed to set staging academic year:', error);
+                                          toast.error("Failed to set staging academic year");
+                                        }
+                                      }}
+                                    >
+                                      Set Staging
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={async () => {
+                                      if (confirm(`Are you sure you want to delete the academic year "${year.name}"? This action cannot be undone.`)) {
+                                        setIsDeletingAcademicYear(true);
+                                        try {
+                                          await deleteAcademicYear({ id: year._id });
+                                          toast.success(`${year.name} deleted successfully`);
+                                        } catch (error) {
+                                          console.error('Failed to delete academic year:', error);
+                                          toast.error("Failed to delete academic year. Make sure it has no associated data.");
+                                        } finally {
+                                          setIsDeletingAcademicYear(false);
+                                        }
+                                      }
+                                    }}
+                                    disabled={isDeletingAcademicYear}
+                                  >
+                                    {isDeletingAcademicYear ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      "Delete"
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Add/Edit Academic Year Form */}
+                      <div className="space-y-4 p-4 border rounded-lg">
+                        <h4 className="font-medium">
+                          {isEditingAcademicYear ? "Edit Academic Year" : "Add New Academic Year"}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="academicYearName">Academic Year Name</Label>
+                            <Input
+                              id="academicYearName"
+                              value={academicYearData.name}
+                              onChange={(e) => setAcademicYearData(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="e.g., 2025/26"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="academicYearDescription">Description (Optional)</Label>
+                            <Input
+                              id="academicYearDescription"
+                              value={academicYearData.description}
+                              onChange={(e) => setAcademicYearData(prev => ({ ...prev, description: e.target.value }))}
+                              placeholder="e.g., Main academic year"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="academicYearStartDate">Start Date</Label>
+                            <Input
+                              id="academicYearStartDate"
+                              type="date"
+                              value={academicYearData.startDate}
+                              onChange={(e) => handleStartDateChange(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="academicYearEndDate">End Date (Auto-calculated)</Label>
+                            <Input
+                              id="academicYearEndDate"
+                              type="date"
+                              value={academicYearData.endDate}
+                              onChange={(e) => setAcademicYearData(prev => ({ ...prev, endDate: e.target.value }))}
+                              className="bg-muted/50"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Automatically calculated as 1 year from start date
+                            </p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Label htmlFor="isActive">Set as Active Academic Year</Label>
+                              <p className="text-sm text-muted-foreground">Currently active year</p>
+                            </div>
+                            <Switch
+                              id="isActive"
+                              checked={academicYearData.isActive}
+                              onCheckedChange={(checked) => setAcademicYearData(prev => ({ ...prev, isActive: checked }))}
+                            />
+                          </div>
+                                                      <div className="flex items-center justify-between">
+                              <div>
+                                <Label htmlFor="isStaging">Set as Staging Academic Year</Label>
+                                <p className="text-sm text-muted-foreground">For planning future data</p>
+                              </div>
+                              <Switch
+                                id="isStaging"
+                                checked={academicYearData.isStaging}
+                                onCheckedChange={(checked) => setAcademicYearData(prev => ({ ...prev, isStaging: checked }))}
+                              />
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={async () => {
+                              if (!academicYearData.name || !academicYearData.startDate || !academicYearData.endDate) {
+                                toast.error("Please fill in all required fields");
+                                return;
+                              }
+
+                              if (isEditingAcademicYear) {
+                                await handleSaveEditAcademicYear();
+                              } else {
+                                setIsCreatingAcademicYear(true);
+                                try {
+                                                                  await createAcademicYear({
+                                  name: academicYearData.name,
+                                  startDate: academicYearData.startDate,
+                                  endDate: academicYearData.endDate,
+                                  description: academicYearData.description,
+                                  isActive: academicYearData.isActive,
+                                  isStaging: academicYearData.isStaging,
+                                });
+                                  
+                                  // Reset form
+                                  setAcademicYearData({
+                                    name: "",
+                                    startDate: "",
+                                    endDate: "",
+                                    description: "",
+                                    isActive: false,
+                                    isStaging: false,
+                                  });
+                                  
+                                  toast.success("Academic year created successfully");
+                                } catch (error) {
+                                  console.error('Failed to create academic year:', error);
+                                  toast.error("Failed to create academic year");
+                                } finally {
+                                  setIsCreatingAcademicYear(false);
+                                }
+                              }
+                            }}
+                            disabled={isCreatingAcademicYear || isEditingAcademicYear}
+                          >
+                            {isCreatingAcademicYear || isEditingAcademicYear ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                {isEditingAcademicYear ? "Updating..." : "Creating..."}
+                              </>
+                            ) : (
+                              isEditingAcademicYear ? "Update Academic Year" : "Create Academic Year"
+                            )}
+                          </Button>
+                          {isEditingAcademicYear && (
+                            <Button
+                              variant="outline"
+                              onClick={handleCancelEditAcademicYear}
+                              disabled={isCreatingAcademicYear || isEditingAcademicYear}
+                            >
+                              Cancel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {activeTab === "lecturer-preferences" && (
                     <div className="space-y-6">
                       <h2 className="text-2xl font-semibold">Lecturer Preferences</h2>
@@ -1243,16 +1652,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                           <h2 className="text-2xl font-semibold">Organisation General Settings</h2>
                           <p className="text-muted-foreground">Configure organisation-wide settings and preferences</p>
                         </div>
-                      </div>
-                      <Separator />
-                      
-                      {/* Standard Class Size Setting */}
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-lg font-medium">Standard Class Size</h3>
-                            <p className="text-sm text-muted-foreground">Set the default class size used for workload calculations</p>
-                          </div>
+                        {hasOrganisationSettingsChanged && (
                           <Button
                             onClick={async () => {
                               if (isSavingOrganisationSettings) return;
@@ -1262,11 +1662,18 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                               try {
                                 await updateOrganisation({
                                   standardClassSize: organisationData.standardClassSize,
+                                  defaultTeachingHours: organisationData.defaultTeachingHours,
                                 });
-                                toast.success("Standard class size updated successfully!");
+                                toast.success("Organisation settings saved successfully!");
+                                setHasOrganisationSettingsChanged(false);
+                                // Update original settings to current values after successful save
+                                setOriginalOrganisationSettings({
+                                  standardClassSize: organisationData.standardClassSize,
+                                  defaultTeachingHours: organisationData.defaultTeachingHours,
+                                });
                               } catch (error) {
-                                console.error('Failed to update standard class size:', error);
-                                toast.error("Failed to update standard class size.", {
+                                console.error('Failed to save organisation settings:', error);
+                                toast.error("Failed to save organisation settings.", {
                                   description: "Please check your connection and try again.",
                                   duration: 6000,
                                 });
@@ -1283,9 +1690,18 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                                 Saving...
                               </>
                             ) : (
-                              "Save"
+                              "Save Changes"
                             )}
                           </Button>
+                        )}
+                      </div>
+                      <Separator />
+                      
+                      {/* Standard Class Size Setting */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-lg font-medium">Standard Class Size</h3>
+                          <p className="text-sm text-muted-foreground">Set the default class size used for workload calculations</p>
                         </div>
                         <div className="max-w-xs">
                           <Label htmlFor="standardClassSize">Default Class Size</Label>
@@ -1295,14 +1711,34 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             min="1"
                             max="500"
                             value={organisationData.standardClassSize}
-                            onChange={(e) => setOrganisationData(prev => ({
-                              ...prev,
-                              standardClassSize: parseInt(e.target.value) || 30,
-                            }))}
+                            onChange={(e) => handleUpdateOrganisationSettings("standardClassSize", parseInt(e.target.value) || 30)}
                             placeholder="30"
                           />
                           <p className="text-xs text-muted-foreground mt-1">
                             This value will be used as the default for new modules and workload calculations
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Default Teaching Hours Setting */}
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="text-lg font-medium">Default Teaching Hours</h3>
+                          <p className="text-sm text-muted-foreground">Set the default teaching hours for new module iterations</p>
+                        </div>
+                        <div className="max-w-xs">
+                          <Label htmlFor="defaultTeachingHours">Default Teaching Hours</Label>
+                          <Input
+                            id="defaultTeachingHours"
+                            type="number"
+                            min="1"
+                            max="1000"
+                            value={organisationData.defaultTeachingHours}
+                            onChange={(e) => handleUpdateOrganisationSettings("defaultTeachingHours", parseInt(e.target.value) || 42)}
+                            placeholder="42"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            This value will be used as the default for new module iterations
                           </p>
                         </div>
                       </div>

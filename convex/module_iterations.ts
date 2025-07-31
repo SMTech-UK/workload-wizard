@@ -2,12 +2,56 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 
+// Define the table schema
+export default {
+  moduleCode: v.string(),
+  title: v.string(),
+  semester: v.float64(),
+  cohortId: v.string(),
+  teachingStartDate: v.string(),
+  teachingHours: v.float64(),
+  markingHours: v.float64(),
+  assignedLecturerId: v.string(),
+  assignedLecturerIds: v.array(v.id("lecturers")),
+  assignedStatus: v.string(),
+  notes: v.string(),
+  academicYearId: v.optional(v.id("academic_years")), // Reference to academic year
+  assessments: v.array(
+    v.object({
+      title: v.string(),
+      type: v.string(),
+      weighting: v.float64(),
+      submissionDate: v.string(),
+      marksDueDate: v.string(),
+      isSecondAttempt: v.boolean(),
+      externalExaminerRequired: v.boolean(),
+      alertsToTeam: v.boolean(),
+    })
+  ),
+  sites: v.array(
+    v.object({
+      name: v.string(),
+      deliveryTime: v.string(),
+      students: v.float64(),
+      groups: v.float64(),
+    })
+  ),
+};
+
 // Query to get all module iterations
 export const getAll = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    academicYearId: v.optional(v.id("academic_years")),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
+    
+    if (args.academicYearId) {
+      return await ctx.db.query("module_iterations")
+        .filter((q) => q.eq(q.field("academicYearId"), args.academicYearId))
+        .collect();
+    }
     
     return await ctx.db.query("module_iterations").collect();
   },
@@ -52,6 +96,7 @@ export const createIteration = mutation({
     assignedLecturerIds: v.array(v.id("lecturers")),
     assignedStatus: v.string(),
     notes: v.string(),
+    academicYearId: v.optional(v.id("academic_years")),
     assessments: v.array(
       v.object({
         title: v.string(),

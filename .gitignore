@@ -37,7 +37,9 @@ test-results.json
 TESTING.md
 TODO
 jest-output.json
-
+PRD.md
+DATABASE_SCHEMA_REFERENCE.md
+IMPLEMENTATION_PLAN.md
 
 # debug
 npm-debug.log*

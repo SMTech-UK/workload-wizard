@@ -47,6 +47,7 @@ export default function ModuleManagement() {
   const [isEditing, setIsEditing] = useState(false);
 
   const modules = useQuery(api.modules.getAll) ?? [];
+  const organisationSettings = useQuery(api.organisations.get);
   const createModule = useMutation(api.modules.createModule)
   const updateModule = useMutation(api.modules.updateModule)
   const deleteModule = useMutation(api.modules.deleteModule)
@@ -66,21 +67,66 @@ export default function ModuleManagement() {
     code: "",
     title: "",
     credits: 20,
-    level: 7,
+    level: 0, // Default to 0 (no selection)
     moduleLeader: "",
     defaultTeachingHours: 120,
     defaultMarkingHours: 40,
   })
   const [submitting, setSubmitting] = useState(false)
+  const [levelAutoDetected, setLevelAutoDetected] = useState(false)
+  const [markingHoursManuallyChanged, setMarkingHoursManuallyChanged] = useState(false)
+
+  // Function to extract level from module code
+  const extractLevelFromCode = (code: string): number | null => {
+    // Regex pattern to match module codes like NS70133X, NS30133X, etc.
+    // Looks for a pattern where the 3rd character is a digit representing the level
+    const levelPattern = /^[A-Z]{2}(\d)[0-9]{4}[A-Z]$/;
+    const match = code.toUpperCase().match(levelPattern);
+    
+    if (match) {
+      const level = parseInt(match[1]);
+      // Only return valid levels (3-7)
+      if (level >= 3 && level <= 7) {
+        return level;
+      }
+    }
+    return null;
+  };
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [id]: id === "credits" || id === "level" || id === "defaultTeachingHours" || id === "defaultMarkingHours" 
-        ? Number(value) 
-        : value
-    }));
+    
+    if (id === "code") {
+      // Auto-detect level from module code
+      const detectedLevel = extractLevelFromCode(value);
+      setForm((prev) => ({
+        ...prev,
+        code: value.toUpperCase(),
+        level: detectedLevel || prev.level // Keep current level if no valid level detected
+      }));
+      setLevelAutoDetected(!!detectedLevel);
+    } else if (id === "defaultTeachingHours") {
+      const teachingHours = Number(value);
+      setForm((prev) => ({
+        ...prev,
+        defaultTeachingHours: teachingHours,
+        // Auto-update marking hours if not manually changed
+        defaultMarkingHours: markingHoursManuallyChanged ? prev.defaultMarkingHours : teachingHours
+      }));
+    } else if (id === "defaultMarkingHours") {
+      setForm((prev) => ({
+        ...prev,
+        defaultMarkingHours: Number(value)
+      }));
+      setMarkingHoursManuallyChanged(true);
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        [id]: id === "credits" || id === "level" 
+          ? Number(value) 
+          : value
+      }));
+    }
   }
 
   const handleSelectChange = (field: string, value: string | number) => {
@@ -154,15 +200,18 @@ export default function ModuleManagement() {
   }
 
   const resetForm = () => {
+    const defaultTeachingHours = organisationSettings?.defaultTeachingHours || 42;
     setForm({
       code: "",
       title: "",
       credits: 20,
-      level: 7,
+      level: 0, // Default to 0 (no selection)
       moduleLeader: "",
-      defaultTeachingHours: 120,
-      defaultMarkingHours: 40,
+      defaultTeachingHours: defaultTeachingHours,
+      defaultMarkingHours: defaultTeachingHours,
     })
+    setLevelAutoDetected(false)
+    setMarkingHoursManuallyChanged(false)
   }
 
   const handleOpenCreateModal = () => {
@@ -184,6 +233,8 @@ export default function ModuleManagement() {
       defaultTeachingHours: module.defaultTeachingHours,
       defaultMarkingHours: module.defaultMarkingHours,
     })
+    setLevelAutoDetected(false) // Clear auto-detection flag when editing
+    setMarkingHoursManuallyChanged(false) // Clear manual change flag when editing
     setModalOpen(true)
   }
 
@@ -341,12 +392,24 @@ export default function ModuleManagement() {
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="code" className="text-gray-900 dark:text-white">Module Code</Label>
-              <Input id="code" value={form.code} onChange={handleFormChange} placeholder="NS70133X" />
+              <Input 
+                id="code" 
+                value={form.code} 
+                onChange={handleFormChange} 
+                placeholder="NS70133X" 
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="level" className="text-gray-900 dark:text-white">Level</Label>
-              <Select value={form.level.toString()} onValueChange={(value) => handleSelectChange("level", value)}>
-                <SelectTrigger>
+              <Label htmlFor="level" className="text-gray-900 dark:text-white">
+                Level
+                {levelAutoDetected && (
+                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-medium">
+                    (Auto-detected)
+                  </span>
+                )}
+              </Label>
+              <Select value={form.level === 0 ? "" : form.level.toString()} onValueChange={(value) => handleSelectChange("level", value)}>
+                <SelectTrigger className={levelAutoDetected ? "border-green-500 focus:border-green-500" : ""}>
                   <SelectValue placeholder="Select level" />
                 </SelectTrigger>
                 <SelectContent>
@@ -357,6 +420,16 @@ export default function ModuleManagement() {
                   ))}
                 </SelectContent>
               </Select>
+              {levelAutoDetected && (
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  Level {form.level} detected from module code
+                </p>
+              )}
+            </div>
+            <div className="col-span-2">
+              <p className="text-xs text-muted-foreground dark:text-gray-300">
+                Enter a module code (e.g., NS70133X) to auto-detect the level
+              </p>
             </div>
             <div className="space-y-2 col-span-2">
               <Label htmlFor="title" className="text-gray-900 dark:text-white">Module Title</Label>
@@ -372,11 +445,45 @@ export default function ModuleManagement() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="defaultTeachingHours" className="text-gray-900 dark:text-white">Default Teaching Hours</Label>
-              <Input id="defaultTeachingHours" type="number" min={0} value={form.defaultTeachingHours} onChange={handleFormChange} placeholder="120" />
+              <Input 
+                id="defaultTeachingHours" 
+                type="number" 
+                min={0} 
+                value={form.defaultTeachingHours} 
+                onChange={handleFormChange} 
+                placeholder="42" 
+              />
+              <p className="text-xs text-muted-foreground dark:text-gray-300">
+                Default: {organisationSettings?.defaultTeachingHours || 42} hours
+              </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="defaultMarkingHours" className="text-gray-900 dark:text-white">Default Marking Hours</Label>
-              <Input id="defaultMarkingHours" type="number" min={0} value={form.defaultMarkingHours} onChange={handleFormChange} placeholder="40" />
+              <Label htmlFor="defaultMarkingHours" className="text-gray-900 dark:text-white">
+                Default Marking Hours
+                {!markingHoursManuallyChanged && form.defaultTeachingHours === form.defaultMarkingHours && (
+                  <span className="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium">
+                    (Auto-synced)
+                  </span>
+                )}
+              </Label>
+              <Input 
+                id="defaultMarkingHours" 
+                type="number" 
+                min={0} 
+                value={form.defaultMarkingHours} 
+                onChange={handleFormChange} 
+                placeholder="42" 
+                className={!markingHoursManuallyChanged && form.defaultTeachingHours === form.defaultMarkingHours ? "border-blue-500 focus:border-blue-500" : ""}
+              />
+              {!markingHoursManuallyChanged && form.defaultTeachingHours === form.defaultMarkingHours ? (
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Auto-synced with teaching hours
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground dark:text-gray-300">
+                  Manually set marking hours
+                </p>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2">
