@@ -23,7 +23,11 @@ async function runMigrations() {
       { name: "Module Allocations", fn: api.migrations.migrateModuleAllocations },
       { name: "Admin Allocations", fn: api.migrations.migrateAdminAllocations },
       { name: "Cohorts", fn: api.migrations.migrateCohorts },
-      { name: "Department Summary", fn: api.migrations.migrateDeptSummary },
+      { name: "Team Summary", fn: api.migrations.migrateDeptSummary },
+      { name: "Profile Structure", fn: api.migrations.migrateProfileStructure },
+      { name: "Academic Year Assignment", fn: api.migrations.migrateAcademicYearAssignment },
+      { name: "Data Normalization", fn: api.migrations.migrateDataNormalization },
+      { name: "Seed Data", fn: api.migrations.migrateSeedData },
     ];
 
     const results = [];

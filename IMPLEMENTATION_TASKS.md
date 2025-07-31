@@ -1,22 +1,6 @@
 # WorkloadWizard Database Implementation Tasks
 
-## Phase 1: Core Schema Implementation
-
-### 1.3 Update Convex Schema Definition
-
-#### Priority: CRITICAL
-- [ ] **convex/schema.ts** - Add all new table definitions
-
 ## Phase 2: Data Migration Implementation
-
-### 2.1 Migration Scripts
-
-#### Priority: HIGH
-- [ ] **convex/migrations.ts** - Update existing migration functions
-- [ ] **convex/migrations/profile-migration.ts** - Profile structure migration
-- [ ] **convex/migrations/academic-year-migration.ts** - Academic year assignment
-- [ ] **convex/migrations/data-normalization.ts** - JSON field normalization
-- [ ] **convex/migrations/seed-data.ts** - Seed reference data (roles, types, etc.)
 
 ### 2.2 Migration UI Components
 

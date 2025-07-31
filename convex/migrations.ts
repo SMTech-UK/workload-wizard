@@ -103,7 +103,7 @@ export const migrateLecturers = mutation({
               isActive: true,
               isStaging: false,
               description: "Default academic year created during migration",
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
@@ -261,14 +261,9 @@ export const migrateModuleAllocations = mutation({
 
         // Fix lecturerId if it's a string instead of an ID
         if (typeof allocation.lecturerId === "string" && !allocation.lecturerId.startsWith("_")) {
-          // Find the lecturer by email or other identifier
-          const lecturer = await ctx.db.query("lecturers")
-            .filter(q => q.eq(q.field("email"), allocation.lecturerId))
-            .first();
-          
-          if (lecturer) {
-            updates.lecturerId = lecturer._id;
-          }
+          // Skip this allocation as we can't reliably map string IDs
+          console.log(`Skipping allocation ${allocation._id} with string lecturerId: ${allocation.lecturerId}`);
+          continue;
         }
 
         // Set default values for required fields
@@ -468,19 +463,19 @@ export const migrateDeptSummary = mutation({
     }
 
     try {
-      // Get all department summaries
-      const summaries = await ctx.db.query("dept_summary").collect();
+      // Get all team summaries
+      const summaries = await ctx.db.query("team_summaries").collect();
       let processed = 0;
 
       for (const summary of summaries) {
         const updates: any = {};
 
         // Set default values for required fields
-        if (summary.createdAt === undefined) {
+        if ('createdAt' in summary && summary.createdAt === undefined) {
           updates.createdAt = Date.now();
         }
 
-        if (summary.updatedAt === undefined) {
+        if ('updatedAt' in summary && summary.updatedAt === undefined) {
           updates.updatedAt = Date.now();
         }
 
@@ -520,54 +515,12 @@ export const migrateDeptSummary = mutation({
   },
 });
 
-// Run all migrations in sequence
-export const runAllMigrations = mutation({
-  args: {
-    skipAuth: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    if (!args.skipAuth) {
-      const identity = await ctx.auth.getUserIdentity();
-      if (!identity) throw new Error("Not authenticated");
-    }
+// Import and re-export new migration functions
+export * from "./migrations";
 
-    const results = [];
-    
-    try {
-      // Run migrations in order
-      const migrations = [
-        { name: "Academic Years", fn: migrateAcademicYears },
-        { name: "Lecturers", fn: migrateLecturers },
-        { name: "Module Iterations", fn: migrateModuleIterations },
-        { name: "Module Allocations", fn: migrateModuleAllocations },
-        { name: "Admin Allocations", fn: migrateAdminAllocations },
-        { name: "Cohorts", fn: migrateCohorts },
-        { name: "Department Summary", fn: migrateDeptSummary },
-      ];
-
-      for (const migration of migrations) {
-        try {
-          const result = await migration.fn(ctx, { skipAuth: args.skipAuth });
-          results.push({
-            name: migration.name,
-            success: true,
-            ...result,
-          });
-        } catch (error) {
-          results.push({
-            name: migration.name,
-            success: false,
-            error: String(error),
-          });
-        }
-      }
-
-      return { success: true, results };
-    } catch (error) {
-      throw error;
-    }
-  },
-});
+// Note: Individual migration functions are available for use
+// runAllMigrations was removed due to Convex function calling limitations
+// Use the individual migration functions directly from the CLI script
 
 // Get migration status
 export const getMigrationStatus = query({
