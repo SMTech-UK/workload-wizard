@@ -1,2 +1,341 @@
+# WorkloadWizard - Complete Build Fix Guide for AI Assistant
 
-Todo:
+## Project Context
+- **Tech Stack**: Next.js 14+, TypeScript, Convex backend, Clerk auth
+- **Current Issue**: Database schema evolved but frontend components haven't been updated
+- **Goal**: Get `npm run build` working with no errors, frontend properly connected to backend
+- **Priority**: Data flow and type safety first, UI polish later
+
+## Phase 1: Environment Setup (Start Here)
+
+### 1.1 Remove Test Complexity
+```bash
+# Remove all test files and configs
+rm -rf src/__tests__/
+rm jest.config.js jest.setup.js
+rm -rf scripts/
+```
+
+### 1.2 Update package.json
+Remove these scripts from `package.json`:
+```json
+"test": "jest",
+"test:watch": "jest --watch", 
+"test:coverage": "jest --coverage",
+"test:full": "node scripts/run-tests.js",
+"test:report": "npm run test:coverage && node scripts/run-tests.js",
+"test:check": "npm run test:coverage -- --passWithNoTests",
+"test:ui": "node scripts/test-ui.js",
+"dev:tools": "node scripts/fix-test-issues.js",
+"migrate": "node scripts/run-migrations.js"
+```
+
+### 1.3 Regenerate Convex Types
+```bash
+npx convex dev
+# Wait for types to regenerate completely
+```
+
+## Phase 2: Fix API Function Mismatches
+
+### 2.1 Fix `convex/lecturers.ts`
+**Current Issues:**
+- `getAll` function returns mixed data structure
+- `getProfiles` function may not exist or be incorrect
+- Type definitions don't match schema
+
+**Required Fixes:**
+```typescript
+// Ensure these functions exist and work:
+export const getAll = query({...}) // Returns lecturer instances
+export const getProfiles = query({...}) // Returns lecturer profiles  
+export const getById = query({...}) // Returns single lecturer
+export const createNewLecturer = mutation({...}) // Creates profile + instance
+export const createLecturer = mutation({...}) // Creates instance only
+export const deleteProfile = mutation({...}) // Deletes profile
+```
+
+### 2.2 Fix `convex/modules.ts`
+**Current Issues:**
+- API function signatures may not match usage
+- Return types may be incorrect
+
+**Required Fixes:**
+```typescript
+// Ensure these functions exist and work:
+export const getAll = query({...}) // Returns modules
+export const getById = query({...}) // Returns single module
+export const getByLecturerId = query({...}) // Returns modules by lecturer
+export const create = mutation({...}) // Creates module
+export const update = mutation({...}) // Updates module
+export const delete = mutation({...}) // Deletes module
+```
+
+### 2.3 Fix `convex/courses.ts`
+**Required Fixes:**
+```typescript
+// Ensure these functions exist:
+export const getAll = query({...})
+export const getById = query({...})
+export const create = mutation({...})
+export const update = mutation({...})
+export const delete = mutation({...})
+```
+
+### 2.4 Fix `convex/cohorts.ts`
+**Required Fixes:**
+```typescript
+// Ensure these functions exist:
+export const getAll = query({...})
+export const getById = query({...})
+export const create = mutation({...})
+export const update = mutation({...})
+export const delete = mutation({...})
+```
+
+## Phase 3: Fix Component Data Fetching
+
+### 3.1 Fix `src/components/features/lecturer-management/lecturer-management.tsx`
+**Current Issues:**
+- Lines 84-94: API calls don't match actual functions
+- Interface definitions don't match schema
+- Form handling expects old data structure
+
+**Required Fixes:**
+```typescript
+// Fix API calls (lines 84-94):
+const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
+const lecturerInstances = useQuery(api.lecturers.getAll, { 
+  academicYearId: currentAcademicYearId as any
+}) ?? [];
+const adminAllocations = useQuery(api.admin_allocations.getAll, { 
+  academicYearId: currentAcademicYearId as any
+}) ?? [];
+const modules = useQuery(api.modules.getAll, { 
+  academicYearId: currentAcademicYearId as any
+}) ?? [];
+const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
+
+// Update interfaces to match schema:
+interface LecturerProfile {
+  _id: Id<'lecturer_profiles'>;
+  fullName: string;
+  email: string;
+  family: string;
+  fte: number;
+  capacity: number;
+  maxTeachingHours: number;
+  totalContract: number;
+  isActive: boolean;
+  organisationId: Id<'organisations'>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// Fix form state to match new schema
+// Fix all data handling logic to work with separate profiles/instances
+```
+
+### 3.2 Fix `src/components/features/module-management/module-management.tsx`
+**Current Issues:**
+- Lines 75-77: API calls incorrect
+- Module interface doesn't match schema
+- Form handling issues
+
+**Required Fixes:**
+```typescript
+// Fix API calls (lines 75-77):
+const modules = useQuery(api.modules.getAll, {}) ?? [];
+const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
+const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
+
+// Update Module interface to match schema
+// Fix form state management
+// Update all data handling logic
+```
+
+### 3.3 Fix `src/app/dashboard/page.tsx`
+**Current Issues:**
+- Lines 228-232: Using `as any[]` everywhere
+- API calls don't match actual functions
+- Data structure assumptions wrong
+
+**Required Fixes:**
+```typescript
+// Remove all 'as any[]' casts (lines 228-232):
+const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
+const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
+const modules = useQuery(api.modules.getAll, {}) ?? [];
+const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
+const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
+
+// Fix data handling logic to work with proper types
+// Update all component logic that assumes old data structure
+```
+
+### 3.4 Fix `src/components/features/module-management/module-allocations.tsx`
+**Current Issues:**
+- Lines 101-105: API calls don't match schema
+- Type mismatches in data handling
+
+**Required Fixes:**
+```typescript
+// Fix API calls (lines 101-105):
+const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
+const modules = useQuery(api.modules.getAll, {}) ?? [];
+const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
+const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
+const moduleAllocations = useQuery(api.module_allocations.getAll, {}) ?? [];
+
+// Update data handling logic
+// Fix type definitions
+```
+
+### 3.5 Fix `src/components/features/module-management/module-iterations.tsx`
+**Current Issues:**
+- Lines 79-82: API calls with incorrect parameters
+- Type casting issues
+
+**Required Fixes:**
+```typescript
+// Fix API calls (lines 79-82):
+const iterations = useQuery(api.module_iterations.getAll, { 
+  academicYearId: currentAcademicYearId 
+}) ?? [];
+const modules = useQuery(api.modules.getAll, { 
+  academicYearId: currentAcademicYearId 
+}) ?? [];
+const lecturers = useQuery(api.lecturers.getAll, { 
+  academicYearId: currentAcademicYearId 
+}) ?? [];
+const organisationSettings = useQuery(api.organisations.get, {});
+
+// Remove 'as any' casts
+// Fix data handling logic
+```
+
+## Phase 4: Fix All Other Components
+
+### 4.1 Fix Reports Components
+**Files to fix:**
+- `src/components/features/reports/workload-reports.tsx` (lines 99-112)
+- `src/components/features/reports/team-summaries.tsx` (lines 111-120)
+
+**Required Fixes:**
+```typescript
+// Fix all API calls to use correct function names
+// Remove type casting
+// Update data handling logic
+```
+
+### 4.2 Fix Admin Components
+**Files to fix:**
+- `src/components/features/admin/admin-allocations.tsx` (lines 106-114)
+- `src/components/features/admin/assessment-management.tsx` (lines 111-114)
+- `src/components/features/admin/reference-data.tsx` (lines 100-102)
+- `src/components/features/admin/site-management.tsx` (line 76)
+
+### 4.3 Fix Management Components
+**Files to fix:**
+- `src/components/features/team-management/team-management.tsx` (lines 92-95)
+- `src/components/features/course-management/course-management.tsx` (lines 96-98)
+- `src/components/features/cohort-management/cohort-management.tsx` (lines 84-89)
+
+### 4.4 Fix Hooks
+**Files to fix:**
+- `src/hooks/useCohorts.ts` (lines 11-23)
+- `src/hooks/useReports.ts` (lines 11-34)
+- `src/hooks/useTeams.ts` (lines 9-20)
+
+### 4.5 Fix Modals
+**Files to fix:**
+- `src/components/modals/staff-profile-modal.tsx` (lines 109-113)
+
+## Phase 5: Fix Type Issues Throughout
+
+### 5.1 Remove All Type Casting
+**Search and replace these patterns:**
+```typescript
+// Remove these:
+const data = (useQuery(api.something.getAll, {}) ?? []) as any[];
+const result = await query() as any;
+const typed = someData as SomeType;
+
+// Replace with proper types:
+const data = useQuery(api.something.getAll, {}) ?? [];
+const result = await query();
+const typed = someData; // Let TypeScript infer
+```
+
+### 5.2 Update Interface Definitions
+**Check all component files for custom interfaces that don't match schema:**
+- Ensure all interfaces match `convex/_generated/dataModel.d.ts`
+- Remove custom interfaces that duplicate generated types
+- Use generated types where possible
+
+### 5.3 Fix Import Statements
+**Ensure all imports are correct:**
+```typescript
+// Use generated types:
+import type { Id } from "../../../../convex/_generated/dataModel";
+import { api } from "../../../../convex/_generated/api";
+```
+
+## Phase 6: Fix Migration Issues
+
+### 6.1 Fix `src/app/api/migrations/run/route.ts`
+**Current Issue:** Line 18 - migration function type issues
+
+**Required Fix:**
+```typescript
+// Fix the TODO on line 18
+// Ensure migration functions have correct types
+// Test migration functionality
+```
+
+## Phase 7: Verify Build Success
+
+### 7.1 Test Build Process
+```bash
+npm run build
+# Fix any remaining TypeScript errors
+# Ensure no runtime errors
+```
+
+### 7.2 Test Development Server
+```bash
+npm run dev
+# Verify no runtime errors
+# Test core data flows
+```
+
+## Success Criteria Checklist
+
+- [ ] `npm run build` completes without errors
+- [ ] `npm run dev` starts without runtime errors  
+- [ ] All API calls use correct function names
+- [ ] No `as any[]` or `as any` casts remaining
+- [ ] All interfaces match generated schema types
+- [ ] Core data flows work (dashboard loads, basic CRUD operations)
+- [ ] No TypeScript compilation errors
+- [ ] No runtime API call errors
+
+## Priority Order for AI Assistant
+
+1. **Start with Phase 1** - Clean environment
+2. **Fix API functions first** - Ensure backend functions exist and work
+3. **Fix largest components** - lecturer-management.tsx, module-management.tsx, dashboard/page.tsx
+4. **Fix remaining components** - Work through list systematically
+5. **Remove all type casting** - Search and replace throughout codebase
+6. **Test build incrementally** - Fix one component, test build, move to next
+
+## Notes for AI Assistant
+
+- **Focus on data flow first** - don't worry about UI polish yet
+- **Use generated types** - always reference `convex/_generated/dataModel.d.ts`
+- **Test incrementally** - fix one component, test build, move to next
+- **Keep it simple** - remove complex features temporarily if needed
+- **Document changes** - note which API functions were fixed/changed
+- **If build still fails** - focus on the specific error messages and fix those first
+
+This comprehensive guide should get the AI Assistant to successfully fix all build issues and get the frontend properly connected to the backend.

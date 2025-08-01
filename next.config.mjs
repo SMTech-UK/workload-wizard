@@ -34,8 +34,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
-    // Enable typed routes
-    typedRoutes: true,
     // Enable optimizePackageImports for better tree shaking
     optimizePackageImports: [
       '@radix-ui/react-icons',

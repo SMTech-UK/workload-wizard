@@ -26,7 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { timeAgo } from "@/lib/notify";
 import { useRouter } from "next/navigation";
 import { useKnockClient, useNotifications, useNotificationStore } from "@knocklabs/react";
-import { useAuth } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
 import { PlusCircle, Pencil, Trash2, User, BarChart3, BookOpen, Clock, Info } from "lucide-react";
 import CSVImportModal from "@/components/modals/csv-import-modal";
@@ -39,13 +39,17 @@ interface LecturerProfile {
   _id: Id<'lecturer_profiles'>;
   fullName: string;
   email: string;
-  family: string;
+  team?: string;
+  specialism?: string;
+  contract: string;
+  role?: string;
+  family?: string;
   fte: number;
   capacity: number;
   maxTeachingHours: number;
   totalContract: number;
   isActive: boolean;
-  organisationId: Id<'organisations'>;
+  organisationId?: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
 }
@@ -54,17 +58,20 @@ interface Lecturer {
   _id: Id<'lecturers'>;
   profileId: Id<'lecturer_profiles'>;
   academicYearId: Id<'academic_years'>;
+  status: string;
   teachingAvailability: number;
   totalAllocated: number;
   allocatedTeachingHours: number;
   allocatedAdminHours: number;
   allocatedResearchHours: number;
   allocatedOtherHours: number;
-  team?: string;
+  notes?: string;
+  yearSpecificData?: any;
   isActive: boolean;
-  organisationId: Id<'organisations'>;
+  organisationId?: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
+  deletedAt?: number;
 }
 
 interface Module {
@@ -215,15 +222,18 @@ const getChangeIcon = (type: string) => {
 function DashboardContent() {
   const router = useRouter();
   const convex = useConvex();
-  const { user } = useAuth();
+  const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
   
   // Fetch data from Convex
-  const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
-  const modules = useQuery(api.modules.getAll, {}) ?? [];
-  const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
-  const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
+  const lecturerProfiles = (useQuery(api.lecturer_profiles.getAll, {}) ?? []) as any[];
+  const lecturers = (useQuery(api.lecturers.getAll, {}) ?? []) as any[];
+  const modules = (useQuery(api.modules.getAll, {}) ?? []) as any[];
+  const moduleIterations = (useQuery(api.module_iterations.getAll, {}) ?? []) as any[];
+  const academicYears = (useQuery(api.academic_years.getAll, {}) ?? []) as any[];
+  
+  // Check if data is still loading
+  const isLoading = !lecturerProfiles || !lecturers || !modules || !moduleIterations || !academicYears;
   
   // State
   const [selectedAcademicYear, setSelectedAcademicYear] = useState("Academic Year 25/26");
@@ -235,11 +245,11 @@ function DashboardContent() {
 
   // Helper functions
   const getCurrentYearLecturers = () => {
-    return lecturers.filter(l => l.academicYearId === currentAcademicYearId);
+    return lecturers?.filter(l => l.academicYearId === currentAcademicYearId) || [];
   };
 
   const getCurrentYearIterations = () => {
-    return moduleIterations.filter(mi => mi.academicYearId === currentAcademicYearId);
+    return moduleIterations?.filter(mi => mi.academicYearId === currentAcademicYearId) || [];
   };
 
   const getLecturerProfile = (lecturerId: Id<'lecturers'>) => {
@@ -253,7 +263,8 @@ function DashboardContent() {
     const lecturer = lecturers.find(l => l._id === lecturerId);
     if (!lecturer) return 0;
     
-    const totalContract = lecturer.totalContract || 0;
+    const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    const totalContract = profile?.totalContract || 0;
     const totalAllocated = lecturer.totalAllocated || 0;
     
     return totalContract > 0 ? (totalAllocated / totalContract) * 100 : 0;
@@ -322,24 +333,37 @@ function DashboardContent() {
   };
 
   // Calculate dashboard metrics
-  const totalLecturers = lecturerProfiles.length;
-  const activeLecturers = lecturerProfiles.filter(p => p.isActive).length;
-  const totalModules = modules.length;
-  const activeModules = modules.filter(m => m.isActive).length;
-  const totalIterations = getCurrentYearIterations().length;
-  const assignedIterations = getCurrentYearIterations().filter(mi => mi.assignedStatus === "assigned").length;
-  const unassignedIterations = getCurrentYearIterations().filter(mi => mi.assignedStatus === "unassigned").length;
+  const totalLecturers = lecturerProfiles?.length || 0;
+  const activeLecturers = lecturerProfiles?.filter(p => p.isActive)?.length || 0;
+  const totalModules = modules?.length || 0;
+  const activeModules = modules?.filter(m => m.isActive)?.length || 0;
+  const totalIterations = getCurrentYearIterations()?.length || 0;
+  const assignedIterations = getCurrentYearIterations()?.filter(mi => mi.assignedStatus === "assigned")?.length || 0;
+  const unassignedIterations = getCurrentYearIterations()?.filter(mi => mi.assignedStatus === "unassigned")?.length || 0;
 
   const currentYearLecturers = getCurrentYearLecturers();
-  const lecturerStatuses = currentYearLecturers.map(lecturer => {
+  const lecturerStatuses = currentYearLecturers?.map(lecturer => {
     const utilization = getLecturerUtilization(lecturer._id);
-    return calculateLecturerStatus(lecturer.totalAllocated || 0, lecturer.totalContract || 0);
-  });
+    const profile = lecturerProfiles?.find(p => p._id === lecturer.profileId);
+    return calculateLecturerStatus(lecturer.totalAllocated || 0, profile?.totalContract || 0);
+  }) || [];
 
   const overloadedCount = lecturerStatuses.filter(status => status === "overloaded").length;
   const atCapacityCount = lecturerStatuses.filter(status => status === "at-capacity").length;
   const nearCapacityCount = lecturerStatuses.filter(status => status === "near-capacity").length;
   const availableCount = lecturerStatuses.filter(status => status === "available").length;
+
+  // Show loading state while data is being fetched
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-zinc-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-900">
@@ -381,34 +405,26 @@ function DashboardContent() {
           <DashboardMetricCard
             title="Total Staff"
             value={totalLecturers}
-            change={activeLecturers}
-            changeLabel="Active"
-            icon={Users}
-            trend="up"
+            subtitle={`${activeLecturers} active`}
+            icon={<Users className="w-4 h-4" />}
           />
           <DashboardMetricCard
             title="Total Modules"
             value={totalModules}
-            change={activeModules}
-            changeLabel="Active"
-            icon={BookOpen}
-            trend="up"
+            subtitle={`${activeModules} active`}
+            icon={<BookOpen className="w-4 h-4" />}
           />
           <DashboardMetricCard
             title="Module Iterations"
             value={totalIterations}
-            change={assignedIterations}
-            changeLabel="Assigned"
-            icon={GraduationCap}
-            trend="up"
+            subtitle={`${assignedIterations} assigned`}
+            icon={<GraduationCap className="w-4 h-4" />}
           />
           <DashboardMetricCard
-            title="Utilization"
+            title="Utilisation"
             value={`${Math.round((assignedIterations / Math.max(totalIterations, 1)) * 100)}%`}
-            change={unassignedIterations}
-            changeLabel="Unassigned"
-            icon={Clock}
-            trend="down"
+            subtitle={`${unassignedIterations} unassigned`}
+            icon={<Clock className="w-4 h-4" />}
           />
         </div>
 
@@ -528,7 +544,7 @@ function DashboardContent() {
                   {currentYearLecturers.map((lecturer) => {
                     const profile = getLecturerProfile(lecturer._id);
                     const utilization = getLecturerUtilization(lecturer._id);
-                    const status = calculateLecturerStatus(lecturer.totalAllocated || 0, lecturer.totalContract || 0);
+                    const status = calculateLecturerStatus(lecturer.totalAllocated || 0, profile?.totalContract || 0);
                     
                     return (
                       <div key={lecturer._id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -546,7 +562,7 @@ function DashboardContent() {
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <div className="text-sm font-medium">
-                              {lecturer.totalAllocated || 0}h / {lecturer.totalContract || 0}h
+                              {lecturer.totalAllocated || 0}h / {profile?.totalContract || 0}h
                             </div>
                             <div className="text-xs text-gray-500">
                               {Math.round(utilization)}% utilized
@@ -616,15 +632,43 @@ function DashboardContent() {
       />
       
       <StaffProfileModal
-        open={staffProfileModalOpen}
-        onOpenChange={setStaffProfileModalOpen}
-        lecturerId={selectedLecturerId}
-        onUpdate={handleLecturerUpdate}
+        isOpen={staffProfileModalOpen}
+        onClose={() => setStaffProfileModalOpen(false)}
+        lecturer={selectedLecturerId ? (() => {
+          const lecturer = lecturers.find(l => l._id === selectedLecturerId);
+          if (!lecturer) return null;
+          const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+          if (!profile) return null;
+          
+          return {
+            _id: lecturer._id,
+            fullName: profile.fullName,
+            team: profile.team || '',
+            specialism: profile.specialism || '',
+            contract: profile.contract,
+            email: profile.email,
+            capacity: profile.capacity,
+            maxTeachingHours: profile.maxTeachingHours,
+            role: profile.role || '',
+            status: lecturer.status,
+            teachingAvailability: lecturer.teachingAvailability,
+            totalAllocated: lecturer.totalAllocated,
+            totalContract: profile.totalContract,
+            allocatedTeachingHours: lecturer.allocatedTeachingHours,
+            allocatedAdminHours: lecturer.allocatedAdminHours,
+            family: profile.family || '',
+            fte: profile.fte,
+            profileId: lecturer.profileId
+          };
+        })() : null}
+        adminAllocations={[]}
+        onLecturerUpdate={handleLecturerUpdate}
       />
 
       <CSVImportModal
-        open={csvImportModalOpen}
-        onOpenChange={setCsvImportModalOpen}
+        isOpen={csvImportModalOpen}
+        onClose={() => setCsvImportModalOpen(false)}
+        importType="modules"
       />
     </div>
   );

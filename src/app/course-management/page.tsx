@@ -35,15 +35,15 @@ import { toast } from "sonner";
 interface Course {
   _id: Id<'courses'>;
   code: string;
-  title: string;
+  name: string;
   description?: string;
-  level: number;
-  totalCredits: number;
+  level: string;
+  credits: number;
   duration: number; // in years
   facultyId?: Id<'faculties'>;
   departmentId?: Id<'departments'>;
   isActive: boolean;
-  organisationId: Id<'organisations'>;
+  organisationId?: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
 }
@@ -84,23 +84,23 @@ export default function CourseManagementPage() {
 
   // Add levels array for dropdown
   const levels = [
-    { value: 3, label: "Level 3" },
-    { value: 4, label: "Level 4" },
-    { value: 5, label: "Level 5" },
-    { value: 6, label: "Level 6" },
-    { value: 7, label: "Level 7" },
+    { value: "3", label: "Level 3" },
+    { value: "4", label: "Level 4" },
+    { value: "5", label: "Level 5" },
+    { value: "6", label: "Level 6" },
+    { value: "7", label: "Level 7" },
   ];
 
   // State for form fields
   const [form, setForm] = useState({
     code: "",
-    title: "",
+    name: "",
     description: "",
-    level: 0,
-    totalCredits: 360,
+    level: "4",
+    credits: 360,
     duration: 3,
-    facultyId: "",
-    departmentId: "",
+    facultyId: "" as Id<'faculties'> | "",
+    departmentId: "" as Id<'departments'> | "",
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -114,7 +114,7 @@ export default function CourseManagementPage() {
   };
 
   const handleCreateCourse = async () => {
-    if (!form.code || !form.title || !form.level || !form.totalCredits || !form.duration) {
+    if (!form.code || !form.name || !form.level || !form.credits || !form.duration) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -123,21 +123,22 @@ export default function CourseManagementPage() {
     try {
       await createCourse({
         code: form.code.toUpperCase(),
-        title: form.title,
+        name: form.name,
         description: form.description,
         level: form.level,
-        totalCredits: form.totalCredits,
+        credits: form.credits,
         duration: form.duration,
-        facultyId: form.facultyId || undefined,
-        departmentId: form.departmentId || undefined,
+        facultyId: form.facultyId ? (form.facultyId as Id<'faculties'>) : undefined,
+        departmentId: form.departmentId ? (form.departmentId as Id<'departments'>) : undefined,
+        isAccredited: false,
       });
 
       logRecentActivity({
         type: "create",
         entity: "course",
-        description: `Created course: ${form.title}`,
+        description: `Created course: ${form.name}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
       toast.success("Course created successfully");
@@ -152,7 +153,7 @@ export default function CourseManagementPage() {
   };
 
   const handleUpdateCourse = async () => {
-    if (!selectedCourse || !form.code || !form.title || !form.level || !form.totalCredits || !form.duration) {
+    if (!selectedCourse || !form.code || !form.name || !form.level || !form.credits || !form.duration) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -162,21 +163,22 @@ export default function CourseManagementPage() {
       await updateCourse({
         id: selectedCourse._id,
         code: form.code.toUpperCase(),
-        title: form.title,
+        name: form.name,
         description: form.description,
         level: form.level,
-        totalCredits: form.totalCredits,
+        credits: form.credits,
         duration: form.duration,
-        facultyId: form.facultyId || undefined,
-        departmentId: form.departmentId || undefined,
+        facultyId: form.facultyId ? (form.facultyId as Id<'faculties'>) : undefined,
+        departmentId: form.departmentId ? (form.departmentId as Id<'departments'>) : undefined,
+        isAccredited: false,
       });
 
       logRecentActivity({
         type: "edit",
         entity: "course",
-        description: `Updated course: ${form.title}`,
+        description: `Updated course: ${form.name}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
       toast.success("Course updated successfully");
@@ -194,10 +196,10 @@ export default function CourseManagementPage() {
   const resetForm = () => {
     setForm({
       code: "",
-      title: "",
+      name: "",
       description: "",
-      level: 0,
-      totalCredits: 360,
+      level: "4",
+      credits: 360,
       duration: 3,
       facultyId: "",
       departmentId: "",
@@ -214,10 +216,10 @@ export default function CourseManagementPage() {
     setSelectedCourse(course);
     setForm({
       code: course.code,
-      title: course.title,
+      name: course.name,
       description: course.description || "",
       level: course.level,
-      totalCredits: course.totalCredits,
+      credits: course.credits,
       duration: course.duration,
       facultyId: course.facultyId || "",
       departmentId: course.departmentId || "",
@@ -226,13 +228,13 @@ export default function CourseManagementPage() {
     setModalOpen(true);
   };
 
-  const getLevelBadge = (level: number) => {
+  const getLevelBadge = (level: string) => {
     const colors = {
-      3: "bg-blue-100 text-blue-800",
-      4: "bg-green-100 text-green-800",
-      5: "bg-yellow-100 text-yellow-800",
-      6: "bg-purple-100 text-purple-800",
-      7: "bg-red-100 text-red-800",
+      "3": "bg-blue-100 text-blue-800",
+      "4": "bg-green-100 text-green-800",
+      "5": "bg-yellow-100 text-yellow-800",
+      "6": "bg-purple-100 text-purple-800",
+      "7": "bg-red-100 text-red-800",
     };
     return (
       <Badge className={colors[level as keyof typeof colors] || "bg-gray-100 text-gray-800"}>
@@ -254,7 +256,7 @@ export default function CourseManagementPage() {
   };
 
   const filteredCourses = courses.filter(course =>
-    course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -393,9 +395,9 @@ export default function CourseManagementPage() {
                 {filteredCourses.map((course) => (
                   <TableRow key={course._id}>
                     <TableCell className="font-medium">{course.code}</TableCell>
-                    <TableCell>{course.title}</TableCell>
+                    <TableCell>{course.name}</TableCell>
                     <TableCell>{getLevelBadge(course.level)}</TableCell>
-                    <TableCell>{course.totalCredits}</TableCell>
+                    <TableCell>{course.credits}</TableCell>
                     <TableCell>{course.duration} year{course.duration !== 1 ? 's' : ''}</TableCell>
                     <TableCell>{getFacultyName(course.facultyId)}</TableCell>
                     <TableCell>{getDepartmentName(course.departmentId)}</TableCell>
@@ -449,7 +451,7 @@ export default function CourseManagementPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="level">Level *</Label>
-                  <Select value={form.level.toString()} onValueChange={(value) => handleSelectChange("level", parseInt(value))}>
+                  <Select value={form.level} onValueChange={(value) => handleSelectChange("level", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select level" />
                     </SelectTrigger>
@@ -464,10 +466,10 @@ export default function CourseManagementPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="title">Course Title *</Label>
+                <Label htmlFor="name">Course Title *</Label>
                 <Input
-                  id="title"
-                  value={form.title}
+                  id="name"
+                  value={form.name}
                   onChange={handleFormChange}
                   placeholder="e.g., Computer Science"
                 />
@@ -484,11 +486,11 @@ export default function CourseManagementPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="totalCredits">Total Credits *</Label>
+                  <Label htmlFor="credits">Total Credits *</Label>
                   <Input
-                    id="totalCredits"
+                    id="credits"
                     type="number"
-                    value={form.totalCredits}
+                    value={form.credits}
                     onChange={handleFormChange}
                     placeholder="360"
                   />
