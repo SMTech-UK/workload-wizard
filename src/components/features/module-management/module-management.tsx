@@ -21,23 +21,48 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Edit, Eye, X, Calendar } from "lucide-react"
+import { Plus, Search, Edit, Eye, X, Calendar, BookOpen, GraduationCap } from "lucide-react"
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { useAcademicYear } from "@/hooks/useAcademicYear";
+import { toast } from "sonner";
 
-// Define the Module interface
+// Define the Module interface based on new schema
 export interface Module {
   _id: Id<'modules'>;
   code: string;
   title: string;
+  description?: string;
   credits: number;
   level: number;
-  moduleLeader: string;
+  moduleLeaderId?: Id<'lecturer_profiles'>;
   defaultTeachingHours: number;
   defaultMarkingHours: number;
+  isActive: boolean;
+  organisationId: Id<'organisations'>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface LecturerProfile {
+  _id: Id<'lecturer_profiles'>;
+  fullName: string;
+  email: string;
+  family: string;
+  isActive: boolean;
+}
+
+interface ModuleIteration {
+  _id: Id<'module_iterations'>;
+  moduleId: Id<'modules'>;
+  academicYearId: Id<'academic_years'>;
+  semester: string;
+  year: number;
+  assignedLecturerIds: string[];
+  assignedStatus: string;
+  isActive: boolean;
 }
 
 export default function ModuleManagement() {
@@ -49,16 +74,18 @@ export default function ModuleManagement() {
 
   // Fetch data from Convex
   const modules = useQuery(api.modules.getAll, {}) ?? [];
-  const organisationSettings = useQuery(api.organisations.get, {});
-  const createNewModule = useMutation(api.modules.createNewModule)
-  const updateModule = useMutation(api.modules.updateModule)
-  const deleteModule = useMutation(api.modules.deleteModule)
+  const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
+  const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
+  const createModule = useMutation(api.modules.create);
+  const updateModule = useMutation(api.modules.update);
+  const deleteModule = useMutation(api.modules.delete);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
 
   // Add levels array for dropdown
   const levels = [
+    { value: 3, label: "Level 3" },
     { value: 4, label: "Level 4" },
     { value: 5, label: "Level 5" },
     { value: 6, label: "Level 6" },
@@ -69,26 +96,22 @@ export default function ModuleManagement() {
   const [form, setForm] = useState({
     code: "",
     title: "",
+    description: "",
     credits: 20,
-    level: 0, // Default to 0 (no selection)
-    moduleLeader: "",
+    level: 0,
+    moduleLeaderId: "",
     defaultTeachingHours: 120,
     defaultMarkingHours: 40,
   })
   const [submitting, setSubmitting] = useState(false)
-  const [levelAutoDetected, setLevelAutoDetected] = useState(false)
-  const [markingHoursManuallyChanged, setMarkingHoursManuallyChanged] = useState(false)
 
   // Function to extract level from module code
   const extractLevelFromCode = (code: string): number | null => {
-    // Regex pattern to match module codes like NS70133X, NS30133X, etc.
-    // Looks for a pattern where the 3rd character is a digit representing the level
     const levelPattern = /^[A-Z]{2}(\d)[0-9]{4}[A-Z]$/;
     const match = code.toUpperCase().match(levelPattern);
     
     if (match) {
       const level = parseInt(match[1]);
-      // Only return valid levels (3-7)
       if (level >= 3 && level <= 7) {
         return level;
       }
@@ -98,293 +121,320 @@ export default function ModuleManagement() {
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
-    
-    if (id === "code") {
-      // Auto-detect level from module code
+    setForm(prev => ({ ...prev, [id]: value }));
+
+    // Auto-detect level from code
+    if (id === "code" && !form.level) {
       const detectedLevel = extractLevelFromCode(value);
-      setForm((prev) => ({
-        ...prev,
-        code: value.toUpperCase(),
-        level: detectedLevel || prev.level // Keep current level if no valid level detected
-      }));
-      setLevelAutoDetected(!!detectedLevel);
-    } else if (id === "defaultTeachingHours") {
-      const teachingHours = Number(value);
-      setForm((prev) => ({
-        ...prev,
-        defaultTeachingHours: teachingHours,
-        // Auto-update marking hours if not manually changed
-        defaultMarkingHours: markingHoursManuallyChanged ? prev.defaultMarkingHours : teachingHours
-      }));
-    } else if (id === "defaultMarkingHours") {
-      setForm((prev) => ({
-        ...prev,
-        defaultMarkingHours: Number(value)
-      }));
-      setMarkingHoursManuallyChanged(true);
-    } else {
-      setForm((prev) => ({
-        ...prev,
-        [id]: id === "credits" || id === "level" 
-          ? Number(value) 
-          : value
-      }));
+      if (detectedLevel) {
+        setForm(prev => ({ ...prev, level: detectedLevel }));
+      }
     }
-  }
+  };
 
   const handleSelectChange = (field: string, value: string | number) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: typeof value === "number" ? value : Number(value)
-    }));
-  }
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleCreateModule = async () => {
-    // Validate form
-    if (!form.code.trim() || !form.title.trim() || !form.moduleLeader.trim()) {
+    if (!form.code || !form.title || !form.level || !form.credits) {
+      toast.error("Please fill in all required fields");
       return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
-      const newModuleId = await createNewModule({
-        code: form.code,
+      await createModule({
+        code: form.code.toUpperCase(),
         title: form.title,
+        description: form.description,
         credits: form.credits,
         level: form.level,
-        moduleLeader: form.moduleLeader,
+        moduleLeaderId: form.moduleLeaderId || undefined,
         defaultTeachingHours: form.defaultTeachingHours,
         defaultMarkingHours: form.defaultMarkingHours,
-        academicYearId: currentAcademicYearId as Id<'academic_years'>,
       });
-      // Log recent activity
-      await logRecentActivity({
-        action: "module created",
-        changeType: "create",
+
+      logRecentActivity({
+        type: "create",
         entity: "module",
-        entityId: newModuleId,
-        fullName: form.title,
-        modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-        permission: "default"
+        description: `Created module: ${form.title}`,
+        userId: user?.id || "",
+        organisationId: user?.organizationId || "",
       });
-      setModalOpen(false)
-      resetForm()
+
+      toast.success("Module created successfully");
+      resetForm();
+      setModalOpen(false);
     } catch (error) {
-      console.error('Failed to create module:', error);
+      console.error("Error creating module:", error);
+      toast.error("Failed to create module");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const handleUpdateModule = async () => {
-    if (!selectedModule) return;
-
-    // Validate form
-    if (!form.code.trim() || !form.title.trim() || !form.moduleLeader.trim()) {
+    if (!selectedModule || !form.code || !form.title || !form.level || !form.credits) {
+      toast.error("Please fill in all required fields");
       return;
     }
 
-    setSubmitting(true)
+    setSubmitting(true);
     try {
       await updateModule({
         id: selectedModule._id,
-        ...form
+        code: form.code.toUpperCase(),
+        title: form.title,
+        description: form.description,
+        credits: form.credits,
+        level: form.level,
+        moduleLeaderId: form.moduleLeaderId || undefined,
+        defaultTeachingHours: form.defaultTeachingHours,
+        defaultMarkingHours: form.defaultMarkingHours,
       });
-      // Log recent activity
-      await logRecentActivity({
-        action: "module updated",
-        changeType: "update",
+
+      logRecentActivity({
+        type: "edit",
         entity: "module",
-        entityId: selectedModule._id,
-        fullName: form.title,
-        modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-        permission: "default"
+        description: `Updated module: ${form.title}`,
+        userId: user?.id || "",
+        organisationId: user?.organizationId || "",
       });
-      setModalOpen(false)
-      setSelectedModule(null)
-      setIsEditing(false)
-      resetForm()
+
+      toast.success("Module updated successfully");
+      resetForm();
+      setModalOpen(false);
+      setSelectedModule(null);
     } catch (error) {
-      console.error('Failed to update module:', error);
+      console.error("Error updating module:", error);
+      toast.error("Failed to update module");
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
+  };
 
   const resetForm = () => {
-    const defaultTeachingHours = organisationSettings?.defaultTeachingHours || 42;
     setForm({
       code: "",
       title: "",
+      description: "",
       credits: 20,
-      level: 0, // Default to 0 (no selection)
-      moduleLeader: "",
-      defaultTeachingHours: defaultTeachingHours,
-      defaultMarkingHours: defaultTeachingHours,
-    })
-    setLevelAutoDetected(false)
-    setMarkingHoursManuallyChanged(false)
-  }
+      level: 0,
+      moduleLeaderId: "",
+      defaultTeachingHours: 120,
+      defaultMarkingHours: 40,
+    });
+    setIsEditing(false);
+  };
 
   const handleOpenCreateModal = () => {
-    setIsEditing(false)
-    setSelectedModule(null)
-    resetForm()
-    setModalOpen(true)
-  }
+    resetForm();
+    setModalOpen(true);
+  };
 
   const handleOpenEditModal = (module: Module) => {
-    setIsEditing(true)
-    setSelectedModule(module)
+    setSelectedModule(module);
     setForm({
       code: module.code,
       title: module.title,
+      description: module.description || "",
       credits: module.credits,
       level: module.level,
-      moduleLeader: module.moduleLeader,
+      moduleLeaderId: module.moduleLeaderId || "",
       defaultTeachingHours: module.defaultTeachingHours,
       defaultMarkingHours: module.defaultMarkingHours,
-    })
-    setLevelAutoDetected(false) // Clear auto-detection flag when editing
-    setMarkingHoursManuallyChanged(false) // Clear manual change flag when editing
-    setModalOpen(true)
-  }
-
-  const filteredModules = modules.filter((module) => {
-    return (
-      module.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      module.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      module.moduleLeader?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
+    });
+    setIsEditing(true);
+    setModalOpen(true);
+  };
 
   const getLevelBadge = (level: number) => {
     const colors = {
-      4: "bg-blue-100 text-blue-800",
-      5: "bg-green-100 text-green-800",
-      6: "bg-yellow-100 text-yellow-800",
-      7: "bg-purple-100 text-purple-800",
-    }
-    return <Badge className={colors[level as keyof typeof colors]}>Level {level}</Badge>
-  }
-
-  // State for delete confirmation dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [moduleToDelete, setModuleToDelete] = useState<Module | null>(null);
-
-  const confirmDeleteModule = (module: Module) => {
-    setModuleToDelete(module);
-    setDeleteDialogOpen(true);
+      3: "bg-blue-100 text-blue-800",
+      4: "bg-green-100 text-green-800",
+      5: "bg-yellow-100 text-yellow-800",
+      6: "bg-purple-100 text-purple-800",
+      7: "bg-red-100 text-red-800",
+    };
+    return (
+      <Badge className={colors[level as keyof typeof colors] || "bg-gray-100 text-gray-800"}>
+        Level {level}
+      </Badge>
+    );
   };
 
-  const handleConfirmDelete = async () => {
-    if (!moduleToDelete || !moduleToDelete._id) return;
-    await deleteModule({ id: moduleToDelete._id });
-    await logRecentActivity({
-      action: "module deleted",
-      changeType: "delete",
-      entity: "module",
-      entityId: moduleToDelete._id,
-      fullName: moduleToDelete.title,
-      modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-      permission: "default"
-    });
-    setDeleteDialogOpen(false);
-    setModuleToDelete(null);
+  const getModuleLeaderName = (moduleLeaderId?: Id<'lecturer_profiles'>) => {
+    if (!moduleLeaderId) return "Not assigned";
+    const leader = lecturerProfiles.find(p => p._id === moduleLeaderId);
+    return leader?.fullName || "Unknown";
   };
+
+  const getIterationCount = (moduleId: Id<'modules'>) => {
+    return moduleIterations.filter(mi => mi.moduleId === moduleId).length;
+  };
+
+  const getCurrentYearIterations = (moduleId: Id<'modules'>) => {
+    return moduleIterations.filter(mi => 
+      mi.moduleId === moduleId && mi.academicYearId === currentAcademicYearId
+    ).length;
+  };
+
+  const filteredModules = modules.filter(module =>
+    module.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    module.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    getModuleLeaderName(module.moduleLeaderId).toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
-    <div className="space-y-6 bg-white dark:bg-zinc-900 min-h-screen">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Module Management</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">Manage academic modules and their configurations</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <BookOpen className="w-8 h-8" />
+            Module Management
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">
+            Manage academic modules and their configurations
+          </p>
         </div>
-        <Button onClick={handleOpenCreateModal}>
-          <Plus className="w-4 h-4 mr-2" />
+        <Button onClick={handleOpenCreateModal} className="flex items-center gap-2">
+          <Plus className="w-4 h-4" />
           Add Module
         </Button>
       </div>
 
-      {/* Search */}
-      <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
-        <CardHeader>
-          <CardTitle className="text-gray-900 dark:text-white">Search</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search modules by code, title, or module leader..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <Card className="bg-white dark:bg-zinc-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Modules</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{modules.length}</p>
+              </div>
+              <BookOpen className="w-8 h-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-white dark:bg-zinc-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Modules</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {modules.filter(m => m.isActive).length}
+                </p>
+              </div>
+              <GraduationCap className="w-8 h-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-white dark:bg-zinc-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Iterations</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{moduleIterations.length}</p>
+              </div>
+              <Calendar className="w-8 h-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-white dark:bg-zinc-900">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Current Year</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {moduleIterations.filter(mi => mi.academicYearId === currentAcademicYearId).length}
+                </p>
+              </div>
+              <Calendar className="w-8 h-8 text-amber-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
+      <Card className="bg-white dark:bg-zinc-900">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search modules by name, code, or module leader..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button variant="outline" disabled>
+              <span className="text-xs">Coming Soon</span>
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Modules Table */}
-      <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
+      <Card className="bg-white dark:bg-zinc-900">
         <CardHeader>
-          <CardTitle className="text-gray-900 dark:text-white">Academic Modules ({filteredModules.length})</CardTitle>
-          <CardDescription className="text-gray-600 dark:text-gray-300">Overview of all academic modules and their configurations</CardDescription>
+          <CardTitle>Modules</CardTitle>
+          <CardDescription>
+            A list of all academic modules in the system
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="text-gray-900 dark:text-white">Code</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Title</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Level</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Credits</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Module Leader</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Teaching Hours</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Marking Hours</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Actions</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Level</TableHead>
+                <TableHead>Credits</TableHead>
+                <TableHead>Module Leader</TableHead>
+                <TableHead>Teaching Hours</TableHead>
+                <TableHead>Iterations</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredModules.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground dark:text-gray-300">
-                    No modules to show.
+              {filteredModules.map((module) => (
+                <TableRow key={module._id}>
+                  <TableCell className="font-medium">{module.code}</TableCell>
+                  <TableCell>{module.title}</TableCell>
+                  <TableCell>{getLevelBadge(module.level)}</TableCell>
+                  <TableCell>{module.credits}</TableCell>
+                  <TableCell>{getModuleLeaderName(module.moduleLeaderId)}</TableCell>
+                  <TableCell>{module.defaultTeachingHours}h</TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div>Total: {getIterationCount(module._id)}</div>
+                      <div>Current: {getCurrentYearIterations(module._id)}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={module.isActive ? "default" : "secondary"}>
+                      {module.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleOpenEditModal(module)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" disabled>
+                        <span className="text-xs">Coming Soon</span>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ) : (
-                filteredModules.map((module) => (
-                  <TableRow key={module._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800">
-                    <TableCell>
-                      <div className="font-medium text-gray-900 dark:text-white">{module.code}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs truncate text-gray-900 dark:text-white" title={module.title}>
-                        {module.title}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getLevelBadge(module.level)}
-                    </TableCell>
-                    <TableCell className="text-gray-900 dark:text-white">{module.credits}</TableCell>
-                    <TableCell className="text-gray-900 dark:text-white">{module.moduleLeader}</TableCell>
-                    <TableCell className="text-gray-900 dark:text-white">{module.defaultTeachingHours}h</TableCell>
-                    <TableCell className="text-gray-900 dark:text-white">{module.defaultMarkingHours}h</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); router.push(`/module-iterations?module=${module.code}`); }}>
-                          <Calendar className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenEditModal(module); }}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100 dark:hover:bg-red-900" onClick={e => { e.stopPropagation(); confirmDeleteModule(module); }}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              ))}
             </TableBody>
           </Table>
         </CardContent>
@@ -392,143 +442,121 @@ export default function ModuleManagement() {
 
       {/* Create/Edit Module Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-gray-900 dark:text-white">
-              {isEditing ? "Edit Module" : "Add New Module"}
+            <DialogTitle>
+              {isEditing ? "Edit Module" : "Create New Module"}
             </DialogTitle>
-            <DialogDescription className="text-gray-600 dark:text-gray-300">
-              {isEditing ? "Update module details and configurations." : "Create a new module with details and default hours."}
+            <DialogDescription>
+              {isEditing ? "Update module information" : "Add a new module to the system"}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="code">Module Code *</Label>
+                <Input
+                  id="code"
+                  value={form.code}
+                  onChange={handleFormChange}
+                  placeholder="e.g., CS70133X"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="level">Level *</Label>
+                <Select value={form.level.toString()} onValueChange={(value) => handleSelectChange("level", parseInt(value))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {levels.map((level) => (
+                      <SelectItem key={level.value} value={level.value.toString()}>
+                        {level.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="code" className="text-gray-900 dark:text-white">Module Code</Label>
-              <Input 
-                id="code" 
-                value={form.code} 
-                onChange={handleFormChange} 
-                placeholder="NS70133X" 
+              <Label htmlFor="title">Module Title *</Label>
+              <Input
+                id="title"
+                value={form.title}
+                onChange={handleFormChange}
+                placeholder="e.g., Advanced Software Engineering"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="level" className="text-gray-900 dark:text-white">
-                Level
-                {levelAutoDetected && (
-                  <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-medium">
-                    (Auto-detected)
-                  </span>
-                )}
-              </Label>
-              <Select value={form.level === 0 ? "" : form.level.toString()} onValueChange={(value) => handleSelectChange("level", value)}>
-                <SelectTrigger className={levelAutoDetected ? "border-green-500 focus:border-green-500" : ""}>
-                  <SelectValue placeholder="Select level" />
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                value={form.description}
+                onChange={handleFormChange}
+                placeholder="Module description..."
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="credits">Credits *</Label>
+                <Input
+                  id="credits"
+                  type="number"
+                  value={form.credits}
+                  onChange={handleFormChange}
+                  placeholder="20"
+                  min="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="defaultTeachingHours">Teaching Hours</Label>
+                <Input
+                  id="defaultTeachingHours"
+                  type="number"
+                  value={form.defaultTeachingHours}
+                  onChange={handleFormChange}
+                  placeholder="120"
+                  min="0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="defaultMarkingHours">Marking Hours</Label>
+                <Input
+                  id="defaultMarkingHours"
+                  type="number"
+                  value={form.defaultMarkingHours}
+                  onChange={handleFormChange}
+                  placeholder="40"
+                  min="0"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="moduleLeaderId">Module Leader</Label>
+              <Select value={form.moduleLeaderId} onValueChange={(value) => handleSelectChange("moduleLeaderId", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select module leader" />
                 </SelectTrigger>
                 <SelectContent>
-                  {levels.map(level => (
-                    <SelectItem key={level.value} value={level.value.toString()}>
-                      {level.label}
+                  <SelectItem value="">Not assigned</SelectItem>
+                  {lecturerProfiles.map((profile) => (
+                    <SelectItem key={profile._id} value={profile._id}>
+                      {profile.fullName} ({profile.family})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {levelAutoDetected && (
-                <p className="text-xs text-green-600 dark:text-green-400">
-                  Level {form.level} detected from module code
-                </p>
-              )}
-            </div>
-            <div className="col-span-2">
-              <p className="text-xs text-muted-foreground dark:text-gray-300">
-                Enter a module code (e.g., NS70133X) to auto-detect the level
-              </p>
-            </div>
-            <div className="space-y-2 col-span-2">
-              <Label htmlFor="title" className="text-gray-900 dark:text-white">Module Title</Label>
-              <Input id="title" value={form.title} onChange={handleFormChange} placeholder="Effective and Creative Mental Health Care" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="credits" className="text-gray-900 dark:text-white">Credits</Label>
-              <Input id="credits" type="number" min={1} max={60} value={form.credits} onChange={handleFormChange} placeholder="20" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="moduleLeader" className="text-gray-900 dark:text-white">Module Leader</Label>
-              <Input id="moduleLeader" value={form.moduleLeader} onChange={handleFormChange} placeholder="Dr. Michael Johnson" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="defaultTeachingHours" className="text-gray-900 dark:text-white">Default Teaching Hours</Label>
-              <Input 
-                id="defaultTeachingHours" 
-                type="number" 
-                min={0} 
-                value={form.defaultTeachingHours} 
-                onChange={handleFormChange} 
-                placeholder="42" 
-              />
-              <p className="text-xs text-muted-foreground dark:text-gray-300">
-                Default: {organisationSettings?.defaultTeachingHours || 42} hours
-              </p>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="defaultMarkingHours" className="text-gray-900 dark:text-white">
-                Default Marking Hours
-                {!markingHoursManuallyChanged && form.defaultTeachingHours === form.defaultMarkingHours && (
-                  <span className="ml-2 text-xs text-blue-600 dark:text-blue-400 font-medium">
-                    (Auto-synced)
-                  </span>
-                )}
-              </Label>
-              <Input 
-                id="defaultMarkingHours" 
-                type="number" 
-                min={0} 
-                value={form.defaultMarkingHours} 
-                onChange={handleFormChange} 
-                placeholder="42" 
-                className={!markingHoursManuallyChanged && form.defaultTeachingHours === form.defaultMarkingHours ? "border-blue-500 focus:border-blue-500" : ""}
-              />
-              {!markingHoursManuallyChanged && form.defaultTeachingHours === form.defaultMarkingHours ? (
-                <p className="text-xs text-blue-600 dark:text-blue-400">
-                  Auto-synced with teaching hours
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground dark:text-gray-300">
-                  Manually set marking hours
-                </p>
-              )}
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            <DialogClose asChild>
-              <Button variant="outline" disabled={submitting}>Cancel</Button>
-            </DialogClose>
-            <Button 
-              onClick={isEditing ? handleUpdateModule : handleCreateModule} 
-              disabled={submitting || !form.code || !form.title || !form.moduleLeader}
-            >
-              {submitting ? (isEditing ? "Updating..." : "Creating...") : (isEditing ? "Update Module" : "Create Module")}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this module? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={resetForm}>Cancel</Button>
             </DialogClose>
-            <Button className="bg-red-600 text-white hover:bg-red-700" onClick={handleConfirmDelete}>
-              Delete
+            <Button 
+              onClick={isEditing ? handleUpdateModule : handleCreateModule}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : isEditing ? "Update Module" : "Create Module"}
             </Button>
           </DialogFooter>
         </DialogContent>

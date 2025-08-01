@@ -1,25 +1,5 @@
 # WorkloadWizard Database Implementation Tasks
 
-## Phase 6: Page Updates
-
-### 6.1 New Pages
-
-#### Priority: HIGH
-- [ ] **src/app/course-management/page.tsx** - Course management page
-- [ ] **src/app/cohort-management/page.tsx** - Cohort management page
-- [ ] **src/app/team-management/page.tsx** - Team management page
-- [ ] **src/app/reports/page.tsx** - Reports dashboard
-- [ ] **src/app/admin/page.tsx** - Admin dashboard
-- [ ] **src/app/admin/reference-data/page.tsx** - Reference data management
-
-### 6.2 Updated Pages
-
-#### Priority: CRITICAL
-- [ ] **src/app/dashboard/page.tsx** - Update for new data structure
-- [ ] **src/app/lecturer-management/page.tsx** - Update for profile structure
-- [ ] **src/app/module-management/page.tsx** - Update for profile structure
-- [ ] **src/app/module-allocations/page.tsx** - Update for new relationships
-
 ## Phase 7: Utility and Library Updates
 
 ### 7.1 Core Utilities
