@@ -1,0 +1,177 @@
+# WorkloadWizard - Cursor Rules
+
+## Project Overview
+WorkloadWizard is a Next.js 14+ web application for academic workload management in higher education. Built with TypeScript, Tailwind CSS, Convex backend, and Clerk authentication.
+
+## Tech Stack
+- **Frontend:** Next.js 14+ (App Router), TypeScript, Tailwind CSS, shadcn/ui
+- **Backend:** Convex (TypeScript), Convex DB
+- **Auth:** Clerk
+- **Notifications:** Knock
+- **Deployment:** Vercel
+
+## Coding Standards
+
+### TypeScript
+- Use strict TypeScript configuration
+- Prefer interfaces over types for object shapes
+- Use proper type annotations for all function parameters and return values
+- Leverage Convex's generated types from `_generated/` directory
+- Use zod for runtime validation when needed
+
+### React/Next.js
+- Use functional components with hooks
+- Prefer server components where possible (App Router)
+- Use proper error boundaries and loading states
+- Follow Next.js 14+ best practices for App Router
+- Use proper TypeScript for all component props
+
+### Styling
+- Use Tailwind CSS for all styling
+- Follow shadcn/ui component patterns
+- Maintain consistent spacing and color schemes
+- Use CSS variables for theme customization
+- Ensure responsive design for all components
+
+### File Organization
+- Follow Next.js App Router conventions
+- Group related components in feature folders
+- Keep UI components in `src/components/ui/`
+- Place business logic in `src/lib/`
+- Use proper naming conventions (kebab-case for files, PascalCase for components)
+
+### Convex Backend
+- Use proper Convex query and mutation patterns
+- Implement proper error handling in mutations
+- Use Convex's real-time capabilities appropriately
+- Follow the established schema patterns in `convex/` directory
+- Use proper TypeScript types from generated files
+
+### Testing
+- Write tests for critical business logic
+- Use Jest and React Testing Library
+- Test components in isolation
+- Mock external dependencies appropriately
+- Maintain good test coverage for utilities and hooks
+
+## Project-Specific Guidelines
+
+### Academic Domain Knowledge
+- Use proper academic terminology (FTE, CPD, Module Iteration, Cohort, etc.)
+- Follow the data model defined in the PRD
+- Maintain consistency with academic workload allocation concepts
+- Use appropriate validation for academic data (credits, hours, etc.)
+
+### User Experience
+- Prioritize accessibility (WCAG 2.1 AA compliance)
+- Ensure mobile-responsive design
+- Provide clear feedback for user actions
+- Use appropriate loading states and error messages
+- Follow the established UI patterns from shadcn/ui
+
+### Performance
+- Optimize for dashboard performance (target <2s load time)
+- Use proper caching strategies
+- Implement efficient data fetching patterns
+- Monitor Convex query performance
+- Use Next.js optimization features (Image, Link, etc.)
+
+### Security
+- Follow Clerk authentication best practices
+- Implement proper role-based access control
+- Validate all user inputs
+- Use proper error handling to avoid information leakage
+- Follow the permission model defined in the PRD
+
+## Code Quality
+
+### Naming Conventions
+- Use descriptive, meaningful names
+- Follow established patterns in the codebase
+- Use consistent naming for academic entities
+- Prefer clarity over brevity
+
+### Documentation
+- Document complex business logic
+- Use JSDoc for public APIs
+- Keep README and PRD updated
+- Document any academic domain-specific logic
+
+### Error Handling
+- Use proper try-catch blocks
+- Provide user-friendly error messages
+- Log errors appropriately
+- Handle edge cases gracefully
+
+## Development Workflow
+
+### Git Practices
+- Use conventional commits format
+- Write descriptive commit messages
+- Keep commits focused and atomic
+- Use feature branches for new development
+
+### Code Review
+- Review for TypeScript correctness
+- Ensure proper error handling
+- Check for accessibility compliance
+- Verify responsive design
+- Test user workflows
+
+## Common Patterns
+
+### Data Fetching
+```typescript
+// Use Convex queries for data fetching
+const lecturers = useQuery(api.lecturers.list);
+const allocations = useQuery(api.module_allocations.list, { lecturerId });
+```
+
+### Form Handling
+```typescript
+// Use proper form validation
+const form = useForm<FormData>({
+  resolver: zodResolver(schema),
+  defaultValues: initialData
+});
+```
+
+### Component Structure
+```typescript
+// Follow established component patterns
+interface ComponentProps {
+  // Define clear props interface
+}
+
+export function Component({ prop1, prop2 }: ComponentProps) {
+  // Component implementation
+}
+```
+
+## Avoid Anti-Patterns
+
+- Don't use `any` type in TypeScript
+- Don't ignore accessibility requirements
+- Don't hardcode academic data or business rules
+- Don't skip error handling
+- Don't use inline styles when Tailwind classes are available
+- Don't create deeply nested component hierarchies
+- Don't ignore mobile responsiveness
+
+## Performance Considerations
+
+- Use React.memo for expensive components
+- Implement proper loading states
+- Use Convex's caching effectively
+- Optimize bundle size with proper imports
+- Use Next.js Image component for images
+- Implement proper pagination for large datasets
+
+## Testing Strategy
+
+- Unit test utility functions and hooks
+- Integration test critical user workflows
+- Test accessibility with screen readers
+- Test responsive design across devices
+- Mock external services appropriately
+- Test error scenarios and edge cases 

@@ -1,0 +1,122 @@
+---
+description: Jest and TypeScript unit testing standards and best practices
+priority: 10
+globs: \["**/\*.test.ts", "**/*.test.tsx", "\*\*/*.spec.ts", "\*\*/\*.spec.tsx"]
+---
+
+# Jest + TypeScript Testing Rules
+
+## Persona
+
+You are an expert developer with deep knowledge of Jest and TypeScript, tasked with creating unit tests for JavaScript/TypeScript applications.
+
+## Auto-detect TypeScript Usage
+
+* Check for TypeScript in the project via `tsconfig.json` or `package.json` dependencies
+* Adjust file extension and syntax accordingly (`.ts`/`.tsx` vs `.js`/`.jsx`)
+
+## Unit Testing Focus
+
+* Prioritise testing core logic (business rules, utility functions)
+* Mock dependencies (e.g. API calls, external modules) before imports
+* Cover:
+
+  * Valid inputs
+  * Invalid inputs
+  * Edge cases (null, undefined, unexpected types)
+* Maintain clean test code grouped using `describe()` blocks
+
+## Best Practices
+
+1. **Critical Functionality**: Focus on core application logic
+2. **Dependency Mocking**: Always use `jest.mock()` before imports
+3. **Data Scenarios**: Cover all input types and boundaries
+4. **Descriptive Naming**: Write meaningful test and suite names
+5. **Test Organisation**: Use `describe()` to group related tests
+6. **Consistency**: Match naming and patterns used across your team/project
+7. **Edge Case Coverage**: Include `null`, `undefined`, type mismatches
+8. **Maintainability**: Keep files to 3–5 test cases max
+
+## Example: JavaScript
+
+```js
+jest.mock('../api/taxRate', () => ({
+  getTaxRate: jest.fn(() => 0.1),
+}));
+
+const { calculateTotal } = require('../utils/calculateTotal');
+
+describe('calculateTotal', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('should calculate total for valid items with tax', () => {
+    const items = [ { price: 10, quantity: 2 }, { price: 20, quantity: 1 } ];
+    const result = calculateTotal(items);
+    expect(result).toBe(44); // (10*2 + 20) * 1.1 = 44
+  });
+
+  it('should handle empty array', () => {
+    expect(calculateTotal([])).toBe(0);
+  });
+
+  it('should throw error for invalid item data', () => {
+    expect(() => calculateTotal([{ price: 'invalid', quantity: 1 }])).toThrow('Invalid price or quantity');
+  });
+
+  it('should handle null input', () => {
+    expect(() => calculateTotal(null)).toThrow('Items must be an array');
+  });
+});
+```
+
+## Example: TypeScript
+
+```ts
+jest.mock('../api/userService', () => ({
+  fetchUser: jest.fn(),
+}));
+
+import { fetchUser } from '../api/userService';
+import { getUserData } from '../utils/userUtils';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+describe('getUserData', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('should return user data when fetch is successful', async () => {
+    const mockUser: User = { id: 1, name: 'John Doe', email: 'john@example.com' };
+    (fetchUser as jest.Mock).mockResolvedValue(mockUser);
+
+    const result = await getUserData(1);
+
+    expect(fetchUser).toHaveBeenCalledWith(1);
+    expect(result).toEqual(mockUser);
+  });
+
+  it('should throw error when user is not found', async () => {
+    (fetchUser as jest.Mock).mockResolvedValue(null);
+    await expect(getUserData(999)).rejects.toThrow('User not found');
+  });
+
+  it('should handle API errors gracefully', async () => {
+    (fetchUser as jest.Mock).mockRejectedValue(new Error('Network error'));
+    await expect(getUserData(1)).rejects.toThrow('Failed to fetch user: Network error');
+  });
+});
+```
+
+## Summary
+
+* Mock first, import after
+* Test minimal yet complete cases
+* Avoid testing framework or library behaviour
+* Prefer async/await over callback-style tests
+* Stick to deterministic, repeatable results
+* Use type-safe mocks in TypeScript
+
+These rules ensure maintainable, readable, and robust unit tests across your project.

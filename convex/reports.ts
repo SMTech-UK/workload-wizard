@@ -217,12 +217,13 @@ export const upsertTeamSummary = mutation({
   args: {
     academicYearId: v.id("academic_years"),
     teamId: v.id("teams"),
+    period: v.string(),
     totalLecturers: v.number(),
     totalTeachingHours: v.number(),
     totalAdminHours: v.number(),
     totalOtherHours: v.number(),
     averageWorkload: v.number(),
-    workloadDistribution: v.any(),
+    averageWorkloadPerLecturer: v.number(),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -278,7 +279,6 @@ export const upsertTeamSummary = mutation({
         totalAdminHours: args.totalAdminHours,
         totalOtherHours: args.totalOtherHours,
         averageWorkload: args.averageWorkload,
-        workloadDistribution: args.workloadDistribution,
         updatedAt: Date.now(),
       });
       
@@ -302,6 +302,7 @@ export const upsertTeamSummary = mutation({
         ...args,
         isActive: args.isActive ?? true,
         organisationId: organisation._id,
+        lastCalculatedAt: Date.now(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });

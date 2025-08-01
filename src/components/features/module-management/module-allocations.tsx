@@ -113,13 +113,13 @@ export default function ModuleAllocations() {
 
   // Helper functions
   const getModuleName = (moduleId: Id<'modules'>) => {
-    const module = modules.find(m => m._id === moduleId);
-    return module ? `${module.code} - ${module.title}` : "Unknown Module";
+    const moduleData = modules.find(m => m._id === moduleId);
+    return moduleData ? `${moduleData.code} - ${moduleData.title}` : "Unknown Module";
   };
 
   const getModuleCode = (moduleId: Id<'modules'>) => {
-    const module = modules.find(m => m._id === moduleId);
-    return module?.code || "Unknown";
+    const moduleData = modules.find(m => m._id === moduleId);
+    return moduleData?.code || "Unknown";
   };
 
   const getLecturerName = (lecturerId: Id<'lecturers'>) => {
@@ -253,13 +253,13 @@ export default function ModuleAllocations() {
       });
 
       // Create module allocation record
-      const module = modules.find(m => m._id === iteration.moduleId);
-      if (module) {
+      const moduleData = modules.find(m => m._id === iteration.moduleId);
+      if (moduleData) {
         await createModuleAllocation({
           moduleIterationId: iterationId as Id<'module_iterations'>,
           lecturerId: lecturerId as Id<'lecturers'>,
-          teachingHours: module.defaultTeachingHours,
-          markingHours: module.defaultMarkingHours,
+          teachingHours: moduleData.defaultTeachingHours,
+          markingHours: moduleData.defaultMarkingHours,
         });
       }
 

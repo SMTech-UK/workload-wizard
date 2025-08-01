@@ -129,10 +129,10 @@ export default function AssessmentManagement() {
 
   const filteredModuleAssessments = moduleIterationAssessments.filter(assessment => {
     const moduleIteration = moduleIterations.find(mi => mi._id === assessment.moduleIterationId);
-    const module = moduleIteration ? modules.find(m => m._id === moduleIteration.moduleId) : null;
+    const moduleData = moduleIteration ? modules.find(m => m._id === moduleIteration.moduleId) : null;
     const assessmentType = assessmentTypes.find(at => at._id === assessment.assessmentTypeId);
     
-    return (module?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return (moduleData?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
            (assessmentType?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
            assessment.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
@@ -141,16 +141,16 @@ export default function AssessmentManagement() {
     const moduleIteration = moduleIterations.find(mi => mi._id === moduleIterationId);
     if (!moduleIteration) return "Unknown Module";
     
-    const module = modules.find(m => m._id === moduleIteration.moduleId);
-    return module?.name || "Unknown Module";
+    const moduleData = modules.find(m => m._id === moduleIteration.moduleId);
+    return moduleData?.name || "Unknown Module";
   };
 
   const getModuleCode = (moduleIterationId: Id<'module_iterations'>) => {
     const moduleIteration = moduleIterations.find(mi => mi._id === moduleIterationId);
     if (!moduleIteration) return "Unknown";
     
-    const module = modules.find(m => m._id === moduleIteration.moduleId);
-    return module?.code || "Unknown";
+    const moduleData = modules.find(m => m._id === moduleIteration.moduleId);
+    return moduleData?.code || "Unknown";
   };
 
   const getAssessmentTypeName = (assessmentTypeId: Id<'assessment_types'>) => {
@@ -772,10 +772,10 @@ export default function AssessmentManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   {moduleIterations.map((moduleIteration) => {
-                    const module = modules.find(m => m._id === moduleIteration.moduleId);
+                    const moduleData = modules.find(m => m._id === moduleIteration.moduleId);
                     return (
                       <SelectItem key={moduleIteration._id} value={moduleIteration._id}>
-                        {module?.name || "Unknown"} - Semester {moduleIteration.semester}
+                        {moduleData?.name || "Unknown"} - Semester {moduleIteration.semester}
                       </SelectItem>
                     );
                   })}
@@ -888,10 +888,10 @@ export default function AssessmentManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   {moduleIterations.map((moduleIteration) => {
-                    const module = modules.find(m => m._id === moduleIteration.moduleId);
+                    const moduleData = modules.find(m => m._id === moduleIteration.moduleId);
                     return (
                       <SelectItem key={moduleIteration._id} value={moduleIteration._id}>
-                        {module?.name || "Unknown"} - Semester {moduleIteration.semester}
+                        {moduleData?.name || "Unknown"} - Semester {moduleIteration.semester}
                       </SelectItem>
                     );
                   })}

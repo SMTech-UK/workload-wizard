@@ -36,15 +36,14 @@ interface Cohort {
   _id: Id<'cohorts'>;
   code: string;
   name: string;
-  description?: string;
   courseId: Id<'courses'>;
   academicYearId: Id<'academic_years'>;
+  entryYear: number;
+  isFullTime: boolean;
   startDate: string;
   endDate: string;
-  expectedGraduationDate: string;
-  studentCount: number;
   isActive: boolean;
-  organisationId: Id<'organisations'>;
+  organisationId?: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
 }
@@ -52,9 +51,9 @@ interface Cohort {
 interface Course {
   _id: Id<'courses'>;
   code: string;
-  title: string;
-  level: number;
-  totalCredits: number;
+  name: string;
+  level: string;
+  credits: number;
   duration: number;
 }
 
@@ -75,12 +74,13 @@ export default function CohortManagementPage() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // Fetch data from Convex
+  const organisation = useQuery(api.organisations.get, {}) ?? null;
   const cohorts = useQuery(api.cohorts.getAll, {}) ?? [];
   const courses = useQuery(api.courses.getAll, {}) ?? [];
   const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
   const createCohort = useMutation(api.cohorts.create);
   const updateCohort = useMutation(api.cohorts.update);
-  const deleteCohort = useMutation(api.cohorts.delete);
+  const deleteCohort = useMutation(api.cohorts.remove);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
@@ -89,13 +89,12 @@ export default function CohortManagementPage() {
   const [form, setForm] = useState({
     code: "",
     name: "",
-    description: "",
     courseId: "",
     academicYearId: "",
+    entryYear: new Date().getFullYear(),
+    isFullTime: true,
     startDate: "",
     endDate: "",
-    expectedGraduationDate: "",
-    studentCount: 0,
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -104,12 +103,12 @@ export default function CohortManagementPage() {
     setForm(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleSelectChange = (field: string, value: string | number) => {
+  const handleSelectChange = (field: string, value: string | number | boolean) => {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
   const handleCreateCohort = async () => {
-    if (!form.code || !form.name || !form.courseId || !form.academicYearId || !form.startDate || !form.endDate || !form.expectedGraduationDate) {
+    if (!form.code || !form.name || !form.courseId || !form.academicYearId || !form.startDate || !form.endDate) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -119,13 +118,12 @@ export default function CohortManagementPage() {
       await createCohort({
         code: form.code.toUpperCase(),
         name: form.name,
-        description: form.description,
         courseId: form.courseId as Id<'courses'>,
         academicYearId: form.academicYearId as Id<'academic_years'>,
+        entryYear: form.entryYear,
+        isFullTime: form.isFullTime,
         startDate: form.startDate,
         endDate: form.endDate,
-        expectedGraduationDate: form.expectedGraduationDate,
-        studentCount: form.studentCount,
       });
 
       logRecentActivity({
@@ -133,7 +131,7 @@ export default function CohortManagementPage() {
         entity: "cohort",
         description: `Created cohort: ${form.name}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: organisation?._id || "",
       });
 
       toast.success("Cohort created successfully");
@@ -148,7 +146,7 @@ export default function CohortManagementPage() {
   };
 
   const handleUpdateCohort = async () => {
-    if (!selectedCohort || !form.code || !form.name || !form.courseId || !form.academicYearId || !form.startDate || !form.endDate || !form.expectedGraduationDate) {
+    if (!selectedCohort || !form.code || !form.name || !form.courseId || !form.academicYearId || !form.startDate || !form.endDate) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -159,13 +157,10 @@ export default function CohortManagementPage() {
         id: selectedCohort._id,
         code: form.code.toUpperCase(),
         name: form.name,
-        description: form.description,
-        courseId: form.courseId as Id<'courses'>,
-        academicYearId: form.academicYearId as Id<'academic_years'>,
+        entryYear: form.entryYear,
+        isFullTime: form.isFullTime,
         startDate: form.startDate,
         endDate: form.endDate,
-        expectedGraduationDate: form.expectedGraduationDate,
-        studentCount: form.studentCount,
       });
 
       logRecentActivity({
@@ -173,7 +168,7 @@ export default function CohortManagementPage() {
         entity: "cohort",
         description: `Updated cohort: ${form.name}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: organisation?._id || "",
       });
 
       toast.success("Cohort updated successfully");
@@ -192,13 +187,12 @@ export default function CohortManagementPage() {
     setForm({
       code: "",
       name: "",
-      description: "",
       courseId: "",
       academicYearId: "",
+      entryYear: new Date().getFullYear(),
+      isFullTime: true,
       startDate: "",
       endDate: "",
-      expectedGraduationDate: "",
-      studentCount: 0,
     });
     setIsEditing(false);
   };
@@ -213,13 +207,12 @@ export default function CohortManagementPage() {
     setForm({
       code: cohort.code,
       name: cohort.name,
-      description: cohort.description || "",
       courseId: cohort.courseId,
       academicYearId: cohort.academicYearId,
+      entryYear: cohort.entryYear,
+      isFullTime: cohort.isFullTime,
       startDate: cohort.startDate,
       endDate: cohort.endDate,
-      expectedGraduationDate: cohort.expectedGraduationDate,
-      studentCount: cohort.studentCount,
     });
     setIsEditing(true);
     setModalOpen(true);
@@ -227,7 +220,7 @@ export default function CohortManagementPage() {
 
   const getCourseName = (courseId: Id<'courses'>) => {
     const course = courses.find(c => c._id === courseId);
-    return course ? `${course.code} - ${course.title}` : "Unknown Course";
+    return course ? `${course.code} - ${course.name}` : "Unknown Course";
   };
 
   const getAcademicYearName = (academicYearId: Id<'academic_years'>) => {
@@ -247,14 +240,11 @@ export default function CohortManagementPage() {
     const now = new Date();
     const startDate = new Date(cohort.startDate);
     const endDate = new Date(cohort.endDate);
-    const graduationDate = new Date(cohort.expectedGraduationDate);
 
     if (now < startDate) {
       return <Badge className="bg-blue-100 text-blue-800">Upcoming</Badge>;
     } else if (now >= startDate && now <= endDate) {
       return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-    } else if (now > endDate && now <= graduationDate) {
-      return <Badge className="bg-yellow-100 text-yellow-800">Graduating</Badge>;
     } else {
       return <Badge className="bg-gray-100 text-gray-800">Completed</Badge>;
     }
@@ -334,9 +324,9 @@ export default function CohortManagementPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Cohorts</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {cohorts.reduce((sum, cohort) => sum + cohort.studentCount, 0)}
+                    {cohorts.length}
                   </p>
                 </div>
                 <GraduationCap className="w-8 h-8 text-purple-600" />
@@ -394,7 +384,7 @@ export default function CohortManagementPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Course</TableHead>
                   <TableHead>Academic Year</TableHead>
-                  <TableHead>Students</TableHead>
+                                      <TableHead>Type</TableHead>
                   <TableHead>Start Date</TableHead>
                   <TableHead>End Date</TableHead>
                   <TableHead>Status</TableHead>
@@ -408,7 +398,7 @@ export default function CohortManagementPage() {
                     <TableCell>{cohort.name}</TableCell>
                     <TableCell>{getCourseName(cohort.courseId)}</TableCell>
                     <TableCell>{getAcademicYearName(cohort.academicYearId)}</TableCell>
-                    <TableCell>{cohort.studentCount}</TableCell>
+                    <TableCell>{cohort.isFullTime ? "Full Time" : "Part Time"}</TableCell>
                     <TableCell>{formatDate(cohort.startDate)}</TableCell>
                     <TableCell>{formatDate(cohort.endDate)}</TableCell>
                     <TableCell>{getStatusBadge(cohort)}</TableCell>
@@ -455,17 +445,7 @@ export default function CohortManagementPage() {
                     placeholder="e.g., CS2024"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="studentCount">Student Count</Label>
-                  <Input
-                    id="studentCount"
-                    type="number"
-                    value={form.studentCount}
-                    onChange={handleFormChange}
-                    placeholder="0"
-                    min="0"
-                  />
-                </div>
+
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Cohort Name *</Label>
@@ -476,16 +456,7 @@ export default function CohortManagementPage() {
                   placeholder="e.g., Computer Science 2024"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={form.description}
-                  onChange={handleFormChange}
-                  placeholder="Cohort description..."
-                  rows={3}
-                />
-              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="courseId">Course *</Label>
@@ -496,7 +467,7 @@ export default function CohortManagementPage() {
                     <SelectContent>
                       {courses.map((course) => (
                         <SelectItem key={course._id} value={course._id}>
-                          {course.code} - {course.title}
+                          {course.code} - {course.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -514,6 +485,32 @@ export default function CohortManagementPage() {
                           {academicYear.name}
                         </SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="entryYear">Entry Year *</Label>
+                  <Input
+                    id="entryYear"
+                    type="number"
+                    value={form.entryYear}
+                    onChange={handleFormChange}
+                    placeholder="2024"
+                    min="2000"
+                    max="2100"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="isFullTime">Study Type *</Label>
+                  <Select value={form.isFullTime.toString()} onValueChange={(value) => handleSelectChange("isFullTime", value === "true")}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select study type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Full Time</SelectItem>
+                      <SelectItem value="false">Part Time</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -537,15 +534,7 @@ export default function CohortManagementPage() {
                     onChange={handleFormChange}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="expectedGraduationDate">Graduation Date *</Label>
-                  <Input
-                    id="expectedGraduationDate"
-                    type="date"
-                    value={form.expectedGraduationDate}
-                    onChange={handleFormChange}
-                  />
-                </div>
+
               </div>
             </div>
             <DialogFooter>

@@ -209,9 +209,9 @@ export function calculateCourseCredits(
   let totalCredits = 0;
 
   for (const courseModule of courseModules) {
-    const module = modules.find(m => m._id === courseModule.moduleId);
-    if (module && module.credits) {
-      totalCredits += module.credits;
+    const moduleData = modules.find(m => m._id === courseModule.moduleId);
+    if (moduleData && moduleData.credits) {
+      totalCredits += moduleData.credits;
     }
   }
 
@@ -239,11 +239,11 @@ export function calculateCourseWorkload(
   let moduleCount = 0;
 
   for (const courseModule of courseModules) {
-    const module = modules.find(m => m._id === courseModule.moduleId);
-    if (module) {
-      totalTeachingHours += module.defaultTeachingHours || 0;
-      totalMarkingHours += module.defaultMarkingHours || 0;
-      totalCredits += module.credits || 0;
+    const moduleData = modules.find(m => m._id === courseModule.moduleId);
+    if (moduleData) {
+      totalTeachingHours += moduleData.defaultTeachingHours || 0;
+      totalMarkingHours += moduleData.defaultMarkingHours || 0;
+      totalCredits += moduleData.credits || 0;
       moduleCount++;
     }
   }
@@ -278,9 +278,9 @@ export function calculateCourseComplexity(
 
   // Add complexity based on module levels
   for (const courseModule of courseModules) {
-    const module = modules.find(m => m._id === courseModule.moduleId);
-    if (module) {
-      complexityScore += module.level * 0.3;
+    const moduleData = modules.find(m => m._id === courseModule.moduleId);
+    if (moduleData) {
+      complexityScore += moduleData.level * 0.3;
     }
   }
 
@@ -424,13 +424,13 @@ export function calculateProgressionRequirements(
   let optionalCredits = 0;
 
   for (const courseModule of courseModules) {
-    const module = modules.find(m => m._id === courseModule.moduleId);
-    if (module && module.credits) {
-      totalCredits += module.credits;
+    const moduleData = modules.find(m => m._id === courseModule.moduleId);
+    if (moduleData && moduleData.credits) {
+      totalCredits += moduleData.credits;
       if (courseModule.isCore) {
-        coreCredits += module.credits;
+        coreCredits += moduleData.credits;
       } else {
-        optionalCredits += module.credits;
+        optionalCredits += moduleData.credits;
       }
     }
   }

@@ -38,7 +38,7 @@ interface Faculty {
   code: string;
   description?: string;
   isActive: boolean;
-  organisationId: Id<'organisations'>;
+  organisationId?: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
 }
@@ -50,7 +50,7 @@ interface Department {
   description?: string;
   facultyId?: Id<'faculties'>;
   isActive: boolean;
-  organisationId: Id<'organisations'>;
+  organisationId?: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
 }
@@ -58,10 +58,18 @@ interface Department {
 interface AllocationType {
   _id: Id<'allocation_types'>;
   name: string;
+  code: string;
+  category: string;
   description?: string;
-  defaultHours: number;
+  defaultHours?: number;
+  defaultStudents?: number;
+  isTeaching: boolean;
+  isAssessment: boolean;
+  isAdministrative: boolean;
+  requiresRoom: boolean;
+  canBeGrouped: boolean;
   isActive: boolean;
-  organisationId: Id<'organisations'>;
+  organisationId?: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
 }
@@ -69,10 +77,15 @@ interface AllocationType {
 interface AssessmentType {
   _id: Id<'assessment_types'>;
   name: string;
+  code: string;
   description?: string;
-  defaultHours: number;
+  category: string;
+  defaultWeighting?: number;
+  defaultDuration?: number;
+  isGroupAssessment: boolean;
+  requiresMarking: boolean;
   isActive: boolean;
-  organisationId: Id<'organisations'>;
+  organisationId?: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
 }
@@ -87,6 +100,7 @@ export default function ReferenceDataPage() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // Fetch data from Convex
+  const organisation = useQuery(api.organisations.get, {}) ?? null;
   const faculties = useQuery(api.faculties.getAll, {}) ?? [];
   const departments = useQuery(api.departments.getAll, {}) ?? [];
   const allocationTypes = useQuery(api.allocation_types.getAll, {}) ?? [];
@@ -95,16 +109,16 @@ export default function ReferenceDataPage() {
   // Mutations
   const createFaculty = useMutation(api.faculties.create);
   const updateFaculty = useMutation(api.faculties.update);
-  const deleteFaculty = useMutation(api.faculties.delete);
+  const deleteFaculty = useMutation(api.faculties.remove);
   const createDepartment = useMutation(api.departments.create);
   const updateDepartment = useMutation(api.departments.update);
-  const deleteDepartment = useMutation(api.departments.delete);
+  const deleteDepartment = useMutation(api.departments.remove);
   const createAllocationType = useMutation(api.allocation_types.create);
   const updateAllocationType = useMutation(api.allocation_types.update);
-  const deleteAllocationType = useMutation(api.allocation_types.delete);
+  const deleteAllocationType = useMutation(api.allocation_types.remove);
   const createAssessmentType = useMutation(api.assessment_types.create);
   const updateAssessmentType = useMutation(api.assessment_types.update);
-  const deleteAssessmentType = useMutation(api.assessment_types.delete);
+  const deleteAssessmentType = useMutation(api.assessment_types.remove);
   
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
@@ -117,6 +131,9 @@ export default function ReferenceDataPage() {
     description: "",
     facultyId: "",
     defaultHours: 0,
+    defaultDuration: 0,
+    defaultWeighting: 0,
+    category: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -136,6 +153,9 @@ export default function ReferenceDataPage() {
       description: "",
       facultyId: "",
       defaultHours: 0,
+      defaultDuration: 0,
+      defaultWeighting: 0,
+      category: "",
     });
     setIsEditing(false);
     setSelectedItem(null);
@@ -154,6 +174,9 @@ export default function ReferenceDataPage() {
       description: item.description || "",
       facultyId: item.facultyId || "",
       defaultHours: item.defaultHours || 0,
+      defaultDuration: item.defaultDuration || 0,
+      defaultWeighting: item.defaultWeighting || 0,
+      category: item.category || "",
     });
     setIsEditing(true);
     setModalOpen(true);
@@ -183,21 +206,26 @@ export default function ReferenceDataPage() {
             name: form.name,
             code: form.code.toUpperCase(),
             description: form.description,
-            facultyId: form.facultyId || undefined,
+            facultyId: form.facultyId ? (form.facultyId as Id<'faculties'>) : undefined,
           });
           break;
         case "allocation_types":
           result = await createAllocationType({
             name: form.name,
+            code: form.code.toUpperCase(),
             description: form.description,
+            category: "General",
             defaultHours: form.defaultHours,
           });
           break;
         case "assessment_types":
           result = await createAssessmentType({
             name: form.name,
+            code: form.code.toUpperCase(),
             description: form.description,
-            defaultHours: form.defaultHours,
+            category: form.category || "General",
+            defaultWeighting: form.defaultWeighting,
+            defaultDuration: form.defaultDuration,
           });
           break;
         default:
@@ -209,7 +237,7 @@ export default function ReferenceDataPage() {
         entity: entityName,
         description: `Created ${entityName}: ${form.name}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: organisation?._id || "",
       });
 
       toast.success(`${entityName.charAt(0).toUpperCase() + entityName.slice(1)} created successfully`);
@@ -249,14 +277,16 @@ export default function ReferenceDataPage() {
             name: form.name,
             code: form.code.toUpperCase(),
             description: form.description,
-            facultyId: form.facultyId || undefined,
+            facultyId: form.facultyId ? (form.facultyId as Id<'faculties'>) : undefined,
           });
           break;
         case "allocation_types":
           result = await updateAllocationType({
             id: selectedItem._id,
             name: form.name,
+            code: form.code.toUpperCase(),
             description: form.description,
+            category: "General",
             defaultHours: form.defaultHours,
           });
           break;
@@ -264,8 +294,11 @@ export default function ReferenceDataPage() {
           result = await updateAssessmentType({
             id: selectedItem._id,
             name: form.name,
+            code: form.code.toUpperCase(),
             description: form.description,
-            defaultHours: form.defaultHours,
+            category: form.category || "General",
+            defaultWeighting: form.defaultWeighting,
+            defaultDuration: form.defaultDuration,
           });
           break;
         default:
@@ -277,7 +310,7 @@ export default function ReferenceDataPage() {
         entity: entityName,
         description: `Updated ${entityName}: ${form.name}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: organisation?._id || "",
       });
 
       toast.success(`${entityName.charAt(0).toUpperCase() + entityName.slice(1)} updated successfully`);
@@ -300,27 +333,54 @@ export default function ReferenceDataPage() {
   const getCurrentData = () => {
     switch (selectedTab) {
       case "faculties":
-        return faculties.filter(item =>
+        return faculties.filter((item) =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.code.toLowerCase().includes(searchTerm.toLowerCase())
         );
       case "departments":
-        return departments.filter(item =>
+        return departments.filter((item) =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
           getFacultyName(item.facultyId).toLowerCase().includes(searchTerm.toLowerCase())
         );
       case "allocation_types":
-        return allocationTypes.filter(item =>
+        return allocationTypes.filter((item) =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
       case "assessment_types":
-        return assessmentTypes.filter(item =>
+        return assessmentTypes.filter((item) =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
       default:
         return [];
     }
+  };
+
+  const getFilteredFaculties = () => {
+    return faculties.filter((item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const getFilteredDepartments = () => {
+    return departments.filter((item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getFacultyName(item.facultyId).toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const getFilteredAllocationTypes = () => {
+    return allocationTypes.filter((item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  const getFilteredAssessmentTypes = () => {
+    return assessmentTypes.filter((item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   };
 
   const getTabTitle = () => {
@@ -457,49 +517,137 @@ export default function ReferenceDataPage() {
                   <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
                   {selectedTab === "departments" && <TableHead>Faculty</TableHead>}
-                  {(selectedTab === "allocation_types" || selectedTab === "assessment_types") && (
-                    <TableHead>Default Hours</TableHead>
-                  )}
+                  {selectedTab === "allocation_types" && <TableHead>Default Hours</TableHead>}
+                  {selectedTab === "assessment_types" && <TableHead>Default Duration</TableHead>}
                   <TableHead>Description</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {getCurrentData().map((item) => (
-                  <TableRow key={item._id}>
-                    <TableCell className="font-medium">{item.code}</TableCell>
-                    <TableCell>{item.name}</TableCell>
-                    {selectedTab === "departments" && (
+                {selectedTab === "faculties" && 
+                  getFilteredFaculties().map((item) => (
+                    <TableRow key={item._id}>
+                      <TableCell className="font-medium">{item.code}</TableCell>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {item.description || "No description"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.isActive ? "default" : "secondary"}>
+                          {item.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(item)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled>
+                            <span className="text-xs">Coming Soon</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                }
+                {selectedTab === "departments" && 
+                  getFilteredDepartments().map((item) => (
+                    <TableRow key={item._id}>
+                      <TableCell className="font-medium">{item.code}</TableCell>
+                      <TableCell>{item.name}</TableCell>
                       <TableCell>{getFacultyName(item.facultyId)}</TableCell>
-                    )}
-                    {(selectedTab === "allocation_types" || selectedTab === "assessment_types") && (
-                      <TableCell>{item.defaultHours}h</TableCell>
-                    )}
-                    <TableCell className="max-w-xs truncate">
-                      {item.description || "No description"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={item.isActive ? "default" : "secondary"}>
-                        {item.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenEditModal(item)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" disabled>
-                          <span className="text-xs">Coming Soon</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell className="max-w-xs truncate">
+                        {item.description || "No description"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.isActive ? "default" : "secondary"}>
+                          {item.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(item)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled>
+                            <span className="text-xs">Coming Soon</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                }
+                {selectedTab === "allocation_types" && 
+                  getFilteredAllocationTypes().map((item) => (
+                    <TableRow key={item._id}>
+                      <TableCell className="font-medium">{item.code}</TableCell>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.defaultHours || 0}h</TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {item.description || "No description"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.isActive ? "default" : "secondary"}>
+                          {item.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(item)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled>
+                            <span className="text-xs">Coming Soon</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                }
+                {selectedTab === "assessment_types" && 
+                  getFilteredAssessmentTypes().map((item) => (
+                    <TableRow key={item._id}>
+                      <TableCell className="font-medium">{item.code}</TableCell>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.defaultDuration || 0}h</TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {item.description || "No description"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.isActive ? "default" : "secondary"}>
+                          {item.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(item)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" disabled>
+                            <span className="text-xs">Coming Soon</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                }
               </TableBody>
             </Table>
           </CardContent>
@@ -565,7 +713,7 @@ export default function ReferenceDataPage() {
                   </Select>
                 </div>
               )}
-              {(selectedTab === "allocation_types" || selectedTab === "assessment_types") && (
+              {selectedTab === "allocation_types" && (
                 <div className="space-y-2">
                   <Label htmlFor="defaultHours">Default Hours</Label>
                   <Input
@@ -576,6 +724,33 @@ export default function ReferenceDataPage() {
                     placeholder="0"
                     min="0"
                   />
+                </div>
+              )}
+              {selectedTab === "assessment_types" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="defaultDuration">Default Duration (hours)</Label>
+                    <Input
+                      id="defaultDuration"
+                      type="number"
+                      value={form.defaultDuration}
+                      onChange={handleFormChange}
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="defaultWeighting">Default Weighting (%)</Label>
+                    <Input
+                      id="defaultWeighting"
+                      type="number"
+                      value={form.defaultWeighting}
+                      onChange={handleFormChange}
+                      placeholder="0"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
                 </div>
               )}
             </div>

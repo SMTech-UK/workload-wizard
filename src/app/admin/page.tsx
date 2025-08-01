@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
 
   // Fetch data from Convex
   const users = useQuery(api.users.getAll, {}) ?? [];
-  const organisations = useQuery(api.organisations.getAll, {}) ?? [];
+  const organisation = useQuery(api.organisations.get, {}) ?? null;
   const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
   const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
   const modules = useQuery(api.modules.getAll, {}) ?? [];
@@ -100,8 +100,8 @@ export default function AdminDashboardPage() {
   // Calculate metrics
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.isActive).length;
-  const totalOrganisations = organisations.length;
-  const activeOrganisations = organisations.filter(o => o.isActive).length;
+  const totalOrganisations = organisation ? 1 : 0;
+  const activeOrganisations = organisation?.isActive ? 1 : 0;
   const totalAcademicYears = academicYears.length;
   const activeAcademicYears = academicYears.filter(ay => ay.isActive).length;
   const totalLecturers = lecturers.length;
@@ -113,12 +113,12 @@ export default function AdminDashboardPage() {
 
   // Calculate system health metrics
   const systemHealth = {
-    users: (activeUsers / totalUsers) * 100,
-    organisations: (activeOrganisations / totalOrganisations) * 100,
-    academicYears: (activeAcademicYears / totalAcademicYears) * 100,
-    lecturers: (activeLecturers / totalLecturers) * 100,
-    modules: (activeModules / totalModules) * 100,
-    teams: (activeTeams / totalTeams) * 100,
+    users: totalUsers > 0 ? (activeUsers / totalUsers) * 100 : 0,
+    organisations: totalOrganisations > 0 ? (activeOrganisations / totalOrganisations) * 100 : 0,
+    academicYears: totalAcademicYears > 0 ? (activeAcademicYears / totalAcademicYears) * 100 : 0,
+    lecturers: totalLecturers > 0 ? (activeLecturers / totalLecturers) * 100 : 0,
+    modules: totalModules > 0 ? (activeModules / totalModules) * 100 : 0,
+    teams: totalTeams > 0 ? (activeTeams / totalTeams) * 100 : 0,
   };
 
   const overallHealth = Object.values(systemHealth).reduce((sum, health) => sum + health, 0) / Object.keys(systemHealth).length;
@@ -348,7 +348,7 @@ export default function AdminDashboardPage() {
                     {users.map((user) => (
                       <TableRow key={user._id}>
                         <TableCell className="font-medium">
-                          {`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A'}
+                          {`${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || 'N/A'}
                         </TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
@@ -392,17 +392,17 @@ export default function AdminDashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {organisations.map((org) => (
-                      <TableRow key={org._id}>
-                        <TableCell className="font-medium">{org.name}</TableCell>
-                        <TableCell>{org.code}</TableCell>
+                    {organisation && (
+                      <TableRow key={organisation._id}>
+                        <TableCell className="font-medium">{organisation.name}</TableCell>
+                        <TableCell>{organisation.code || 'N/A'}</TableCell>
                         <TableCell>
-                          <Badge variant={org.isActive ? "default" : "secondary"}>
-                            {org.isActive ? "Active" : "Inactive"}
+                          <Badge variant={organisation.isActive ? "default" : "secondary"}>
+                            {organisation.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(org.createdAt).toLocaleDateString()}
+                          {new Date(organisation.createdAt).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -412,7 +412,7 @@ export default function AdminDashboardPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

@@ -116,8 +116,8 @@ export default function ReportsPage() {
   };
 
   const getModuleName = (moduleId: string) => {
-    const module = modules.find(m => m._id === moduleId);
-    return module ? `${module.code} - ${module.title}` : "Unknown Module";
+    const moduleData = modules.find(m => m._id === moduleId);
+    return moduleData ? `${moduleData.code} - ${moduleData.title}` : "Unknown Module";
   };
 
   const calculateUtilization = (allocated: number, capacity: number) => {

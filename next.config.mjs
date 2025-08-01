@@ -11,8 +11,7 @@ import {withSentryConfig} from '@sentry/nextjs';
 const nextConfig = {
   // Development indicators
   devIndicators: {
-    buildActivity: false,
-    buildActivityPosition: 'bottom-left',
+    position: 'bottom-left',
   },
   
   // Production optimizations
@@ -135,7 +134,7 @@ const nextConfig = {
       },
       {
         // Apply caching headers to static assets
-        source: '/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))',
+        source: '/:path*.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)',
         headers: [
           {
             key: 'Cache-Control',

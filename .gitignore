@@ -19,27 +19,12 @@
 # misc
 .DS_Store
 *.pem
-.cursor
 .swc
 .test-history
-.cursorrules
-COMPONENT_STRUCTURE.md
-CSV_IMPORT_GUIDE.md
-DEV_TOOLS.md
-FOLDER_STRUCTURE_MIGRATION.md
-KNOCK_SETUP.md
-TEST_DASHBOARD.md
-TEST_IMPROVEMENTS_SUMMARY.md
-TEST_SUMMARY.md
 test-output.txt
 test-report.json
 test-results.json
-TESTING.md
-TODO
 jest-output.json
-PRD.md
-DATABASE_SCHEMA_REFERENCE.md
-IMPLEMENTATION_PLAN.md
 linear-import-script.js
 
 # debug
@@ -59,5 +44,3 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
-API_DOCUMENTATION.md
-COMPONENT_DOCUMENTATION.md

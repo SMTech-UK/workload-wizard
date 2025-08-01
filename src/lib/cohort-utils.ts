@@ -219,14 +219,14 @@ export function calculateCohortProgression(
 
   // Calculate total credits from module plans
   for (const plan of cohortModulePlans) {
-    const module = modules.find(m => m._id === plan.moduleId);
-    if (module && module.credits) {
-      totalCredits += module.credits;
+    const moduleData = modules.find(m => m._id === plan.moduleId);
+    if (moduleData && moduleData.credits) {
+      totalCredits += moduleData.credits;
       
       // Assume modules are completed if they're in the past
       const moduleEndDate = new Date(plan.academicYearId); // Simplified - would need actual module end dates
       if (moduleEndDate < new Date()) {
-        completedCredits += module.credits;
+        completedCredits += moduleData.credits;
       }
     }
   }
@@ -277,11 +277,11 @@ export function calculateCohortWorkload(
   let moduleCount = 0;
 
   for (const plan of cohortModulePlans) {
-    const module = modules.find(m => m._id === plan.moduleId);
-    if (module) {
-      totalTeachingHours += module.defaultTeachingHours || 0;
-      totalMarkingHours += module.defaultMarkingHours || 0;
-      totalCredits += module.credits || 0;
+    const moduleData = modules.find(m => m._id === plan.moduleId);
+    if (moduleData) {
+      totalTeachingHours += moduleData.defaultTeachingHours || 0;
+      totalMarkingHours += moduleData.defaultMarkingHours || 0;
+      totalCredits += moduleData.credits || 0;
       moduleCount++;
     }
   }

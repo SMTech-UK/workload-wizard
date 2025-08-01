@@ -77,7 +77,7 @@ export default function CourseManagementPage() {
   const departments = useQuery(api.departments.getAll, {}) ?? [];
   const createCourse = useMutation(api.courses.create);
   const updateCourse = useMutation(api.courses.update);
-  const deleteCourse = useMutation(api.courses.delete);
+  const deleteCourse = useMutation(api.courses.remove);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();

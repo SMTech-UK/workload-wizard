@@ -1,0 +1,43 @@
+---
+description: Standard folder structure and file placement for Next.js App Router projects
+priority: 10
+globs: \["**/\*.ts", "**/\*.tsx"]
+---
+
+# Folder Structure Guidelines
+
+## Root Layout
+
+```bash
+/src
+  /app
+    layout.tsx      # Root layout
+    page.tsx        # Home page
+    /api            # API route handlers
+    /dashboard      # App route segment
+  /components       # Reusable UI and feature components
+  /lib              # Utility functions, helpers, and API clients
+  /styles           # Tailwind/CSS modules if needed
+  /middleware       # Vercel middleware handlers
+/public             # Static assets (images, icons, etc.)
+```
+
+## Component Placement
+
+* Shared UI: `/components/ui`
+* Layout-related: `/components/layout`
+* Forms: `/components/forms`
+* Route-specific private components: `_components` inside the relevant route folder
+
+## App Folder Usage
+
+* Use `/app/layout.tsx` for global layout
+* Use `/app/error.tsx` and `/app/loading.tsx` where appropriate
+* Use `route.ts` inside `/app/api/` for route handlers
+
+## Benefits
+
+* Clear separation of concerns
+* Easier navigation and onboarding
+* Scalable as the application grows
+* Aligns with Next.js App Router conventions

@@ -1,0 +1,71 @@
+---
+description: TypeScript standards for strict typing, interfaces, and safe async usage
+priority: 10
+globs: \["**/\*.ts", "**/\*.tsx"]
+---
+
+# TypeScript Standards
+
+## Type Safety
+
+* Enable `strict: true` in `tsconfig.json`
+* Prefer `unknown` over `any`, and validate at runtime
+* Always explicitly type function parameters and return values
+* Use `as const` in union type literals
+
+## Interfaces & Types
+
+* Use `interface` for objects you expect to extend
+* Use `type` for unions, intersections, or aliases
+* Prefer utility types (`Partial`, `Pick`, `Record`, etc.) for composition
+
+## Generics & Functions
+
+```ts
+function fetchData<T>(url: string): Promise<T> {
+  return fetch(url).then(res => res.json());
+}
+```
+
+* Use generics to enforce structure
+* Avoid using function overloads unless necessary
+
+## Async Handling
+
+* Always wrap `await` in `try/catch`
+* Use custom error types if needed
+
+```ts
+class ApiError extends Error {
+  constructor(message: string, public status?: number) {
+    super(message);
+  }
+}
+```
+
+## Linting
+
+* Disallow implicit any
+* Warn on unused vars, parameters
+* Organise imports (prefer Biome or ESLint)
+
+## Naming
+
+* Use descriptive names: `userId`, `moduleData`, `isLoading`
+* Match the case with intent: `PascalCase` for types/interfaces, `camelCase` for variables
+
+## Tools
+
+* Use type-safe API clients (e.g. `zod`, `tRPC`, `axios` with generics)
+* Integrate with tools like `biome` or `eslint-plugin-import`
+
+## Example Interface
+
+```ts
+interface Lecturer {
+  id: string;
+  fullName: string;
+  fte: number;
+  team: string;
+}
+```

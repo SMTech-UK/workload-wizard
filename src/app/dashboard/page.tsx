@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Users, AlertTriangle, FileText, Calendar, Check, BookOpen, GraduationCap, Clock } from "lucide-react"
+import { Users, AlertTriangle, FileText, Calendar, Check, GraduationCap, Settings, CheckCircle } from "lucide-react"
 import Navigation from "@/components/layout/navigation"
 import SettingsModal, { TabType } from "@/components/modals/settings-modal"
 
@@ -28,7 +28,7 @@ import { useRouter } from "next/navigation";
 import { useKnockClient, useNotifications, useNotificationStore } from "@knocklabs/react";
 import { useAuth } from "@clerk/nextjs";
 import { format, formatDistanceToNow, differenceInHours, parseISO } from 'date-fns';
-import { PlusCircle, Pencil, Trash2, User, BarChart3, BookOpen, Settings, Clock, CheckCircle, Info } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, User, BarChart3, BookOpen, Clock, Info } from "lucide-react";
 import CSVImportModal from "@/components/modals/csv-import-modal";
 import { KnockSafeWrapper } from "@/components/features/notifications/KnockErrorBoundary";
 import { useAcademicYear } from "@/hooks/useAcademicYear";
@@ -573,7 +573,7 @@ function DashboardContent() {
               <CardContent>
                 <div className="space-y-4">
                   {getCurrentYearIterations().map((iteration) => {
-                    const module = modules.find(m => m._id === iteration.moduleId);
+                    const moduleData = modules.find(m => m._id === iteration.moduleId);
                     
                     return (
                       <div key={iteration._id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -583,7 +583,7 @@ function DashboardContent() {
                           </div>
                           <div>
                             <div className="font-medium">
-                              {module ? `${module.code} - ${module.title}` : "Unknown Module"}
+                              {moduleData ? `${moduleData.code} - ${moduleData.title}` : "Unknown Module"}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">
                               Semester {iteration.semester}
