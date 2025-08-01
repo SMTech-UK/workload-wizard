@@ -59,3 +59,5 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+API_DOCUMENTATION.md
+COMPONENT_DOCUMENTATION.md
