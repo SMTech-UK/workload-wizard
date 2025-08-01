@@ -142,6 +142,7 @@ export const create = mutation({
     cohortId: v.id("cohorts"),
     moduleId: v.id("modules"),
     academicYearId: v.id("academic_years"),
+    semester: v.number(),
     semesterPeriodId: v.optional(v.id("semester_periods")),
     isPlanned: v.optional(v.boolean()),
     isConfirmed: v.optional(v.boolean()),

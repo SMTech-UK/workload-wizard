@@ -1,26 +1,5 @@
-import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-
-export default defineTable({
-  userId: v.string(), // Clerk user ID
-  firstName: v.string(),
-  lastName: v.string(),
-  email: v.string(),
-  phone: v.optional(v.string()),
-  title: v.optional(v.string()), // e.g., "Dr.", "Prof.", "Mr."
-  department: v.optional(v.string()),
-  faculty: v.optional(v.string()),
-  employeeId: v.optional(v.string()),
-  dateOfBirth: v.optional(v.string()), // ISO date string
-  startDate: v.optional(v.string()), // ISO date string
-  endDate: v.optional(v.string()), // ISO date string
-  isActive: v.boolean(),
-  organisationId: v.optional(v.id("organisations")),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
-});
+import { query, mutation } from "./_generated/server";
 
 // Get all user profiles
 export const getAll = query({
@@ -32,7 +11,6 @@ export const getAll = query({
     return await ctx.db
       .query("user_profiles")
       .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
       .order("asc")
       .collect();
   },
@@ -46,7 +24,7 @@ export const getById = query({
     if (!identity) throw new Error("Not authenticated");
     
     const profile = await ctx.db.get(args.id);
-    if (!profile || profile.deletedAt) return null;
+    if (!profile) return null;
     return profile;
   },
 });
@@ -61,7 +39,6 @@ export const getByUserId = query({
     return await ctx.db
       .query("user_profiles")
       .filter((q) => q.eq(q.field("userId"), args.userId))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
       .first();
   },
 });
@@ -76,7 +53,6 @@ export const getByEmail = query({
     return await ctx.db
       .query("user_profiles")
       .filter((q) => q.eq(q.field("email"), args.email))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
       .first();
   },
 });
@@ -88,14 +64,9 @@ export const create = mutation({
     firstName: v.string(),
     lastName: v.string(),
     email: v.string(),
-    phone: v.optional(v.string()),
-    title: v.optional(v.string()),
-    department: v.optional(v.string()),
-    faculty: v.optional(v.string()),
-    employeeId: v.optional(v.string()),
-    dateOfBirth: v.optional(v.string()),
-    startDate: v.optional(v.string()),
-    endDate: v.optional(v.string()),
+    jobTitle: v.optional(v.string()),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
     organisationId: v.optional(v.id("organisations")),
   },
   handler: async (ctx, args) => {
@@ -118,38 +89,101 @@ export const update = mutation({
     firstName: v.optional(v.string()),
     lastName: v.optional(v.string()),
     email: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    title: v.optional(v.string()),
-    department: v.optional(v.string()),
-    faculty: v.optional(v.string()),
-    employeeId: v.optional(v.string()),
-    dateOfBirth: v.optional(v.string()),
-    startDate: v.optional(v.string()),
-    endDate: v.optional(v.string()),
+    jobTitle: v.optional(v.string()),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, ...updates } = args;
-    return await ctx.db.patch(id, {
-      ...updates,
+    const { id, ...updateData } = args;
+    
+    await ctx.db.patch(id, {
+      ...updateData,
       updatedAt: Date.now(),
     });
+    
+    return id;
   },
 });
 
-// Soft delete a user profile
+// Delete a user profile (soft delete by setting isActive to false)
 export const remove = mutation({
   args: { id: v.id("user_profiles") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db.patch(args.id, {
-      deletedAt: Date.now(),
+    await ctx.db.patch(args.id, {
+      isActive: false,
       updatedAt: Date.now(),
     });
+    
+    return args.id;
+  },
+});
+
+// Get user profiles by organisation
+export const getByOrganisation = query({
+  args: { organisationId: v.id("organisations") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("user_profiles")
+      .filter((q) => q.eq(q.field("organisationId"), args.organisationId))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("asc")
+      .collect();
+  },
+});
+
+// Get active user profiles
+export const getActive = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("user_profiles")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("asc")
+      .collect();
+  },
+});
+
+// Search user profiles
+export const search = query({
+  args: { 
+    query: v.string(),
+    organisationId: v.optional(v.id("organisations")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    let profilesQuery = ctx.db
+      .query("user_profiles")
+      .filter((q) => q.eq(q.field("isActive"), true));
+    
+    if (args.organisationId) {
+      profilesQuery = profilesQuery.filter((q) => q.eq(q.field("organisationId"), args.organisationId));
+    }
+    
+    const profiles = await profilesQuery.collect();
+    
+    // Simple search implementation - in a real app you'd use a proper search index
+    const searchTerm = args.query.toLowerCase();
+    return profiles.filter(profile => 
+      profile.firstName.toLowerCase().includes(searchTerm) ||
+      profile.lastName.toLowerCase().includes(searchTerm) ||
+      profile.email.toLowerCase().includes(searchTerm) ||
+      (profile.jobTitle && profile.jobTitle.toLowerCase().includes(searchTerm)) ||
+      (profile.team && profile.team.toLowerCase().includes(searchTerm))
+    );
   },
 }); 

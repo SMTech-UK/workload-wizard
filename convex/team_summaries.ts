@@ -17,6 +17,7 @@ export default defineTable({
   totalAssessmentHours: v.number(),
   totalAdminHours: v.number(),
   totalWorkloadHours: v.number(),
+  totalOtherHours: v.number(),
   averageWorkloadPerLecturer: v.number(),
   maxWorkloadPerLecturer: v.number(),
   minWorkloadPerLecturer: v.number(),
@@ -196,7 +197,7 @@ export const getHighWorkloadSummaries = query({
 // Create a new team summary
 export const create = mutation({
   args: {
-    teamId: v.optional(v.id("teams")),
+    teamId: v.id("teams"),
     departmentId: v.optional(v.id("departments")),
     facultyId: v.optional(v.id("faculties")),
     academicYearId: v.id("academic_years"),
@@ -210,6 +211,7 @@ export const create = mutation({
     totalAssessmentHours: v.number(),
     totalAdminHours: v.number(),
     totalWorkloadHours: v.number(),
+    totalOtherHours: v.number(),
     averageWorkloadPerLecturer: v.number(),
     maxWorkloadPerLecturer: v.number(),
     minWorkloadPerLecturer: v.number(),
@@ -262,6 +264,9 @@ export const create = mutation({
     if (args.totalWorkloadHours < 0) {
       throw new Error("Total workload hours cannot be negative");
     }
+    if (args.totalOtherHours < 0) {
+      throw new Error("Total other hours cannot be negative");
+    }
     if (args.averageWorkloadPerLecturer < 0) {
       throw new Error("Average workload per lecturer cannot be negative");
     }
@@ -274,6 +279,9 @@ export const create = mutation({
     
     return await ctx.db.insert("team_summaries", {
       ...args,
+      totalOtherHours: 0,
+      averageWorkload: 0,
+      lastCalculatedAt: Date.now(),
       isActive: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -295,6 +303,7 @@ export const update = mutation({
     totalAssessmentHours: v.optional(v.number()),
     totalAdminHours: v.optional(v.number()),
     totalWorkloadHours: v.optional(v.number()),
+    totalOtherHours: v.optional(v.number()),
     averageWorkloadPerLecturer: v.optional(v.number()),
     maxWorkloadPerLecturer: v.optional(v.number()),
     minWorkloadPerLecturer: v.optional(v.number()),
@@ -333,12 +342,12 @@ export const update = mutation({
     const numericFields = [
       'totalLecturers', 'totalModules', 'totalAllocations',
       'totalTeachingHours', 'totalAssessmentHours', 'totalAdminHours',
-      'totalWorkloadHours', 'averageWorkloadPerLecturer',
+      'totalWorkloadHours', 'totalOtherHours', 'averageWorkloadPerLecturer',
       'maxWorkloadPerLecturer', 'minWorkloadPerLecturer'
     ];
     
     for (const field of numericFields) {
-      if (updates[field] !== undefined && updates[field] < 0) {
+      if ((updates as any)[field] !== undefined && (updates as any)[field] < 0) {
         throw new Error(`${field} cannot be negative`);
       }
     }

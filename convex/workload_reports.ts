@@ -181,14 +181,12 @@ export const create = mutation({
   args: {
     name: v.string(),
     description: v.optional(v.string()),
+    academicYearId: v.id("academic_years"),
     reportType: v.string(),
-    scope: v.string(),
-    academicYearId: v.optional(v.id("academic_years")),
-    startDate: v.optional(v.string()),
-    endDate: v.optional(v.string()),
-    generatedBy: v.string(),
+    startDate: v.string(),
+    endDate: v.string(),
     status: v.optional(v.string()),
-    format: v.string(),
+    format: v.optional(v.string()),
     fileUrl: v.optional(v.string()),
     fileSize: v.optional(v.number()),
     filters: v.optional(v.object({
@@ -214,6 +212,7 @@ export const create = mutation({
       maxWorkload: v.number(),
       minWorkload: v.number(),
     })),
+    data: v.optional(v.any()),
     organisationId: v.optional(v.id("organisations")),
   },
   handler: async (ctx, args) => {
@@ -243,7 +242,7 @@ export const create = mutation({
       ];
       
       for (const field of metricFields) {
-        if (args.metrics[field] < 0) {
+        if ((args.metrics as any)[field] < 0) {
           throw new Error(`${field} cannot be negative`);
         }
       }
@@ -252,6 +251,9 @@ export const create = mutation({
     return await ctx.db.insert("workload_reports", {
       ...args,
       status: args.status ?? "Draft",
+      format: args.format ?? "PDF",
+      data: args.data ?? {},
+      generatedBy: identity.subject,
       isActive: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -325,7 +327,7 @@ export const update = mutation({
       ];
       
       for (const field of metricFields) {
-        if (updates.metrics[field] < 0) {
+        if ((updates.metrics as any)[field] < 0) {
           throw new Error(`${field} cannot be negative`);
         }
       }

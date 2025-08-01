@@ -1,1 +1,1 @@
-export { default as LecturerManagement } from './lecturer-management'; 
+// export { default as LecturerManagement } from './lecturer-management'; 

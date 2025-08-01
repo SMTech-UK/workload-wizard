@@ -93,6 +93,7 @@ export const create = mutation({
     academicYearId: v.id("academic_years"),
     startDate: v.string(),
     endDate: v.string(),
+    order: v.optional(v.number()),
     teachingStartDate: v.optional(v.string()),
     teachingEndDate: v.optional(v.string()),
     assessmentPeriodStart: v.optional(v.string()),
@@ -135,6 +136,7 @@ export const create = mutation({
     
     return await ctx.db.insert("semester_periods", {
       ...args,
+      order: args.order || 1,
       isActive: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),

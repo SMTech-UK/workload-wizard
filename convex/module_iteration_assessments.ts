@@ -200,10 +200,21 @@ export const create = mutation({
     }
     
     return await ctx.db.insert("module_iteration_assessments", {
-      ...args,
+      moduleIterationId: args.moduleIterationId,
+      assessmentTypeId: args.assessmentTypeId,
+      title: args.name,
+      type: "assessment",
+      weighting: args.weighting,
+      submissionDate: args.submissionDate || "",
+      marksDueDate: args.dueDate || "",
+      dueDate: args.dueDate || "",
+      isSecondAttempt: false,
+      externalExaminerRequired: false,
+      alertsToTeam: false,
       isGroupAssessment: args.isGroupAssessment ?? false,
       isActive: true,
       isPublished: args.isPublished ?? false,
+      organisationId: args.organisationId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -317,7 +328,7 @@ export const getAllWithRelations = query({
     const assessmentsWithRelations = await Promise.all(
       assessments.map(async (assessment) => {
         const moduleIteration = await ctx.db.get(assessment.moduleIterationId);
-        const assessmentType = await ctx.db.get(assessment.assessmentTypeId);
+        const assessmentType = assessment.assessmentTypeId ? await ctx.db.get(assessment.assessmentTypeId) : null;
         
         return {
           ...assessment,

@@ -10,7 +10,6 @@ interface UserPatchData {
   username: string;
   pictureUrl: string;
   email: string;
-  updatedAt: string;
   tokenIdentifier: string;
 }
 
@@ -27,6 +26,15 @@ export const store = mutation({
       throw new Error("Called storeUser without authentication present");
     }
 
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+
     // Find user by subject (Clerk user id)
     const user = await ctx.db.query("users")
       .filter(q => q.eq(q.field("subject"), identity.subject))
@@ -37,17 +45,20 @@ export const store = mutation({
       name: identity.name ?? "",
       givenName: identity.givenName ?? "",
       familyName: identity.familyName ?? "",
-      username: identity.nickname ?? "", // or identity.username if available
+      username: identity.nickname ?? "",
       pictureUrl: identity.pictureUrl ?? "",
       email: identity.email ?? "",
-      updatedAt: identity.updatedAt ?? "",
       tokenIdentifier: identity.tokenIdentifier,
+      organisationId: organisation._id,
     };
 
     if (user) {
       // Update core user data
       const patchData: UserPatchData = { ...userData };
-      await ctx.db.patch(user._id, patchData);
+      await ctx.db.patch(user._id, {
+        ...patchData,
+        updatedAt: Date.now(),
+      });
       
       // Update or create user profile
       let userProfile = await ctx.db.query("user_profiles")
@@ -60,6 +71,10 @@ export const store = mutation({
           firstName: identity.givenName ?? "",
           lastName: identity.familyName ?? "",
           email: identity.email ?? "",
+          jobTitle: args.jobTitle,
+          team: args.team,
+          specialism: args.specialism,
+          organisationId: organisation._id,
           updatedAt: Date.now(),
         });
       } else {
@@ -69,7 +84,11 @@ export const store = mutation({
           firstName: identity.givenName ?? "",
           lastName: identity.familyName ?? "",
           email: identity.email ?? "",
+          jobTitle: args.jobTitle,
+          team: args.team,
+          specialism: args.specialism,
           isActive: true,
+          organisationId: organisation._id,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -115,12 +134,29 @@ export const store = mutation({
         const { identifyKnockUser } = await import("../src/lib/knock-server");
         await identifyKnockUser(identity.subject, patchData);
       }
+
+      // Log audit event
+      await ctx.db.insert("audit_logs", {
+        userId: identity.subject,
+        action: "update",
+        entityType: "users",
+        entityId: user._id,
+        changes: patchData,
+        ipAddress: identity.tokenIdentifier,
+        userAgent: "system",
+        organisationId: organisation._id,
+        createdAt: Date.now(),
+      });
+
       return user._id;
     } else {
       // Create new user
       const newUser = {
         ...userData,
         systemRole: "user", // Default system role
+        isActive: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
       const userId = await ctx.db.insert("users", newUser);
       
@@ -130,7 +166,11 @@ export const store = mutation({
         firstName: identity.givenName ?? "",
         lastName: identity.familyName ?? "",
         email: identity.email ?? "",
+        jobTitle: args.jobTitle,
+        team: args.team,
+        specialism: args.specialism,
         isActive: true,
+        organisationId: organisation._id,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
@@ -173,6 +213,20 @@ export const store = mutation({
         const { identifyKnockUser } = await import("../src/lib/knock-server");
         await identifyKnockUser(identity.subject, newUser);
       }
+
+      // Log audit event
+      await ctx.db.insert("audit_logs", {
+        userId: identity.subject,
+        action: "create",
+        entityType: "users",
+        entityId: userId,
+        changes: newUser,
+        ipAddress: identity.tokenIdentifier,
+        userAgent: "system",
+        organisationId: organisation._id,
+        createdAt: Date.now(),
+      });
+
       return userId;
     }
   },
@@ -183,17 +237,16 @@ export const getPreferences = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      // Return null instead of throwing error for better UX
       return null;
     }
     
-    // Get user preferences from the new user_preferences table
+    // Get user preferences from the user_preferences table
     const preferences = await ctx.db.query("user_preferences")
       .filter(q => q.eq(q.field("userId"), identity.subject))
       .collect();
     
     // Convert to the expected format
-    const preferencesMap: any = {};
+    const preferencesMap: Record<string, any> = {};
     preferences.forEach(pref => {
       try {
         preferencesMap[pref.key] = JSON.parse(pref.value);
@@ -224,7 +277,16 @@ export const setPreferences = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    // Update or create preferences in the new user_preferences table
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    // Update or create preferences in the user_preferences table
     const preferencesToUpdate = [
       { key: "interests", value: JSON.stringify(args.preferences.interests) },
       { key: "sessionCampus", value: args.preferences.sessionCampus },
@@ -266,6 +328,20 @@ export const setPreferences = mutation({
       await identifyKnockUser(identity.subject, { preferences: args.preferences });
       await triggerKnockWorkflow('user-preferences-updated', [identity.subject], { preferences: args.preferences });
     }
+
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "update",
+      entityType: "user_preferences",
+      entityId: identity.subject,
+      changes: args.preferences,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+
     return true;
   }
 });
@@ -290,7 +366,16 @@ export const setSettings = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    // Update user settings in the new user_settings table
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    // Update user settings in the user_settings table
     let userSettings = await ctx.db.query("user_settings")
       .filter(q => q.eq(q.field("userId"), identity.subject))
       .unique();
@@ -341,6 +426,20 @@ export const setSettings = mutation({
       await identifyKnockUser(identity.subject, { settings: args.settings });
       await triggerKnockWorkflow('user-settings-updated', [identity.subject], { settings: args.settings });
     }
+
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "update",
+      entityType: "user_settings",
+      entityId: identity.subject,
+      changes: args.settings,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+
     return true;
   }
 });
@@ -350,11 +449,10 @@ export const getProfileFields = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      // Return null instead of throwing error for better UX
       return null;
     }
     
-    // Get user profile from the new user_profiles table
+    // Get user profile from the user_profiles table
     const userProfile = await ctx.db.query("user_profiles")
       .filter(q => q.eq(q.field("userId"), identity.subject))
       .unique();
@@ -373,11 +471,10 @@ export const getSettings = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      // Return null instead of throwing error for better UX
       return null;
     }
     
-    // Get user settings from the new user_settings table
+    // Get user settings from the user_settings table
     const userSettings = await ctx.db.query("user_settings")
       .filter(q => q.eq(q.field("userId"), identity.subject))
       .unique();
@@ -436,4 +533,153 @@ export const getUserBySubject = query({
       team: userProfile?.team ?? null,
     };
   }
+});
+
+// Get all users for the organisation
+export const getAll = query({
+  args: {
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    let query = ctx.db.query("users")
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+    
+    if (args.isActive !== undefined) {
+      query = query.filter(q => q.eq(q.field("isActive"), args.isActive));
+    }
+    
+    const users = await query.collect();
+    
+    // Get profiles for all users
+    const usersWithProfiles = await Promise.all(
+      users.map(async (user) => {
+        const profile = await ctx.db.query("user_profiles")
+          .filter(q => q.eq(q.field("userId"), user.subject))
+          .unique();
+        
+        return {
+          ...user,
+          profile,
+        };
+      })
+    );
+    
+    return usersWithProfiles;
+  },
+});
+
+// Get user by ID
+export const getById = query({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    const user = await ctx.db.get(args.id);
+    if (!user) return null;
+    
+    // Get user profile
+    const profile = await ctx.db.query("user_profiles")
+      .filter(q => q.eq(q.field("userId"), user.subject))
+      .unique();
+    
+    return {
+      ...user,
+      profile,
+    };
+  },
+});
+
+// Update user
+export const update = mutation({
+  args: {
+    id: v.id("users"),
+    systemRole: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    const { id, ...updateData } = args;
+    
+    await ctx.db.patch(id, {
+      ...updateData,
+      updatedAt: Date.now(),
+    });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "update",
+      entityType: "users",
+      entityId: id,
+      changes: updateData,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return id;
+  },
+});
+
+// Delete user (soft delete)
+export const remove = mutation({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    await ctx.db.patch(args.id, {
+      isActive: false,
+      updatedAt: Date.now(),
+    });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "delete",
+      entityType: "users",
+      entityId: args.id,
+      changes: { isActive: false },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return args.id;
+  },
 });

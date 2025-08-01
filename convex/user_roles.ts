@@ -1,18 +1,5 @@
-import { defineTable } from "convex/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-
-export default defineTable({
-  name: v.string(), // e.g., "Admin", "Lecturer", "Department Head"
-  description: v.optional(v.string()),
-  permissions: v.array(v.string()), // Array of permission strings
-  isSystem: v.boolean(), // Whether this is a system-defined role
-  isActive: v.boolean(),
-  organisationId: v.optional(v.id("organisations")),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
-});
+import { query, mutation } from "./_generated/server";
 
 // Get all user roles
 export const getAll = query({
@@ -24,7 +11,6 @@ export const getAll = query({
     return await ctx.db
       .query("user_roles")
       .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
       .order("asc")
       .collect();
   },
@@ -38,25 +24,22 @@ export const getById = query({
     if (!identity) throw new Error("Not authenticated");
     
     const role = await ctx.db.get(args.id);
-    if (!role || role.deletedAt) return null;
+    if (!role) return null;
     return role;
   },
 });
 
-// Get system roles
-export const getSystemRoles = query({
-  args: {},
-  handler: async (ctx) => {
+// Get user role by name
+export const getByName = query({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
     return await ctx.db
       .query("user_roles")
-      .filter((q) => q.eq(q.field("isSystem"), true))
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .order("asc")
-      .collect();
+      .filter((q) => q.eq(q.field("name"), args.name))
+      .first();
   },
 });
 
@@ -96,29 +79,77 @@ export const update = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, ...updates } = args;
-    return await ctx.db.patch(id, {
-      ...updates,
+    const { id, ...updateData } = args;
+    
+    await ctx.db.patch(id, {
+      ...updateData,
       updatedAt: Date.now(),
     });
+    
+    return id;
   },
 });
 
-// Soft delete a user role
+// Delete a user role (soft delete by setting isActive to false)
 export const remove = mutation({
   args: { id: v.id("user_roles") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const role = await ctx.db.get(args.id);
-    if (role?.isSystem) {
-      throw new Error("Cannot delete system roles");
-    }
-    
-    return await ctx.db.patch(args.id, {
-      deletedAt: Date.now(),
+    await ctx.db.patch(args.id, {
+      isActive: false,
       updatedAt: Date.now(),
     });
+    
+    return args.id;
+  },
+});
+
+// Get user roles by organisation
+export const getByOrganisation = query({
+  args: { organisationId: v.id("organisations") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("user_roles")
+      .filter((q) => q.eq(q.field("organisationId"), args.organisationId))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("asc")
+      .collect();
+  },
+});
+
+// Get system roles
+export const getSystemRoles = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("user_roles")
+      .filter((q) => q.eq(q.field("isSystem"), true))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("asc")
+      .collect();
+  },
+});
+
+// Get custom roles (non-system)
+export const getCustomRoles = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("user_roles")
+      .filter((q) => q.eq(q.field("isSystem"), false))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("asc")
+      .collect();
   },
 }); 

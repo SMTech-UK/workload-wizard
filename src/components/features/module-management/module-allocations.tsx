@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
+import { useAcademicYear } from "@/hooks/useAcademicYear";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 // Define interfaces for the allocation system
@@ -93,39 +94,59 @@ export default function ModuleAllocations() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [pendingChanges, setPendingChanges] = useState<Set<string>>(new Set())
 
-  // Fetch data from Convex
-  const iterations = useQuery(api.module_iterations.getAll) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll) ?? [];
-  const updateIteration = useMutation(api.module_iterations.updateIteration)
+  // Get current academic year context
+  const { currentAcademicYear } = useAcademicYear();
+
+  // Fetch data from Convex with academic year context
+  const iterations = useQuery(api.module_iterations.getAll, { academicYearId: currentAcademicYear }) ?? [];
+  const lecturerInstances = useQuery(api.lecturers.getAll, { academicYearId: currentAcademicYear }) ?? [];
+  const lecturerProfiles = useQuery(api.lecturers.getProfiles, {}) ?? [];
+  const updateIterationAssignments = useMutation(api.module_iterations.updateIterationAssignments)
   const batchSaveAllocations = useMutation(api.module_iterations.batchSaveAllocations)
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
+
+  // Combine lecturer profiles with instances for allocation data
+  const lecturers = lecturerProfiles.map(profile => {
+    const instance = lecturerInstances.find(inst => inst.profileId === profile._id);
+    return {
+      ...profile,
+      ...instance,
+      // Ensure we have the instance data for allocation calculations
+      allocatedTeachingHours: instance?.allocatedTeachingHours || 0,
+      allocatedAdminHours: instance?.allocatedAdminHours || 0,
+      allocatedResearchHours: instance?.allocatedResearchHours || 0,
+      allocatedOtherHours: instance?.allocatedOtherHours || 0,
+      totalAllocated: instance?.totalAllocated || 0,
+      teachingAvailability: instance?.teachingAvailability || profile.maxTeachingHours,
+    };
+  });
 
   // Transform data for allocation system - create individual group assignments
   const groupAssignments: GroupAssignment[] = [];
   
   iterations.forEach(iteration => {
     // Handle iterations with no sites or empty sites array
-    if (!iteration.sites || iteration.sites.length === 0) {
-      // Create a default group for iterations without sites
-      groupAssignments.push({
-        id: `${iteration._id}-default-1`,
-        moduleIterationId: iteration._id,
-        moduleCode: iteration.moduleCode,
-        title: iteration.title,
-        semester: iteration.semester,
-        cohortId: iteration.cohortId,
-        siteName: "No Site Assigned",
-        deliveryTime: "TBD",
-        groupNumber: 1,
-        students: 0,
-        teachingHours: iteration.teachingHours,
-        markingHours: iteration.markingHours,
-        assignedLecturerId: iteration.assignedLecturerIds[0] || undefined,
-        assignedStatus: iteration.assignedLecturerIds[0] ? "assigned" : "unassigned"
-      });
-      return;
-    }
+    // Note: sites field removed from new schema - using default group assignment
+    // if (!iteration.sites || iteration.sites.length === 0) {
+    // Create a default group for iterations without sites
+    groupAssignments.push({
+      id: `${iteration._id}-default-1`,
+      moduleIterationId: iteration._id,
+      moduleCode: iteration.moduleCode,
+      title: iteration.title,
+      semester: iteration.semester,
+      cohortId: iteration.cohortId,
+      siteName: "No Site Assigned",
+      deliveryTime: "TBD",
+      groupNumber: 1,
+      students: 0,
+      teachingHours: iteration.teachingHours,
+      markingHours: iteration.markingHours,
+      assignedLecturerId: iteration.assignedLecturerIds[0] || undefined,
+      assignedStatus: iteration.assignedLecturerIds[0] ? "assigned" : "unassigned"
+    });
+    // }
 
     // Process iterations with sites
     let globalGroupIndex = 0;
@@ -185,6 +206,19 @@ export default function ModuleAllocations() {
     }
   });
 
+  // Type guard to check if lecturer has profile data
+  const hasProfileData = (lecturer: any): lecturer is any & {
+    fullName: string;
+    contract: string;
+    capacity: number;
+    totalContract: number;
+    maxTeachingHours: number;
+    team: string;
+    specialism: string;
+  } => {
+    return lecturer && typeof lecturer.fullName === 'string';
+  };
+
   const lecturerAllocations: LecturerForAllocation[] = lecturers.map(lecturer => {
     const assignedGroupIds = groupAssignments
       .filter(group => group.assignedLecturerId === lecturer._id)
@@ -200,13 +234,23 @@ export default function ModuleAllocations() {
     const totalAllocated = (lecturer.allocatedAdminHours || 0) + (lecturer.allocatedTeachingHours || 0) + currentGroupAllocation;
     
     // Calculate teaching availability as maxTeachingHours - (existing teaching hours + new group allocation)
-    const teachingAvailability = Math.max(0, (lecturer.maxTeachingHours || 0) - ((lecturer.allocatedTeachingHours || 0) + currentGroupAllocation));
+    const teachingAvailability = Math.max(0, (hasProfileData(lecturer) ? lecturer.maxTeachingHours : 0) - ((lecturer.allocatedTeachingHours || 0) + currentGroupAllocation));
     
     return {
-      ...lecturer,
-      assignedGroupIds,
+      _id: lecturer._id,
+      fullName: hasProfileData(lecturer) ? lecturer.fullName : "Unknown",
+      contract: hasProfileData(lecturer) ? lecturer.contract : "Unknown",
+      capacity: hasProfileData(lecturer) ? lecturer.capacity : 0,
       totalAllocated,
-      teachingAvailability
+      totalContract: hasProfileData(lecturer) ? lecturer.totalContract : 0,
+      maxTeachingHours: hasProfileData(lecturer) ? lecturer.maxTeachingHours : 0,
+      allocatedTeachingHours: lecturer.allocatedTeachingHours || 0,
+      allocatedAdminHours: lecturer.allocatedAdminHours || 0,
+      teachingAvailability,
+      team: hasProfileData(lecturer) ? lecturer.team : "Unknown",
+      specialism: hasProfileData(lecturer) ? lecturer.specialism : "Unknown",
+      status: lecturer.status || "unknown",
+      assignedGroupIds,
     };
   });
 
@@ -283,21 +327,10 @@ export default function ModuleAllocations() {
         // Filter out empty strings to avoid Convex validation errors
         const validLecturerIds = updatedAssignedLecturerIds.filter(id => id !== "");
         
-        await updateIteration({
+        await updateIterationAssignments({
           id: iteration._id,
-          moduleCode: iteration.moduleCode,
-          title: iteration.title,
-          semester: iteration.semester,
-          cohortId: iteration.cohortId,
-          teachingStartDate: iteration.teachingStartDate,
-          teachingHours: iteration.teachingHours,
-          markingHours: iteration.markingHours,
-          assignedLecturerId: validLecturerIds.length > 0 ? validLecturerIds[0] : "",
           assignedLecturerIds: validLecturerIds,
           assignedStatus: validLecturerIds.length === 0 ? "unassigned" : "assigned",
-          notes: iteration.notes,
-          assessments: iteration.assessments,
-          sites: iteration.sites,
         });
         
         await logRecentActivity({
@@ -343,21 +376,10 @@ export default function ModuleAllocations() {
       // Filter out empty strings to avoid Convex validation errors
       const validLecturerIds = updatedAssignedLecturerIds.filter(id => id !== "");
       
-      await updateIteration({
+      await updateIterationAssignments({
         id: iteration._id,
-        moduleCode: iteration.moduleCode,
-        title: iteration.title,
-        semester: iteration.semester,
-        cohortId: iteration.cohortId,
-        teachingStartDate: iteration.teachingStartDate,
-        teachingHours: iteration.teachingHours,
-        markingHours: iteration.markingHours,
-        assignedLecturerId: validLecturerIds.length > 0 ? validLecturerIds[0] : "",
         assignedLecturerIds: validLecturerIds,
         assignedStatus: newTeachingHours > maxTeachingHours ? "overloaded" : "assigned",
-        notes: iteration.notes,
-        assessments: iteration.assessments,
-        sites: iteration.sites,
       });
       
               await logRecentActivity({
@@ -394,21 +416,10 @@ export default function ModuleAllocations() {
       // Filter out empty strings to avoid Convex validation errors
       const validLecturerIds = updatedAssignedLecturerIds.filter((id: string) => id !== "");
       
-      await updateIteration({
+      await updateIterationAssignments({
         id: iteration._id,
-        moduleCode: iteration.moduleCode,
-        title: iteration.title,
-        semester: iteration.semester,
-        cohortId: iteration.cohortId,
-        teachingStartDate: iteration.teachingStartDate,
-        teachingHours: iteration.teachingHours,
-        markingHours: iteration.markingHours,
-        assignedLecturerId: validLecturerIds.length > 0 ? validLecturerIds[0] : "",
         assignedLecturerIds: validLecturerIds,
         assignedStatus: validLecturerIds.length === 0 ? "unassigned" : "assigned",
-        notes: iteration.notes,
-        assessments: iteration.assessments,
-        sites: iteration.sites,
       });
       
               await logRecentActivity({

@@ -1,21 +1,20 @@
-import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-export default defineTable({
-  name: v.string(),
-  code: v.string(), // Faculty code (e.g., "ENG", "SCI", "ARTS")
-  description: v.optional(v.string()),
-  deanId: v.optional(v.id("user_profiles")),
-  contactEmail: v.optional(v.string()),
-  contactPhone: v.optional(v.string()),
-  location: v.optional(v.string()),
-  website: v.optional(v.string()),
-  isActive: v.boolean(),
-  organisationId: v.optional(v.id("organisations")),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
+// Get all faculties (alias for getAll)
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("faculties")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("asc")
+      .collect();
+  },
 });
 
 // Get all faculties

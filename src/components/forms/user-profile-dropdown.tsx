@@ -42,7 +42,7 @@ export default function UserProfileDropdown({ onProfileClick, onSettingsClick, m
   const setModalTab = setControlledModalTab || setUncontrolledModalTab;
   const { setTheme, theme } = useTheme();
   const setSettings = useMutation(api.users.setSettings);
-  const userSettings = useQuery(api.users.getSettings);
+  const userSettings = useQuery(api.users.getSettings, {});
 
   if (!isLoaded || !user) return null;
 

@@ -1,21 +1,20 @@
-import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-export default defineTable({
-  name: v.string(), // e.g., "Essay", "Exam", "Presentation", "Lab Report"
-  code: v.string(), // e.g., "ESSAY", "EXAM", "PRES", "LAB"
-  description: v.optional(v.string()),
-  category: v.string(), // e.g., "Written", "Practical", "Oral", "Online"
-  defaultWeighting: v.optional(v.number()), // Default percentage weight
-  defaultDuration: v.optional(v.number()), // Default duration in minutes
-  isGroupAssessment: v.boolean(), // Whether this can be group-based
-  requiresMarking: v.boolean(), // Whether this requires manual marking
-  isActive: v.boolean(),
-  organisationId: v.optional(v.id("organisations")),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
+// Get all assessment types (alias for getAll)
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("assessment_types")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("asc")
+      .collect();
+  },
 });
 
 // Get all assessment types

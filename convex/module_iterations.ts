@@ -2,49 +2,6 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { mutation } from "./_generated/server";
 
-// Define the table schema
-export default {
-  // Core iteration info
-  moduleId: v.id("modules"), // Reference to the module
-  academicYearId: v.id("academic_years"), // Reference to academic year
-  semesterPeriodId: v.optional(v.id("semester_periods")), // Reference to semester period
-  
-  // Iteration details
-  iterationCode: v.string(), // Unique code for this iteration (e.g., "CS101-2024-S1")
-  title: v.string(),
-  description: v.optional(v.string()),
-  
-  // Delivery information
-  deliveryMode: v.string(), // "face_to_face", "online", "hybrid", "blended"
-  deliveryLocation: v.optional(v.string()),
-  virtualRoomUrl: v.optional(v.string()),
-  
-  // Enrollment and capacity
-  expectedEnrollment: v.number(),
-  actualEnrollment: v.optional(v.number()),
-  maxEnrollment: v.optional(v.number()),
-  isFull: v.optional(v.boolean()),
-  
-  // Timing
-  startDate: v.number(),
-  endDate: v.number(),
-  teachingStartDate: v.optional(v.number()),
-  teachingEndDate: v.optional(v.number()),
-  
-  // Status and workflow
-  status: v.string(), // "planned", "confirmed", "active", "completed", "cancelled"
-  isActive: v.boolean(),
-  
-  // Notes and metadata
-  notes: v.optional(v.string()),
-  metadata: v.optional(v.any()),
-  
-  // Timestamps
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
-};
-
 // Query to get all module iterations
 export const getAll = query({
   args: {
@@ -57,7 +14,17 @@ export const getAll = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    let query = ctx.db.query("module_iterations");
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    let query = ctx.db.query("module_iterations")
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
     
     if (args.academicYearId) {
       query = query.filter((q) => q.eq(q.field("academicYearId"), args.academicYearId));
@@ -75,7 +42,104 @@ export const getAll = query({
       query = query.filter((q) => q.eq(q.field("isActive"), args.isActive));
     }
     
-    return await query.collect();
+    const iterations = await query.collect();
+    
+    // Join with module and module profile data
+    const iterationsWithModuleData = await Promise.all(
+      iterations.map(async (iteration) => {
+        // Get the module
+        const module = await ctx.db.get(iteration.moduleId);
+        if (!module) {
+          return {
+            ...iteration,
+            moduleCode: "Unknown",
+            title: "Unknown Module",
+            semester: 1,
+            cohortId: "",
+            teachingStartDate: "",
+            teachingHours: 0,
+            markingHours: 0,
+            assignedLecturerIds: [],
+            assignedStatus: "unassigned",
+            assessments: [],
+            sites: [],
+          };
+        }
+        
+        // Get the module profile
+        const moduleProfile = await ctx.db.get(module.profileId);
+        if (!moduleProfile) {
+          return {
+            ...iteration,
+            moduleCode: "Unknown",
+            title: "Unknown Module",
+            semester: 1,
+            cohortId: "",
+            teachingStartDate: "",
+            teachingHours: 0,
+            markingHours: 0,
+            assignedLecturerIds: [],
+            assignedStatus: "unassigned",
+            assessments: [],
+            sites: [],
+          };
+        }
+        
+        // Get assessments for this iteration
+        const assessments = await ctx.db.query("module_iteration_assessments")
+          .filter(q => q.eq(q.field("moduleIterationId"), iteration._id))
+          .collect();
+        
+        // Get groups for this iteration
+        const groups = await ctx.db.query("module_iteration_groups")
+          .filter(q => q.eq(q.field("moduleIterationId"), iteration._id))
+          .collect();
+        
+        // Transform groups to sites format for backward compatibility
+        const sites = groups.map(group => ({
+          name: group.name,
+          deliveryTime: "TBD",
+          students: group.currentSize || 0,
+          groups: 1, // Each group becomes a site
+        }));
+        
+        // If no groups, create a default site
+        if (sites.length === 0) {
+          sites.push({
+            name: "Default Site",
+            deliveryTime: "TBD",
+            students: iteration.expectedEnrollment || 0,
+            groups: 1,
+          });
+        }
+        
+        return {
+          ...iteration,
+          moduleCode: moduleProfile.code,
+          title: moduleProfile.title,
+          semester: 1, // Default semester - this should come from cohort_module_plans
+          cohortId: "", // This should come from cohort_module_plans
+          teachingStartDate: iteration.teachingStartDate ? new Date(iteration.teachingStartDate).toISOString() : "",
+          teachingHours: moduleProfile.defaultTeachingHours,
+          markingHours: moduleProfile.defaultMarkingHours,
+          assignedLecturerIds: [], // This should come from module_allocations
+          assignedStatus: "unassigned",
+          assessments: assessments.map(assessment => ({
+            title: assessment.title,
+            type: assessment.type,
+            weighting: assessment.weighting,
+            submissionDate: assessment.submissionDate,
+            marksDueDate: assessment.marksDueDate,
+            isSecondAttempt: assessment.isSecondAttempt,
+            externalExaminerRequired: assessment.externalExaminerRequired,
+            alertsToTeam: assessment.alertsToTeam,
+          })),
+          sites,
+        };
+      })
+    );
+    
+    return iterationsWithModuleData;
   },
 });
 
@@ -86,25 +150,41 @@ export const getByModuleCode = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    // First get the module profile by code
-    const moduleProfile = await ctx.db.query("module_profiles")
-      .filter(q => q.eq(q.field("code"), args.moduleCode))
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
       .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    // First get the module profile by code
+    let moduleProfileQuery = ctx.db.query("module_profiles")
+      .filter(q => q.eq(q.field("code"), args.moduleCode))
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+    
+    const moduleProfile = await moduleProfileQuery.first();
     
     if (!moduleProfile) return [];
     
     // Then get all modules for this profile
-    const modules = await ctx.db.query("modules")
+    let modulesQuery = ctx.db.query("modules")
       .filter(q => q.eq(q.field("profileId"), moduleProfile._id))
-      .collect();
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+    
+    const modules = await modulesQuery.collect();
     
     // Finally get all iterations for these modules
     const moduleIds = modules.map(m => m._id);
-    const iterations = await ctx.db.query("module_iterations")
-      .filter(q => q.inArray(q.field("moduleId"), moduleIds))
-      .collect();
+    let iterationsQuery = ctx.db.query("module_iterations")
+      .filter(q => q.neq(q.field("moduleId"), undefined))
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
     
-    return iterations;
+    const iterations = await iterationsQuery.collect();
+    
+    // Filter in memory since Convex doesn't support inArray
+    return iterations.filter(iteration => moduleIds.includes(iteration.moduleId));
   },
 });
 
@@ -141,15 +221,14 @@ export const createIteration = mutation({
     academicYearId: v.id("academic_years"),
     semesterPeriodId: v.optional(v.id("semester_periods")),
     iterationCode: v.string(),
-    title: v.string(),
     description: v.optional(v.string()),
     deliveryMode: v.string(),
     deliveryLocation: v.optional(v.string()),
     virtualRoomUrl: v.optional(v.string()),
-    expectedEnrollment: v.number(),
+    expectedEnrollment: v.optional(v.number()),
     maxEnrollment: v.optional(v.number()),
-    startDate: v.number(),
-    endDate: v.number(),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
     teachingStartDate: v.optional(v.number()),
     teachingEndDate: v.optional(v.number()),
     status: v.optional(v.string()),
@@ -160,17 +239,28 @@ export const createIteration = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    // Validate iteration code uniqueness
-    const existingIteration = await ctx.db.query("module_iterations")
-      .filter(q => q.eq(q.field("iterationCode"), args.iterationCode))
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
       .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    // Validate iteration code uniqueness
+    let existingQuery = ctx.db.query("module_iterations")
+      .filter(q => q.eq(q.field("iterationCode"), args.iterationCode))
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+    
+    const existingIteration = await existingQuery.first();
     
     if (existingIteration) {
       throw new Error("Iteration code must be unique");
     }
     
     // Validate date ranges
-    if (args.startDate >= args.endDate) {
+    if (args.startDate && args.endDate && args.startDate >= args.endDate) {
       throw new Error("Start date must be before end date");
     }
     
@@ -178,25 +268,52 @@ export const createIteration = mutation({
       if (args.teachingStartDate >= args.teachingEndDate) {
         throw new Error("Teaching start date must be before teaching end date");
       }
-      if (args.teachingStartDate < args.startDate || args.teachingEndDate > args.endDate) {
+      if (args.startDate && args.endDate && 
+          (args.teachingStartDate < args.startDate || args.teachingEndDate > args.endDate)) {
         throw new Error("Teaching dates must be within iteration date range");
       }
     }
     
     // Validate enrollment
-    if (args.maxEnrollment && args.expectedEnrollment > args.maxEnrollment) {
+    if (args.maxEnrollment && args.expectedEnrollment && args.expectedEnrollment > args.maxEnrollment) {
       throw new Error("Expected enrollment cannot exceed maximum enrollment");
     }
     
-    return await ctx.db.insert("module_iterations", {
+    // Validate numeric inputs
+    if (args.expectedEnrollment !== undefined && args.expectedEnrollment < 0) {
+      throw new Error("Expected enrollment cannot be negative");
+    }
+    
+    if (args.maxEnrollment !== undefined && args.maxEnrollment < 0) {
+      throw new Error("Maximum enrollment cannot be negative");
+    }
+    
+    const iterationId = await ctx.db.insert("module_iterations", {
       ...args,
+      deliveryLocation: args.deliveryLocation || "TBD",
       actualEnrollment: 0,
-      isFull: args.maxEnrollment ? args.expectedEnrollment >= args.maxEnrollment : false,
+      isFull: args.maxEnrollment && args.expectedEnrollment ? args.expectedEnrollment >= args.maxEnrollment : false,
       status: args.status || "planned",
-      isActive: args.isActive ?? true,
+      isActive: true,
+      organisationId: organisation._id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "create",
+      entityType: "module_iterations",
+      entityId: iterationId,
+      changes: args,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return iterationId;
   },
 });
 
@@ -206,7 +323,6 @@ export const updateIteration = mutation({
     id: v.id("module_iterations"),
     semesterPeriodId: v.optional(v.id("semester_periods")),
     iterationCode: v.optional(v.string()),
-    title: v.optional(v.string()),
     description: v.optional(v.string()),
     deliveryMode: v.optional(v.string()),
     deliveryLocation: v.optional(v.string()),
@@ -228,16 +344,27 @@ export const updateIteration = mutation({
     
     const { id, ...updateData } = args;
     
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
     // Validate iteration code uniqueness if being updated
     if (updateData.iterationCode) {
-      const existingIteration = await ctx.db.query("module_iterations")
+      let existingQuery = ctx.db.query("module_iterations")
         .filter(q => 
           q.and(
             q.eq(q.field("iterationCode"), updateData.iterationCode),
-            q.neq(q.field("_id"), id)
+            q.neq(q.field("_id"), id),
+            q.eq(q.field("organisationId"), organisation._id)
           )
-        )
-        .first();
+        );
+      
+      const existingIteration = await existingQuery.first();
       
       if (existingIteration) {
         throw new Error("Iteration code must be unique");
@@ -251,7 +378,7 @@ export const updateIteration = mutation({
         const startDate = updateData.startDate ?? currentIteration.startDate;
         const endDate = updateData.endDate ?? currentIteration.endDate;
         
-        if (startDate >= endDate) {
+        if (startDate && endDate && startDate >= endDate) {
           throw new Error("Start date must be before end date");
         }
       }
@@ -269,29 +396,60 @@ export const updateIteration = mutation({
           if (teachingStartDate >= teachingEndDate) {
             throw new Error("Teaching start date must be before teaching end date");
           }
-          if (teachingStartDate < startDate || teachingEndDate > endDate) {
+          if (startDate && endDate && teachingStartDate && teachingEndDate && 
+              (teachingStartDate < startDate || teachingEndDate > endDate)) {
             throw new Error("Teaching dates must be within iteration date range");
           }
         }
       }
     }
     
+    // Validate numeric inputs
+    if (updateData.expectedEnrollment !== undefined && updateData.expectedEnrollment < 0) {
+      throw new Error("Expected enrollment cannot be negative");
+    }
+    
+    if (updateData.actualEnrollment !== undefined && updateData.actualEnrollment < 0) {
+      throw new Error("Actual enrollment cannot be negative");
+    }
+    
+    if (updateData.maxEnrollment !== undefined && updateData.maxEnrollment < 0) {
+      throw new Error("Maximum enrollment cannot be negative");
+    }
+    
     // Update isFull status if enrollment data changed
     if (updateData.expectedEnrollment !== undefined || updateData.actualEnrollment !== undefined || updateData.maxEnrollment !== undefined) {
       const currentIteration = await ctx.db.get(id);
       if (currentIteration) {
-        const expectedEnrollment = updateData.expectedEnrollment ?? currentIteration.expectedEnrollment;
-        const actualEnrollment = updateData.actualEnrollment ?? currentIteration.actualEnrollment;
-        const maxEnrollment = updateData.maxEnrollment ?? currentIteration.maxEnrollment;
+        const expectedEnrollment = updateData.expectedEnrollment ?? currentIteration?.expectedEnrollment ?? 0;
+        const actualEnrollment = updateData.actualEnrollment ?? currentIteration?.actualEnrollment ?? 0;
+        const maxEnrollment = updateData.maxEnrollment ?? currentIteration?.maxEnrollment;
         
-        updateData.isFull = maxEnrollment ? (actualEnrollment || expectedEnrollment) >= maxEnrollment : false;
+        if (updateData && currentIteration) {
+          (updateData as any).isFull = maxEnrollment ? (actualEnrollment || expectedEnrollment) >= maxEnrollment : false;
+        }
       }
     }
     
-    return await ctx.db.patch(id, {
+    await ctx.db.patch(id, {
       ...updateData,
       updatedAt: Date.now(),
     });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "update",
+      entityType: "module_iterations",
+      entityId: id,
+      changes: updateData,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return id;
   },
 });
 
@@ -302,15 +460,39 @@ export const deleteIteration = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
     // Soft delete
-    return await ctx.db.patch(args.id, {
+    await ctx.db.patch(args.id, {
       deletedAt: Date.now(),
       updatedAt: Date.now(),
     });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "delete",
+      entityType: "module_iterations",
+      entityId: args.id,
+      changes: { deletedAt: Date.now() },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return args.id;
   },
 });
 
-// NEW: Batch save all module allocations
+// Batch save all module allocations
 export const batchSaveAllocations = mutation({
   args: {
     allocations: v.array(
@@ -326,7 +508,6 @@ export const batchSaveAllocations = mutation({
         allocatedTeachingHours: v.number(),
         totalAllocated: v.number(),
         teachingAvailability: v.number(),
-        capacity: v.number(),
       })
     ),
     moduleAllocations: v.array(
@@ -346,6 +527,40 @@ export const batchSaveAllocations = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    // Validate input data
+    for (const lecturerUpdate of args.lecturerUpdates) {
+      if (lecturerUpdate.allocatedTeachingHours < 0) {
+        throw new Error("Allocated teaching hours cannot be negative");
+      }
+      
+      if (lecturerUpdate.totalAllocated < 0) {
+        throw new Error("Total allocated hours cannot be negative");
+      }
+      
+      if (lecturerUpdate.teachingAvailability < 0) {
+        throw new Error("Teaching availability cannot be negative");
+      }
+    }
+    
+    for (const moduleAllocation of args.moduleAllocations) {
+      if (moduleAllocation.hoursAllocated < 0) {
+        throw new Error("Hours allocated cannot be negative");
+      }
+      
+      if (moduleAllocation.groupNumber < 1) {
+        throw new Error("Group number must be at least 1");
+      }
+    }
+    
     // Update module iterations with new assigned lecturers
     for (const allocation of args.allocations) {
       // Validate and clean the data
@@ -355,8 +570,6 @@ export const batchSaveAllocations = mutation({
       
       try {
         await ctx.db.patch(allocation.moduleIterationId, {
-          assignedLecturerIds: validLecturerIds,
-          assignedStatus: allocation.assignedStatus || "unassigned",
           updatedAt: Date.now(),
         });
       } catch (error) {
@@ -371,13 +584,16 @@ export const batchSaveAllocations = mutation({
         allocatedTeachingHours: lecturerUpdate.allocatedTeachingHours,
         totalAllocated: lecturerUpdate.totalAllocated,
         teachingAvailability: lecturerUpdate.teachingAvailability,
-        capacity: lecturerUpdate.capacity,
         updatedAt: Date.now(),
       });
     }
 
     // Clear existing module allocations
-    const existingAllocations = await ctx.db.query("module_allocations").collect();
+    let existingAllocationsQuery = ctx.db.query("module_allocations")
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+    
+    const existingAllocations = await existingAllocationsQuery.collect();
+    
     for (const alloc of existingAllocations) {
       await ctx.db.delete(alloc._id);
     }
@@ -393,8 +609,29 @@ export const batchSaveAllocations = mutation({
         semester: moduleAllocation.semester,
         groupNumber: moduleAllocation.groupNumber,
         siteName: moduleAllocation.siteName,
+        isActive: true,
+        organisationId: organisation._id,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
     }
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "batch_update",
+      entityType: "module_allocations",
+      entityId: "batch",
+      changes: { 
+        allocations: args.allocations.length,
+        lecturerUpdates: args.lecturerUpdates.length,
+        moduleAllocations: args.moduleAllocations.length 
+      },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
   },
 });
 
@@ -407,15 +644,14 @@ export const bulkImport = mutation({
         academicYearId: v.id("academic_years"),
         semesterPeriodId: v.optional(v.id("semester_periods")),
         iterationCode: v.string(),
-        title: v.string(),
         description: v.optional(v.string()),
         deliveryMode: v.string(),
         deliveryLocation: v.optional(v.string()),
         virtualRoomUrl: v.optional(v.string()),
-        expectedEnrollment: v.number(),
+        expectedEnrollment: v.optional(v.number()),
         maxEnrollment: v.optional(v.number()),
-        startDate: v.number(),
-        endDate: v.number(),
+        startDate: v.optional(v.number()),
+        endDate: v.optional(v.number()),
         teachingStartDate: v.optional(v.number()),
         teachingEndDate: v.optional(v.number()),
         status: v.optional(v.string()),
@@ -428,20 +664,74 @@ export const bulkImport = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
     const results = [];
     for (const iterationData of args.iterations) {
       try {
+        // Validate input data
+        if (iterationData.expectedEnrollment !== undefined && iterationData.expectedEnrollment < 0) {
+          throw new Error("Expected enrollment cannot be negative");
+        }
+        
+        if (iterationData.maxEnrollment !== undefined && iterationData.maxEnrollment < 0) {
+          throw new Error("Maximum enrollment cannot be negative");
+        }
+        
+        // Validate date ranges
+        if (iterationData.startDate && iterationData.endDate && iterationData.startDate >= iterationData.endDate) {
+          throw new Error("Start date must be before end date");
+        }
+        
+        if (iterationData.teachingStartDate && iterationData.teachingEndDate) {
+          if (iterationData.teachingStartDate >= iterationData.teachingEndDate) {
+            throw new Error("Teaching start date must be before teaching end date");
+          }
+          if (iterationData.startDate && iterationData.endDate && 
+              (iterationData.teachingStartDate < iterationData.startDate || iterationData.teachingEndDate > iterationData.endDate)) {
+            throw new Error("Teaching dates must be within iteration date range");
+          }
+        }
+        
+        // Validate enrollment
+        if (iterationData.maxEnrollment && iterationData.expectedEnrollment && iterationData.expectedEnrollment > iterationData.maxEnrollment) {
+          throw new Error("Expected enrollment cannot exceed maximum enrollment");
+        }
+        
+        // Check if iteration code already exists
+        const existingIteration = await ctx.db.query("module_iterations")
+          .filter(q => 
+            q.and(
+              q.eq(q.field("iterationCode"), iterationData.iterationCode),
+              q.eq(q.field("organisationId"), organisation._id)
+            )
+          )
+          .first();
+        
+        if (existingIteration) {
+          throw new Error(`Iteration code ${iterationData.iterationCode} already exists`);
+        }
+        
         // Set default values for optional fields
         const dataToInsert = {
           ...iterationData,
           actualEnrollment: 0,
-          isFull: iterationData.maxEnrollment ? iterationData.expectedEnrollment >= iterationData.maxEnrollment : false,
+          isFull: iterationData.maxEnrollment && iterationData.expectedEnrollment ? iterationData.expectedEnrollment >= iterationData.maxEnrollment : false,
           status: iterationData.status || "planned",
           isActive: iterationData.isActive ?? true,
         };
         
         const iterationId = await ctx.db.insert("module_iterations", {
           ...dataToInsert,
+          deliveryLocation: dataToInsert.deliveryLocation || "TBD",
+          organisationId: organisation._id,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -450,6 +740,68 @@ export const bulkImport = mutation({
         results.push({ success: false, iterationCode: iterationData.iterationCode, error: String(error) });
       }
     }
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "bulk_import",
+      entityType: "module_iterations",
+      entityId: "bulk",
+      changes: { 
+        total: args.iterations.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length 
+      },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
     return results;
+  },
+});
+
+// Mutation to update module iteration assignments
+export const updateIterationAssignments = mutation({
+  args: {
+    id: v.id("module_iterations"),
+    assignedLecturerIds: v.array(v.string()),
+    assignedStatus: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    const { id, ...updateData } = args;
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    await ctx.db.patch(id, {
+      ...updateData,
+      updatedAt: Date.now(),
+    });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "update",
+      entityType: "module_iterations",
+      entityId: id,
+      changes: updateData,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return id;
   },
 });

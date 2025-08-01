@@ -86,14 +86,14 @@ export const migrateSeedData = mutation({
 
       for (const role of systemRoles) {
         try {
-          const existingRole = await ctx.db.query("roles")
+          const existingRole = await ctx.db.query("user_roles")
             .filter(q => q.eq(q.field("name"), role.name))
             .first();
 
           if (!existingRole) {
-            await ctx.db.insert("roles", {
+            await ctx.db.insert("user_roles", {
               ...role,
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
@@ -163,8 +163,13 @@ export const migrateSeedData = mutation({
           if (!existingType) {
             await ctx.db.insert("assessment_types", {
               ...assessmentType,
+              code: assessmentType.name.toUpperCase().replace(/\s+/g, ""),
+              category: "Written",
+              defaultDuration: 120,
+              isGroupAssessment: false,
+              requiresMarking: true,
               isActive: true,
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
@@ -229,8 +234,16 @@ export const migrateSeedData = mutation({
           if (!existingType) {
             await ctx.db.insert("allocation_types", {
               ...allocationType,
+              code: allocationType.name.toUpperCase().replace(/\s+/g, ""),
+              category: "Teaching",
+              defaultStudents: 20,
+              isTeaching: true,
+              isAssessment: false,
+              isAdministrative: false,
+              requiresRoom: true,
+              canBeGrouped: true,
               isActive: true,
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
@@ -301,7 +314,7 @@ export const migrateSeedData = mutation({
             await ctx.db.insert("admin_allocation_categories", {
               ...category,
               isActive: true,
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
@@ -360,7 +373,7 @@ export const migrateSeedData = mutation({
             await ctx.db.insert("lecturer_statuses", {
               ...status,
               isActive: true,
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
@@ -383,6 +396,7 @@ export const migrateSeedData = mutation({
           name: "Main Campus",
           code: "MAIN",
           address: "Main university campus",
+          isMainSite: true,
         },
         {
           name: "City Centre Campus",
@@ -410,8 +424,9 @@ export const migrateSeedData = mutation({
           if (!existingSite) {
             await ctx.db.insert("sites", {
               ...site,
+              isMainSite: site.isMainSite || false,
               isActive: true,
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
@@ -462,7 +477,7 @@ export const migrateSeedData = mutation({
             await ctx.db.insert("faculties", {
               ...faculty,
               isActive: true,
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });
@@ -525,7 +540,7 @@ export const migrateSeedData = mutation({
             await ctx.db.insert("tags", {
               ...tag,
               isActive: true,
-              organisationId: null,
+              organisationId: undefined,
               createdAt: Date.now(),
               updatedAt: Date.now(),
             });

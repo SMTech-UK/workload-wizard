@@ -14,6 +14,7 @@ import ClientLayoutWrapper from "./ClientLayoutWrapper";
 import FloatingDevToolbar from "@/components/features/dev-tools/FloatingDevToolbar";
 import DevSettingsModalWrapper from "@/components/features/dev-tools/DevSettingsModalWrapper";
 import { SentryFeedbackButton } from "@/components/ui/sentry-feedback-button";
+import { PostHogProvider } from './providers'
 
 const geistSans = localFont({
   src: "../fonts/GeistVF.woff",
@@ -106,6 +107,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ClerkProvider appearance={{baseTheme: neobrutalism }}>
+        <PostHogProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <LoadingOverlayProvider>
               <ConvexClientProvider>
@@ -113,6 +115,7 @@ export default function RootLayout({
                   apiKey={process.env.NEXT_PUBLIC_KNOCK_API_KEY}
                   userId={process.env.NEXT_PUBLIC_KNOCK_CHANNEL_ID}
                 >
+                  
                 <ClientLayoutWrapper>
                   {children}
                 </ClientLayoutWrapper>
@@ -124,6 +127,7 @@ export default function RootLayout({
               <Toaster position="top-right" richColors closeButton />
             </LoadingOverlayProvider>
           </ThemeProvider>
+          </PostHogProvider>
         </ClerkProvider>
         <SpeedInsights debug={false}/>
         <Analytics debug={false}/>

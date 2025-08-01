@@ -1,67 +1,141 @@
-import { defineTable } from "convex/server";
 import { v } from "convex/values";
+import { query, mutation } from "./_generated/server";
 
-export default defineTable({
-  // Core role info
-  name: v.string(),
-  code: v.string(),
-  description: v.optional(v.string()),
-  
-  // Role classification
-  roleType: v.string(), // "system", "custom", "inherited", "temporary"
-  category: v.string(), // "admin", "academic", "management", "viewer", "limited"
-  level: v.string(), // "global", "organisation", "faculty", "department", "module"
-  
-  // Permissions
-  permissions: v.array(v.object({
-    resource: v.string(), // "users", "modules", "allocations", "reports", "settings"
-    action: v.string(), // "create", "read", "update", "delete", "export", "import"
-    conditions: v.optional(v.any()), // Additional conditions for the permission
-    scope: v.optional(v.string()), // "own", "department", "faculty", "all"
-  })),
-  
-  // Access control
-  isActive: v.boolean(),
-  isSystem: v.boolean(),
-  isDefault: v.boolean(), // Default role for new users
-  isInheritable: v.boolean(), // Can be inherited by other roles
-  
-  // Inheritance
-  parentRoleId: v.optional(v.id("roles")),
-  inheritedPermissions: v.optional(v.array(v.string())), // Permission IDs inherited from parent
-  
-  // Scope and restrictions
-  scope: v.optional(v.object({
+// Get all user roles
+export const list = query({
+  args: {
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    let query = ctx.db.query("user_roles");
+    
+    if (organisation) {
+      query = query.filter(q => q.eq(q.field("organisationId"), organisation._id));
+    }
+    
+    if (args.isActive !== undefined) {
+      query = query.filter(q => q.eq(q.field("isActive"), args.isActive));
+    }
+    
+    return await query.order("asc").collect();
+  },
+});
+
+// Get user role by ID
+export const get = query({
+  args: { id: v.id("user_roles") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db.get(args.id);
+  },
+});
+
+// Create a new user role
+export const create = mutation({
+  args: {
+    name: v.string(),
+    description: v.optional(v.string()),
+    permissions: v.array(v.string()),
+    isSystem: v.optional(v.boolean()),
     organisationId: v.optional(v.id("organisations")),
-    facultyId: v.optional(v.id("faculties")),
-    departmentId: v.optional(v.id("departments")),
-    moduleId: v.optional(v.id("modules")),
-  })),
-  
-  // Time-based restrictions
-  validFrom: v.optional(v.number()),
-  validTo: v.optional(v.number()),
-  maxSessionDuration: v.optional(v.number()), // in minutes
-  
-  // Advanced settings
-  requiresApproval: v.optional(v.boolean()),
-  approvalWorkflow: v.optional(v.array(v.object({
-    step: v.number(),
-    approverRole: v.string(),
-    timeout: v.optional(v.number()), // in hours
-  }))),
-  
-  // Audit and compliance
-  auditLevel: v.string(), // "none", "basic", "detailed", "full"
-  complianceTags: v.optional(v.array(v.string())), // "ferpa", "gdpr", "sox", etc.
-  
-  // Metadata
-  tags: v.optional(v.array(v.string())),
-  createdBy: v.optional(v.string()), // User ID
-  organisationId: v.id("organisations"),
-  
-  // Timestamps
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    return await ctx.db.insert("user_roles", {
+      ...args,
+      isSystem: args.isSystem ?? false,
+      isActive: true,
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// Update a user role
+export const update = mutation({
+  args: {
+    id: v.id("user_roles"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    permissions: v.optional(v.array(v.string())),
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    const { id, ...updateData } = args;
+    
+    await ctx.db.patch(id, {
+      ...updateData,
+      updatedAt: Date.now(),
+    });
+    
+    return id;
+  },
+});
+
+// Delete a user role (soft delete)
+export const remove = mutation({
+  args: { id: v.id("user_roles") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    await ctx.db.patch(args.id, {
+      isActive: false,
+      updatedAt: Date.now(),
+    });
+    
+    return args.id;
+  },
+});
+
+// Export remove as delete for compatibility
+export const delete_ = remove;
+
+// Get system roles
+export const getSystemRoles = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    let query = ctx.db.query("user_roles")
+      .filter(q => q.eq(q.field("isSystem"), true))
+      .filter(q => q.eq(q.field("isActive"), true));
+    
+    if (organisation) {
+      query = query.filter(q => q.eq(q.field("organisationId"), organisation._id));
+    }
+    
+    return await query.order("asc").collect();
+  },
 }); 

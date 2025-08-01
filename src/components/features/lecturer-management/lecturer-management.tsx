@@ -22,51 +22,86 @@ import {
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
-import { Plus, Search, Edit, Eye, AlertTriangle, X } from "lucide-react"
+import { Plus, Search, Edit, Eye, AlertTriangle, X, User, Calendar, Clock } from "lucide-react"
 import StaffProfileModal from "@/components/modals/staff-profile-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
+import { useAcademicYear } from "@/hooks/useAcademicYear";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { toast } from "sonner";
 
-// Define the Lecturer interface at the top for type safety
-export interface Lecturer {
-  _id: Id<'lecturers'>;
+// Define interfaces based on the actual schema from DATABASE_SCHEMA_REFERENCE.md
+interface LecturerProfile {
+  _id: Id<'lecturer_profiles'>;
   fullName: string;
-  team: string;
-  specialism: string;
-  contract: string;
   email: string;
-  capacity: number;
-  id: string;
-  maxTeachingHours: number;
-  moduleAllocations?: any[]; // Replace 'any' with a more specific type if available
-  role: string;
-  status: string;
-  teachingAvailability: number;
-  totalAllocated: number;
-  totalContract: number;
-  allocatedTeachingHours: number;
-  allocatedAdminHours: number;
   family: string;
   fte: number;
+  capacity: number;
+  maxTeachingHours: number;
+  totalContract: number;
+  isActive: boolean;
+  organisationId: Id<'organisations'>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface LecturerInstance {
+  _id: Id<'lecturers'>;
+  profileId: Id<'lecturer_profiles'>;
+  academicYearId: Id<'academic_years'>;
+  teachingAvailability: number;
+  totalAllocated: number;
+  allocatedTeachingHours: number;
+  allocatedAdminHours: number;
+  allocatedResearchHours: number;
+  allocatedOtherHours: number;
+  isActive: boolean;
+  organisationId: Id<'organisations'>;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export default function LecturerManagement() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedLecturer, setSelectedLecturer] = useState<Lecturer | null>(null)
+  const [selectedLecturer, setSelectedLecturer] = useState<LecturerProfile | null>(null)
   const [modalOpen, setModalOpen] = useState(false);
-  
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newLecturerData, setNewLecturerData] = useState({
+    fullName: "",
+    email: "",
+    family: "Teaching Academic",
+    fte: 1.0,
+    capacity: 100,
+    maxTeachingHours: 42,
+    totalContract: 42,
+  });
 
-  const lecturers = useQuery(api.lecturers.getAll) ?? [];
-  const createLecturer = useMutation(api.lecturers.createLecturer)
-  const deleteLecturer = useMutation(api.lecturers.deleteLecturer)
-  const adminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
-  const modules = useQuery(api.modules.getAll) ?? [];
+  // Get current academic year context
+  const { currentAcademicYearId } = useAcademicYear();
+  
+  // Fetch data with academic year context - using the correct API calls
+  const lecturerProfiles = useQuery(api.lecturers.getProfiles, {}) ?? [];
+  const lecturerInstances = useQuery(api.lecturers.getAll, { 
+    academicYearId: currentAcademicYearId as any
+  }) ?? [];
+  const adminAllocations = useQuery(api.admin_allocations.getAll, { 
+    academicYearId: currentAcademicYearId as any
+  }) ?? [];
+  const modules = useQuery(api.modules.getAll, { 
+    academicYearId: currentAcademicYearId as any
+  }) ?? [];
+  const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
+  
+  // Use the correct mutations for the new schema
+  const createLecturerProfile = useMutation(api.lecturers.createNewLecturer);
+  const createLecturerInstance = useMutation(api.lecturers.createLecturer);
+  const deleteLecturerProfile = useMutation(api.lecturers.deleteProfile);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
 
-  // Add careerFamilies and helper for FTE calculation
+  // Career families for the new structure
   const careerFamilies = [
     { value: "Academic Practitioner", label: "Academic Practitioner (AP)" },
     { value: "Teaching Academic", label: "Teaching Academic (TA)" },
@@ -87,7 +122,7 @@ export default function LecturerManagement() {
       case 'Academic Practitioner':
         return 0.8;
       default:
-        return 0.6; // fallback
+        return 0.6;
     }
   }
 
@@ -100,515 +135,486 @@ export default function LecturerManagement() {
     return map[family] || family;
   }
 
-  // Add roles array for dropdown
-  const roles = [
-    { value: "Lecturer", label: "Lecturer" },
-    { value: "Senior Lecturer", label: "Senior Lecturer" },
-    { value: "Professional Lead", label: "Professional Lead" },
-    { value: "Professor", label: "Professor" },
-  ];
-
-  // Add teams array for dropdown
-  const teams = [
-    { value: "Simulation", label: "Simulation" },
-    { value: "Post-Registration", label: "Post-Registration" },
-    { value: "Adult", label: "Adult" },
-    { value: "Child/LD", label: "Child/LD" },
-    { value: "Mental Health", label: "Mental Health" },
-  ];
-
-  // Add state for form fields
-  const [form, setForm] = useState({
-    fullName: "",
-    email: "",
-    contract: "AP", // default to AP, will be set based on family
-    team: "",
-    specialism: "",
-    capacity: 0, // will be set on creation
-    maxTeachingHours: 0, // will be set on creation
-    role: "Lecturer",
-    status: "available",
-    teachingAvailability: 0, // will be set on creation
-    totalAllocated: 0,
-    totalContract: 0, // will be set on creation
-    allocatedTeachingHours: 0,
-    allocatedAdminHours: 0,
-    family: "",
-    fte: 1,
-  })
-  const [submitting, setSubmitting] = useState(false)
-
-  // Define a constant for the annual contract hours
-  const ANNUAL_CONTRACT_HOURS = 1498;
-
-  // Helper to calculate contract code (e.g., 1AP, 0.6TA)
-  function getContractCode(fte: number, family: string) {
-    const familyInitials = getFamilyInitialsForContract(family);
-    const roundedFte = Math.round(fte * 100) / 100;
-    const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
-    return `${fteStr}${familyInitials}`;
-  }
-
-  // Helper to calculate total contract hours
-  function getTotalContract(fte: number) {
-    return Math.floor(fte * ANNUAL_CONTRACT_HOURS);
-  }
-
-  // Helper to calculate max teaching hours
-  function getMaxTeachingHours(totalContract: number, family: string) {
-    const teachingPct = getTeachingPercentage(family);
-    return Math.floor(totalContract * teachingPct);
-  }
-
-  // Helper to calculate teaching availability and capacity (same as maxTeachingHours)
-  function getTeachingAvailability(maxTeachingHours: number) {
-    return maxTeachingHours;
-  }
-
-  function getCapacity(maxTeachingHours: number) {
-    return maxTeachingHours;
-  }
-
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { id, value } = e.target;
-    setForm((prev) => {
-      let newForm = { ...prev, [id]: value };
-      let fte = id === "fte" ? Number(value) : Number(prev.fte);
-      let family = id === "family" ? value : prev.family;
-
-      // Use helpers for calculations
-      newForm.contract = getContractCode(fte, family);
-      if (id === "fte" || id === "family") {
-        const totalContract = getTotalContract(fte);
-        const maxTeachingHours = getMaxTeachingHours(totalContract, family);
-        newForm.totalContract = totalContract;
-        newForm.maxTeachingHours = maxTeachingHours;
-        newForm.teachingAvailability = getTeachingAvailability(maxTeachingHours);
-        newForm.capacity = getCapacity(maxTeachingHours);
-      }
-      return newForm;
-    });
-  }
-
-  const handleSelectChange = (value: string) => {
-    setForm((prev) => ({ ...prev, contract: value }))
-  }
-
-  const handleFamilyChange = (value: string) => {
-    setForm((prev) => {
-      const teachingPct = getTeachingPercentage(value);
-      const fte = Number(prev.fte);
-      const totalContract = Math.floor(fte * ANNUAL_CONTRACT_HOURS);
-      const maxTeachingHours = Math.floor(totalContract * teachingPct);
-      const familyInitials = getFamilyInitialsForContract(value);
-      const roundedFte = Math.round(fte * 100) / 100;
-      const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte).replace(/\.00$/, '');
-      return {
-        ...prev,
-        family: value,
-        contract: `${fteStr}${familyInitials}`,
-        totalContract,
-        maxTeachingHours,
-        teachingAvailability: maxTeachingHours,
-        capacity: maxTeachingHours,
-      };
-    });
-  }
-
-  const handleCreateLecturer = async () => {
-    // Validate form
-    if (!form.fullName.trim() || !form.email.trim() || !form.family) {
-      // Show validation error to user
-      return;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(form.email)) {
-      // Show email validation error
-      return;
-    }
-
-    setSubmitting(true)
-    try {
-      const newLecturerId = await createLecturer(form);
-      // Log recent activity
-      await logRecentActivity({
-        action: "lecturer created",
-        changeType: "create",
-        entity: "lecturer",
-        entityId: newLecturerId, // use the Convex _id
-        fullName: form.fullName, // for formatting
-        modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-        permission: "default"
-      });
-      setModalOpen(false)
-      setForm({
-        fullName: "",
-        email: "",
-        contract: "AP",
-        team: "",
-        specialism: "",
-        capacity: 0,
-        maxTeachingHours: 0,
-        role: "Lecturer",
-        status: "available",
-        teachingAvailability: 0,
-        totalAllocated: 0,
-        totalContract: 0,
-        allocatedTeachingHours: 0,
-        allocatedAdminHours: 0,
-        family: "",
-        fte: 1,
-      })
-    } catch (error) {
-      console.error('Failed to create lecturer:', error);
-      // Show error message to user
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const [statusFilter, setStatusFilter] = useState('all');
-  const filteredLecturers = lecturers.filter((lecturer) => {
-    const matchesSearch =
-      lecturer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lecturer.team?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === 'all' || lecturer.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  // Combine profile and instance data with proper type safety
+  const lecturersWithInstances = lecturerProfiles.map((profile: any) => {
+    const instance = lecturerInstances.find((inst: any) => inst.profileId === profile._id);
+    return {
+      profile: {
+        _id: profile._id,
+        fullName: profile.fullName || "Unknown",
+        email: profile.email || "",
+        family: profile.family || "Teaching Academic",
+        fte: profile.fte || 1.0,
+        capacity: profile.capacity || 100,
+        maxTeachingHours: profile.maxTeachingHours || 42,
+        totalContract: profile.totalContract || 42,
+        isActive: profile.isActive ?? true,
+        organisationId: profile.organisationId,
+        createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt,
+      } as LecturerProfile,
+      instance: instance as LecturerInstance | undefined,
+      // Calculate workload percentages
+      teachingPercentage: instance ? (instance.allocatedTeachingHours / (profile.totalContract || 42)) * 100 : 0,
+      adminPercentage: instance ? (instance.allocatedAdminHours / (profile.totalContract || 42)) * 100 : 0,
+      researchPercentage: instance ? (instance.allocatedResearchHours / (profile.totalContract || 42)) * 100 : 0,
+      otherPercentage: instance ? (instance.allocatedOtherHours / (profile.totalContract || 42)) * 100 : 0,
+      totalAllocatedPercentage: instance ? (instance.totalAllocated / (profile.totalContract || 42)) * 100 : 0,
+    };
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "overloaded":
-        return <Badge variant="destructive">Overloaded</Badge>
-      case "at-capacity":
-        return <Badge variant="secondary">At Capacity</Badge>
-      case "near-capacity":
-        return <Badge variant="secondary">Near Capacity</Badge>
-      case "available":
-        return (
-          <Badge variant="default" className="bg-green-600">
-            Available
-          </Badge>
-        )
-      case "n/a":
-        return <Badge variant="outline">N/A</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
-  }
+  // Filter lecturers based on search term
+  const filteredLecturers = lecturersWithInstances.filter(lecturer =>
+    lecturer.profile.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    lecturer.profile.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const getContractTypeBadge = (type: string) => {
-    const colors = {
-      AP: "bg-blue-100 text-blue-800",
-      TA: "bg-green-100 text-green-800",
-      RA: "bg-purple-100 text-purple-800",
+  const handleCreateLecturer = async () => {
+    if (!currentAcademicYearId) {
+      toast.error("No academic year selected");
+      return;
     }
-    return <Badge className={colors[type as keyof typeof colors]}>{type}</Badge>
-  }
 
-  // Add this function to handle lecturer deletion and log recent activity
-  const handleDeleteLecturer = async (lecturer: Lecturer) => {
-    if (!lecturer || !lecturer._id) return;
-    await deleteLecturer({ id: lecturer._id });
-    await logRecentActivity({
-      action: "lecturer deleted",
-      changeType: "delete",
-      entity: "lecturer",
-      entityId: lecturer._id,
-      fullName: lecturer.fullName,
-      modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-      permission: "default"
-    });
+    try {
+      // Create lecturer profile first with the correct fields
+      const profileId = await createLecturerProfile({
+        fullName: newLecturerData.fullName,
+        email: newLecturerData.email,
+        family: newLecturerData.family,
+        fte: newLecturerData.fte,
+        capacity: newLecturerData.capacity,
+        maxTeachingHours: newLecturerData.maxTeachingHours,
+        totalContract: newLecturerData.totalContract,
+        // Add legacy fields that the API still expects
+        contract: "Permanent",
+        team: "",
+        specialism: "",
+        role: "lecturer",
+      }) as any;
+
+      // Create lecturer instance for current academic year
+      await createLecturerInstance({
+        profileId: profileId as any,
+        academicYearId: currentAcademicYearId as any,
+        teachingAvailability: newLecturerData.maxTeachingHours,
+        totalAllocated: 0,
+        allocatedTeachingHours: 0,
+        allocatedAdminHours: 0,
+        allocatedResearchHours: 0,
+        allocatedOtherHours: 0,
+      });
+
+      // Reset form
+      setNewLecturerData({
+        fullName: "",
+        email: "",
+        family: "Teaching Academic",
+        fte: 1.0,
+        capacity: 100,
+        maxTeachingHours: 42,
+        totalContract: 42,
+      });
+
+      setCreateModalOpen(false);
+      toast.success("Lecturer created successfully");
+      
+      // Log activity
+      if (user) {
+        logRecentActivity({
+          changeType: "create",
+          entity: "lecturer",
+          entityId: profileId,
+          action: "Created new lecturer",
+          details: `Added ${newLecturerData.fullName} to the system`,
+          modifiedBy: [{ name: user.fullName || "Unknown", email: user.emailAddresses[0]?.emailAddress || "" }],
+          permission: "admin",
+          fullName: newLecturerData.fullName,
+          type: "lecturer_created",
+        });
+      }
+    } catch (error) {
+      console.error('Failed to create lecturer:', error);
+      toast.error("Failed to create lecturer");
+    }
   };
 
-  // State for delete confirmation dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [lecturerToDelete, setLecturerToDelete] = useState<Lecturer | null>(null);
-
-  // Updated delete handler to use dialog
-  const confirmDeleteLecturer = (lecturer: Lecturer) => {
-    setLecturerToDelete(lecturer);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!lecturerToDelete || !lecturerToDelete._id) return;
-    await deleteLecturer({ id: lecturerToDelete._id });
-    await logRecentActivity({
-      action: "lecturer deleted",
-      changeType: "delete",
-      entity: "lecturer",
-      entityId: lecturerToDelete._id,
-      fullName: lecturerToDelete.fullName,
-      modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-      permission: "default"
-    });
-    setDeleteDialogOpen(false);
-    setLecturerToDelete(null);
+  const handleDeleteLecturer = async (profileId: Id<'lecturer_profiles'>, fullName: string) => {
+    if (confirm(`Are you sure you want to delete ${fullName}? This action cannot be undone.`)) {
+      try {
+        await deleteLecturerProfile({ id: profileId });
+        toast.success(`${fullName} deleted successfully`);
+        
+        // Log activity
+        if (user) {
+          logRecentActivity({
+            changeType: "delete",
+            entity: "lecturer",
+            entityId: profileId,
+            action: "Deleted lecturer",
+            details: `Removed ${fullName} from the system`,
+            modifiedBy: [{ name: user.fullName || "Unknown", email: user.emailAddresses[0]?.emailAddress || "" }],
+            permission: "admin",
+            fullName: fullName,
+            type: "lecturer_deleted",
+          });
+        }
+      } catch (error) {
+        console.error('Failed to delete lecturer:', error);
+        toast.error("Failed to delete lecturer");
+      }
+    }
   };
 
   return (
-    <div className="space-y-6 bg-white dark:bg-zinc-900 min-h-screen">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Lecturer Management</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">Manage academic staff profiles and capacity</p>
+          <h1 className="text-3xl font-bold">Lecturer Management</h1>
+          <p className="text-muted-foreground">
+            Manage lecturer profiles and their year-specific allocations
+          </p>
         </div>
-        <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Lecturer
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
-              <DialogHeader>
-                <DialogTitle className="text-gray-900 dark:text-white">Add New Lecturer</DialogTitle>
-                <DialogDescription className="text-gray-600 dark:text-gray-300">
-                  Create a new lecturer profile with contract details and allocations.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName" className="text-gray-900 dark:text-white">Full Name</Label>
-                  <Input id="fullName" value={form.fullName} onChange={handleFormChange} placeholder="Dr. John Doe" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" value={form.email} onChange={handleFormChange} placeholder="j.doe@university.edu" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={form.role} onValueChange={value => setForm(prev => ({ ...prev, role: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map(role => (
-                        <SelectItem key={role.value} value={role.value}>
-                          {role.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {/* Removed contract type field, only FTE and Career Family remain */}
-                <div className="space-y-2">
-                  <Label htmlFor="family">Career Family</Label>
-                  <Select value={form.family} onValueChange={handleFamilyChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select career family">
-                        {getFamilyLabel(form.family)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {careerFamilies.map(family => (
-                        <SelectItem key={family.value} value={family.value}>
-                          {family.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fte">FTE</Label>
-                  <Input id="fte" type="number" min={0.01} max={1} step={0.01} value={form.fte} onChange={handleFormChange} placeholder="1.0" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="team">Team</Label>
-                  <Select value={form.team} onValueChange={value => setForm(prev => ({ ...prev, team: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select team" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {teams.map(team => (
-                        <SelectItem key={team.value} value={team.value}>
-                          {team.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="specialism">Specialism</Label>
-                  <Input id="specialism" value={form.specialism} onChange={handleFormChange} placeholder="Paramedic" />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <DialogClose asChild>
-                  <Button variant="outline" disabled={submitting}>Cancel</Button>
-                </DialogClose>
-                <Button onClick={handleCreateLecturer} disabled={submitting || !form.fullName || !form.email || !form.family}>
-                  {submitting ? "Creating..." : "Create Lecturer"}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Button onClick={() => setCreateModalOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Lecturer
+        </Button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Lecturers</CardTitle>
+            <User className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{lecturerProfiles.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {lecturerProfiles.filter((l: any) => l.isActive).length} active
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Current Year</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{lecturerInstances.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {academicYears.find((ay: any) => ay._id === currentAcademicYearId)?.name || 'Unknown'}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Avg Workload</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {lecturerInstances.length > 0 
+                ? Math.round(lecturerInstances.reduce((sum: number, inst: any) => sum + (inst.totalAllocated || 0), 0) / lecturerInstances.length)
+                : 0}h
+            </div>
+            <p className="text-xs text-muted-foreground">
+              per lecturer
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Admin Tasks</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{adminAllocations.length}</div>
+            <p className="text-xs text-muted-foreground">
+              allocated tasks
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Search and Filters */}
-      <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-gray-900 dark:text-white">Search & Filter</CardTitle>
+          <CardTitle>Lecturers</CardTitle>
+          <CardDescription>
+            Manage lecturer profiles and view their current year allocations
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search lecturers by name or department..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+          <div className="flex items-center space-x-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search lecturers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="near-capacity">Near Capacity</SelectItem>
-                <SelectItem value="at-capacity">At Capacity</SelectItem>
-                <SelectItem value="overloaded">Overloaded</SelectItem>
-                <SelectItem value="n/a">N/A</SelectItem>
-              </SelectContent>
-            </Select>
+          </div>
+
+          {/* Lecturers Table */}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Family</TableHead>
+                  <TableHead>FTE</TableHead>
+                  <TableHead>Workload</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLecturers.map(({ profile, instance, teachingPercentage, adminPercentage, researchPercentage, otherPercentage, totalAllocatedPercentage }) => (
+                  <TableRow key={profile._id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{profile.fullName}</div>
+                        <div className="text-sm text-muted-foreground">{profile.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {getFamilyInitialsForContract(profile.family)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{profile.fte}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span>Total: {instance?.totalAllocated || 0}h</span>
+                          <span>{Math.round(totalAllocatedPercentage)}%</span>
+                        </div>
+                        <Progress value={totalAllocatedPercentage} className="h-2" />
+                        <div className="flex gap-1 text-xs text-muted-foreground">
+                          <span>T: {Math.round(teachingPercentage)}%</span>
+                          <span>A: {Math.round(adminPercentage)}%</span>
+                          <span>R: {Math.round(researchPercentage)}%</span>
+                          <span>O: {Math.round(otherPercentage)}%</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={profile.isActive ? "default" : "secondary"}>
+                        {profile.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedLecturer(profile);
+                                  setModalOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View Details</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedLecturer(profile);
+                                  setModalOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteLecturer(profile._id, profile.fullName)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete</TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
 
-      {/* Lecturers Table */}
-      <Card className="bg-white dark:bg-zinc-900 text-gray-900 dark:text-white">
-        <CardHeader>
-          <CardTitle className="text-gray-900 dark:text-white">Academic Staff ({filteredLecturers.length})</CardTitle>
-          <CardDescription className="text-gray-600 dark:text-gray-300">Overview of all academic staff and their current workload</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-gray-900 dark:text-white">Name</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Contract</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Team</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Capacity</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Status</TableHead>
-                <TableHead className="text-gray-900 dark:text-white">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLecturers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground dark:text-gray-300">
-                    No lecturers to show.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredLecturers.map((lecturer) => {
-                  // If assigned and capacity are both 0, treat status as 'n/a'
-                  const status = (lecturer.totalAllocated === 0 && lecturer.totalContract === 0) ? 'n/a' : lecturer.status;
-                  const handleOpenModal = () => {
-                    setSelectedLecturer(lecturer as any);
-                    setModalOpen(true);
-                  };
-                  return (
-                    <TableRow key={lecturer._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800" onClick={handleOpenModal}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">{lecturer.fullName}</div>
-                        <div className="text-sm text-muted-foreground dark:text-gray-300">{lecturer.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {getContractTypeBadge(lecturer.contract)}
-                        <div className="text-xs text-muted-foreground">FTE: {lecturer.fte.toFixed(1)}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{lecturer.team || lecturer.specialism || '-'}</TableCell>
-                    <TableCell>
-                      <div className="space-y-2 min-w-32">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>{lecturer.capacity}h</span>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="text-muted-foreground cursor-help">remaining</span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                Total Contract: {lecturer.totalContract}h
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        <Progress value={lecturer.totalContract ? (lecturer.totalAllocated / lecturer.totalContract) * 100 : 0} className="h-2" />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(status)}
-                        {status === "overloaded" && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); handleOpenModal(); }}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-100 dark:hover:bg-red-900" onClick={e => { e.stopPropagation(); confirmDeleteLecturer(lecturer as any); }}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      {/* Replace LecturerDetailsModal with StaffProfileModal */}
-      <StaffProfileModal
-        isOpen={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          setSelectedLecturer(null);
-        }}
-        lecturer={selectedLecturer as any}
-        adminAllocations={
-          selectedLecturer
-            ? (adminAllocations.find(a => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
-            : []
-        }
-      />
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="max-w-md">
+      {/* Create Lecturer Modal */}
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>Add New Lecturer</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this lecturer profile? This action cannot be undone.
+              Create a new lecturer profile and instance for the current academic year
             </DialogDescription>
           </DialogHeader>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                value={newLecturerData.fullName}
+                onChange={(e) => setNewLecturerData(prev => ({ ...prev, fullName: e.target.value }))}
+                placeholder="John Doe"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={newLecturerData.email}
+                onChange={(e) => setNewLecturerData(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="john.doe@university.ac.uk"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="family">Career Family</Label>
+              <Select
+                value={newLecturerData.family}
+                onValueChange={(value) => setNewLecturerData(prev => ({ ...prev, family: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {careerFamilies.map(family => (
+                    <SelectItem key={family.value} value={family.value}>
+                      {family.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="fte">FTE</Label>
+              <Input
+                id="fte"
+                type="number"
+                step="0.1"
+                min="0"
+                max="2"
+                value={newLecturerData.fte}
+                onChange={(e) => setNewLecturerData(prev => ({ ...prev, fte: parseFloat(e.target.value) || 0 }))}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="capacity">Capacity (%)</Label>
+              <Input
+                id="capacity"
+                type="number"
+                min="0"
+                max="100"
+                value={newLecturerData.capacity}
+                onChange={(e) => setNewLecturerData(prev => ({ ...prev, capacity: parseInt(e.target.value) || 0 }))}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="maxTeachingHours">Max Teaching Hours</Label>
+              <Input
+                id="maxTeachingHours"
+                type="number"
+                min="0"
+                value={newLecturerData.maxTeachingHours}
+                onChange={(e) => setNewLecturerData(prev => ({ ...prev, maxTeachingHours: parseInt(e.target.value) || 0 }))}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="totalContract">Total Contract Hours</Label>
+              <Input
+                id="totalContract"
+                type="number"
+                min="0"
+                value={newLecturerData.totalContract}
+                onChange={(e) => setNewLecturerData(prev => ({ ...prev, totalContract: parseInt(e.target.value) || 0 }))}
+              />
+            </div>
+          </div>
+          
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button className="bg-red-600 text-white hover:bg-red-700" onClick={handleConfirmDelete}>
-              Delete
+            <Button variant="outline" onClick={() => setCreateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateLecturer}>
+              Create Lecturer
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Lecturer Details Modal */}
+      {selectedLecturer && (
+        <StaffProfileModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          lecturer={{
+            _id: selectedLecturer._id as any,
+            fullName: selectedLecturer.fullName,
+            email: selectedLecturer.email,
+            team: "",
+            specialism: "",
+            contract: "",
+            capacity: selectedLecturer.capacity,
+            maxTeachingHours: selectedLecturer.maxTeachingHours,
+            role: "lecturer",
+            status: "active",
+            teachingAvailability: lecturerInstances.find((inst: any) => inst.profileId === selectedLecturer._id)?.teachingAvailability || 0,
+            totalAllocated: lecturerInstances.find((inst: any) => inst.profileId === selectedLecturer._id)?.totalAllocated || 0,
+            totalContract: selectedLecturer.totalContract,
+            allocatedTeachingHours: lecturerInstances.find((inst: any) => inst.profileId === selectedLecturer._id)?.allocatedTeachingHours || 0,
+            allocatedAdminHours: lecturerInstances.find((inst: any) => inst.profileId === selectedLecturer._id)?.allocatedAdminHours || 0,
+            family: selectedLecturer.family,
+            fte: selectedLecturer.fte,
+            profileId: selectedLecturer._id,
+          } as any}
+          adminAllocations={adminAllocations.filter((allocation: any) => 
+            lecturerInstances.find((inst: any) => inst.profileId === selectedLecturer._id)?._id === allocation.lecturerId
+          ).map((allocation: any) => ({
+            category: allocation.category || "",
+            description: allocation.description || "",
+            hours: allocation.hours || 0,
+          }))}
+        />
+      )}
     </div>
   )
-}
+} 

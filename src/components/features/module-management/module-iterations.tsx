@@ -80,7 +80,7 @@ export default function ModuleIterations() {
   const iterations = useQuery(api.module_iterations.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
   const modules = useQuery(api.modules.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
   const lecturers = useQuery(api.lecturers.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
-  const organisationSettings = useQuery(api.organisations.get);
+  const organisationSettings = useQuery(api.organisations.get, {});
   const createIteration = useMutation(api.module_iterations.createIteration)
   const updateIteration = useMutation(api.module_iterations.updateIteration)
   const deleteIteration = useMutation(api.module_iterations.deleteIteration)
@@ -189,15 +189,15 @@ export default function ModuleIterations() {
   }
 
   const handleModuleCodeChange = (moduleCode: string) => {
-    const selectedModule = modules.find(m => m.code === moduleCode);
+    const selectedModule = modules.find(m => (m as any).code === moduleCode);
     const defaultTeachingHours = organisationSettings?.defaultTeachingHours || 42;
     
     setForm(prev => ({
       ...prev,
       moduleCode,
-      title: selectedModule?.title || "",
-      teachingHours: selectedModule?.defaultTeachingHours || defaultTeachingHours,
-      markingHours: selectedModule?.defaultMarkingHours || defaultTeachingHours, // Use module's default marking hours
+      title: (selectedModule as any)?.title || "",
+      teachingHours: (selectedModule as any)?.defaultTeachingHours || defaultTeachingHours,
+      markingHours: (selectedModule as any)?.defaultMarkingHours || defaultTeachingHours, // Use module's default marking hours
     }));
   }
 
@@ -208,9 +208,27 @@ export default function ModuleIterations() {
 
     setSubmitting(true)
     try {
+      // Find the module to get its ID
+      const selectedModule = modules.find(m => (m as any).code === form.moduleCode);
+      if (!selectedModule) {
+        throw new Error("Module not found");
+      }
+
       const newIterationId = await createIteration({
-        ...form,
-        assignedLecturerIds: form.assignedLecturerIds.map(id => id as Id<'lecturers'>)
+        moduleId: selectedModule._id,
+        academicYearId: currentAcademicYearId as Id<'academic_years'>,
+        iterationCode: form.moduleCode,
+        description: form.notes,
+        deliveryMode: "face-to-face",
+        deliveryLocation: "TBD",
+        expectedEnrollment: 0,
+        startDate: form.teachingStartDate ? new Date(form.teachingStartDate).getTime() : undefined,
+        endDate: undefined,
+        teachingStartDate: form.teachingStartDate ? new Date(form.teachingStartDate).getTime() : undefined,
+        teachingEndDate: undefined,
+        status: "planned",
+        isActive: true,
+        notes: form.notes,
       });
       await logRecentActivity({
         action: "module iteration created",
@@ -241,8 +259,10 @@ export default function ModuleIterations() {
     try {
       await updateIteration({
         id: selectedIteration._id,
-        ...form,
-        assignedLecturerIds: form.assignedLecturerIds.map(id => id as Id<'lecturers'>)
+        description: form.notes,
+        notes: form.notes,
+        status: "planned",
+        isActive: true,
       });
       await logRecentActivity({
         action: "module iteration updated",

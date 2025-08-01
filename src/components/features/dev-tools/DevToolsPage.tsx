@@ -34,6 +34,8 @@ import {
 } from "lucide-react"
 import { AcademicYearTest } from "../academic-year-test";
 import { DataMigration } from "../data-migration";
+import { MigrationStatus } from "./migration-status";
+import { SeedDataManager } from "./seed-data-manager";
 
 export default function DevToolsPage() {
   const [activeTab, setActiveTab] = useState("overview")
@@ -60,8 +62,9 @@ export default function DevToolsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="migrations">Migrations</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="alerts">Alerts</TabsTrigger>
@@ -214,6 +217,12 @@ export default function DevToolsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="migrations" className="space-y-4">
+          <DataMigration />
+          <MigrationStatus />
+          <SeedDataManager />
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-4">

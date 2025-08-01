@@ -1,24 +1,20 @@
-import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-export default defineTable({
-  name: v.string(), // e.g., "Lecture", "Tutorial", "Lab", "Assessment", "Office Hours"
-  code: v.string(), // e.g., "LECT", "TUT", "LAB", "ASSESS", "OFFICE"
-  description: v.optional(v.string()),
-  category: v.string(), // e.g., "Teaching", "Assessment", "Support", "Administration"
-  defaultHours: v.optional(v.number()), // Default hours per allocation
-  defaultStudents: v.optional(v.number()), // Default number of students
-  isTeaching: v.boolean(), // Whether this is a teaching activity
-  isAssessment: v.boolean(), // Whether this is an assessment activity
-  isAdministrative: v.boolean(), // Whether this is administrative work
-  requiresRoom: v.boolean(), // Whether this requires a physical room
-  canBeGrouped: v.boolean(), // Whether this can be grouped with other allocations
-  isActive: v.boolean(),
-  organisationId: v.optional(v.id("organisations")),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
+// Get all allocation types (alias for getAll)
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("allocation_types")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("asc")
+      .collect();
+  },
 });
 
 // Get all allocation types

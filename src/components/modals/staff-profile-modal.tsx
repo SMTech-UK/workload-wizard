@@ -49,9 +49,7 @@ interface Lecturer {
   contract: string
   email: string
   capacity: number
-  id: string
   maxTeachingHours: number
-  moduleAllocations: ModuleAllocation[]
   role: string
   status: string
   teachingAvailability: number
@@ -61,6 +59,7 @@ interface Lecturer {
   allocatedAdminHours: number
   family: string
   fte: number
+  profileId?: Id<'lecturer_profiles'> | null // Convex document id for profile data
 }
 
 // Types for allocations
@@ -101,6 +100,7 @@ export default function StaffProfileModal({
   const [adminEditModalOpen, setAdminEditModalOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const updateLecturer = useMutation(api.lecturers.updateLecturer);
+  const updateProfile = useMutation(api.lecturers.updateProfile);
   const deleteLecturer = useMutation(api.lecturers.deleteLecturer);
   const convex = useConvex();
   const logRecentActivity = useLogRecentActivity();
@@ -114,7 +114,7 @@ export default function StaffProfileModal({
   const moduleAllocations = useQuery(api.modules.getByLecturerId, lecturer ? { lecturerId: lecturer._id } : "skip") ?? [];
 
   // Fetch all admin allocations at the top level (fixes hooks rules violation)
-  const allAdminAllocations = useQuery(api.admin_allocations.getAll) ?? [];
+  const allAdminAllocations = useQuery(api.admin_allocations.getAll, {}) ?? [];
 
   // Early return after all hooks are called
   if (!displayLecturer) {
@@ -227,11 +227,15 @@ export default function StaffProfileModal({
 
   // Helper to get the current admin allocations for the lecturer
   const getCurrentAdminAllocations = () => {
-    const found = allAdminAllocations.find(
+    const lecturerAdminAllocations = allAdminAllocations.filter(
       (a: any) => a.lecturerId === displayLecturer._id
     );
-    return found && found.adminAllocations && found.adminAllocations.length > 0
-      ? found.adminAllocations
+    return lecturerAdminAllocations.length > 0
+      ? lecturerAdminAllocations.map((allocation: any) => ({
+          category: allocation.category,
+          description: allocation.description || allocation.title,
+          hours: allocation.hours,
+        }))
       : DEFAULT_ADMIN_ALLOCATIONS;
   };
 
@@ -249,24 +253,31 @@ export default function StaffProfileModal({
     if (!lecturer || !lecturer._id) return;
     
     try {
+      // Update profile data using updateProfile
+      if (lecturer.profileId) {
+        await updateProfile({
+          id: lecturer.profileId,
+          fullName: updatedStaffMember.fullName ?? lecturer.fullName,
+          team: updatedStaffMember.team ?? lecturer.team,
+          specialism: updatedStaffMember.specialism ?? lecturer.specialism,
+          contract: updatedStaffMember.contract ?? lecturer.contract,
+          email: updatedStaffMember.email ?? lecturer.email,
+          maxTeachingHours: updatedStaffMember.maxTeachingHours ?? lecturer.maxTeachingHours,
+          role: updatedStaffMember.role ?? lecturer.role,
+          totalContract: updatedStaffMember.totalContract ?? lecturer.totalContract,
+          family: updatedStaffMember.family ?? lecturer.family,
+          fte: updatedStaffMember.fte ?? lecturer.fte,
+        });
+      }
+
+      // Update year-specific data using updateLecturer
       await updateLecturer({
         id: lecturer._id,
-        fullName: updatedStaffMember.fullName ?? lecturer.fullName,
-        team: updatedStaffMember.team ?? lecturer.team,
-        specialism: updatedStaffMember.specialism ?? lecturer.specialism,
-        contract: updatedStaffMember.contract ?? lecturer.contract,
-        email: updatedStaffMember.email ?? lecturer.email,
-        capacity: lecturer.capacity,
-        maxTeachingHours: updatedStaffMember.maxTeachingHours ?? lecturer.maxTeachingHours,
-        role: updatedStaffMember.role ?? lecturer.role,
         status: lecturer.status,
         teachingAvailability: lecturer.teachingAvailability,
         totalAllocated: lecturer.totalAllocated,
-        totalContract: updatedStaffMember.totalContract ?? lecturer.totalContract,
         allocatedTeachingHours: lecturer.allocatedTeachingHours,
         allocatedAdminHours: lecturer.allocatedAdminHours,
-        family: updatedStaffMember.family ?? lecturer.family,
-        fte: updatedStaffMember.fte ?? lecturer.fte,
       });
 
       if (onLecturerUpdate) {

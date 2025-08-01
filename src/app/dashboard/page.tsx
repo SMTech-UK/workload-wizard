@@ -165,10 +165,10 @@ function DashboardContent() {
   }, [activeTab]);
   
   // Always call hooks, but handle authentication in the data
-  const lecturersQuery = useQuery(api.lecturers.getAll);
-  const adminAllocationsQuery = useQuery(api.admin_allocations.getAll);
-  const modulesQuery = useQuery(api.modules.getAll);
-  const moduleIterationsQuery = useQuery(api.module_iterations.getAll);
+  const lecturersQuery = useQuery(api.lecturers.getAll, {});
+  const adminAllocationsQuery = useQuery(api.admin_allocations.getAll, {});
+  const modulesQuery = useQuery(api.modules.getAll, {});
+  const moduleIterationsQuery = useQuery(api.module_iterations.getAll, {});
   const updateLecturerStatus = useMutation(api.lecturers.updateStatus);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(academicYears[0]);
   const convex = useConvex();
@@ -349,18 +349,18 @@ function DashboardContent() {
   };
 
   const selectedAdminAllocations = selectedLecturer
-    ? (adminAllocations.find((a: any) => a.lecturerId === selectedLecturer.id)?.adminAllocations ?? [])
+    ? adminAllocations.filter((a: any) => a.lecturerId === selectedLecturer.id)
     : [];
 
   const selectedModuleAllocations = selectedLecturer && selectedLecturer.moduleAllocations
     ? (selectedLecturer.moduleAllocations as any[]).map((alloc: any) => {
-        const moduleData = modules.find((m: any) => m.id === alloc.moduleCode);
+        const moduleData = modules.find((m: any) => m._id === alloc.moduleId || m.code === alloc.moduleCode);
         return {
           ...alloc,
-          moduleName: moduleData ? moduleData.title : alloc.moduleName,
+          moduleName: (moduleData as any)?.title || (moduleData as any)?.code || alloc.moduleName || "Unknown Module",
           semester: alloc.semester,
           type: alloc.type,
-          credits: moduleData ? moduleData.credits : undefined,
+          credits: (moduleData as any)?.credits || undefined,
           teachingHours: alloc.hoursAllocated,
         };
       })
@@ -859,13 +859,12 @@ function DashboardContent() {
             <ReportsSection onViewAllActivity={() => { router.push("/inbox"); }} />
           </TabsContent>
         </Tabs>
-        {selectedLecturer && (
+        {staffProfileModalOpen && selectedLecturer && (
           <StaffProfileModal
-            key={selectedLecturer._id}
             isOpen={staffProfileModalOpen}
             onClose={() => setStaffProfileModalOpen(false)}
             lecturer={selectedLecturer}
-            adminAllocations={selectedAdminAllocations}
+            adminAllocations={selectedAdminAllocations.map(a => ({ ...a, description: a.description ?? "" }))}
             onLecturerUpdate={handleLecturerUpdate}
           />
         )}

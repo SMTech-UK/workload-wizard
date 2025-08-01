@@ -26,6 +26,7 @@ import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { useAcademicYear } from "@/hooks/useAcademicYear";
 
 // Define the Module interface
 export interface Module {
@@ -46,13 +47,15 @@ export default function ModuleManagement() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const modules = useQuery(api.modules.getAll) ?? [];
-  const organisationSettings = useQuery(api.organisations.get);
-  const createModule = useMutation(api.modules.createModule)
+  // Fetch data from Convex
+  const modules = useQuery(api.modules.getAll, {}) ?? [];
+  const organisationSettings = useQuery(api.organisations.get, {});
+  const createNewModule = useMutation(api.modules.createNewModule)
   const updateModule = useMutation(api.modules.updateModule)
   const deleteModule = useMutation(api.modules.deleteModule)
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
+  const { currentAcademicYearId } = useAcademicYear();
 
   // Add levels array for dropdown
   const levels = [
@@ -144,7 +147,16 @@ export default function ModuleManagement() {
 
     setSubmitting(true)
     try {
-      const newModuleId = await createModule(form);
+      const newModuleId = await createNewModule({
+        code: form.code,
+        title: form.title,
+        credits: form.credits,
+        level: form.level,
+        moduleLeader: form.moduleLeader,
+        defaultTeachingHours: form.defaultTeachingHours,
+        defaultMarkingHours: form.defaultMarkingHours,
+        academicYearId: currentAcademicYearId as Id<'academic_years'>,
+      });
       // Log recent activity
       await logRecentActivity({
         action: "module created",

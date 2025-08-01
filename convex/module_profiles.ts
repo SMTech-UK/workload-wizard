@@ -53,6 +53,7 @@ export const createProfile = mutation({
     
     return await ctx.db.insert("module_profiles", {
       ...args,
+      isActive: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -118,6 +119,7 @@ export const bulkImport = mutation({
       try {
         const profileId = await ctx.db.insert("module_profiles", {
           ...profileData,
+          isActive: true,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });

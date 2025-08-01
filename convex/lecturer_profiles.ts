@@ -62,6 +62,7 @@ export const createProfile = mutation({
     
     return await ctx.db.insert("lecturer_profiles", {
       ...args,
+      isActive: true,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -137,6 +138,7 @@ export const bulkImport = mutation({
           ...profileData,
           family: profileData.family || "",
           fte: profileData.fte || 1.0,
+          isActive: true,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };

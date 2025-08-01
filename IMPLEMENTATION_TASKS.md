@@ -1,46 +1,15 @@
 # WorkloadWizard Database Implementation Tasks
 
-## Phase 2: Data Migration Implementation
-
-### 2.2 Migration UI Components
-
-#### Priority: HIGH
-- [ ] **src/components/features/dev-tools/data-migration.tsx** - Update migration UI
-- [ ] **src/components/features/dev-tools/migration-status.tsx** - Migration progress tracking
-- [ ] **src/components/features/dev-tools/seed-data-manager.tsx** - Reference data management
-
-## Phase 3: API Function Updates
-
-### 3.1 Core API Functions
-
-#### Priority: CRITICAL
-- [ ] **convex/organisations.ts** - Update CRUD operations for new schema
-- [ ] **convex/users.ts** - Update user management with profile structure
-- [ ] **convex/lecturers.ts** - Update lecturer operations with profile structure
-- [ ] **convex/modules.ts** - Update module operations with profile structure
-- [ ] **convex/module_iterations.ts** - Update iteration operations with new relationships
-- [ ] **convex/admin_allocations.ts** - Update allocation operations with new categories
-
-### 3.2 New API Functions
-
-#### Priority: HIGH
-- [ ] **convex/courses.ts** - Course CRUD operations
-- [ ] **convex/cohorts.ts** - Cohort CRUD operations
-- [ ] **convex/teams.ts** - Team management with department/faculty relationships
-- [ ] **convex/reports.ts** - Reporting and analytics functions
-- [ ] **convex/audit.ts** - Audit logging functions
-- [ ] **convex/notifications.ts** - Notification system functions
-
 ## Phase 4: Frontend Component Updates
 
 ### 4.1 Core Component Updates
 
 #### Priority: CRITICAL
-- [ ] **src/components/modals/settings-modal.tsx** - Update for new organization structure
-- [ ] **src/components/features/lecturer-management/lecturer-management.tsx** - Update for profile structure
-- [ ] **src/components/features/module-management/module-management.tsx** - Update for profile structure
-- [ ] **src/components/features/module-management/module-iterations.tsx** - Update for new relationships
-- [ ] **src/components/features/module-management/module-allocations.tsx** - Update for new structure
+- [x] **src/components/modals/settings-modal.tsx** - Update for new organization structure
+- [x] **src/components/features/lecturer-management/lecturer-management.tsx** - Update for profile structure
+- [x] **src/components/features/module-management/module-management.tsx** - Update for profile structure
+- [x] **src/components/features/module-management/module-iterations.tsx** - Update for new relationships
+- [x] **src/components/features/module-management/module-allocations.tsx** - Update for new structure
 
 ### 4.2 New Components
 

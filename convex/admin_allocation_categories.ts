@@ -1,12 +1,10 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 
-// Get all tags
+// Get all admin allocation categories
 export const list = query({
-  args: {
-    isActive: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
@@ -15,23 +13,20 @@ export const list = query({
       .filter(q => q.eq(q.field("isActive"), true))
       .first();
     
-    let query = ctx.db.query("tags");
+    let query = ctx.db.query("admin_allocation_categories")
+      .filter(q => q.eq(q.field("isActive"), true));
     
     if (organisation) {
       query = query.filter(q => q.eq(q.field("organisationId"), organisation._id));
-    }
-    
-    if (args.isActive !== undefined) {
-      query = query.filter(q => q.eq(q.field("isActive"), args.isActive));
     }
     
     return await query.order("asc").collect();
   },
 });
 
-// Get tag by ID
+// Get admin allocation category by ID
 export const get = query({
-  args: { id: v.id("tags") },
+  args: { id: v.id("admin_allocation_categories") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -40,11 +35,14 @@ export const get = query({
   },
 });
 
-// Create a new tag
+// Create a new admin allocation category
 export const create = mutation({
   args: {
     name: v.string(),
+    description: v.optional(v.string()),
+    code: v.string(),
     color: v.optional(v.string()),
+    icon: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -60,7 +58,7 @@ export const create = mutation({
       throw new Error("No active organisation found");
     }
     
-    return await ctx.db.insert("tags", {
+    return await ctx.db.insert("admin_allocation_categories", {
       ...args,
       isActive: args.isActive ?? true,
       organisationId: organisation._id,
@@ -70,12 +68,15 @@ export const create = mutation({
   },
 });
 
-// Update a tag
+// Update an admin allocation category
 export const update = mutation({
   args: {
-    id: v.id("tags"),
+    id: v.id("admin_allocation_categories"),
     name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    code: v.optional(v.string()),
     color: v.optional(v.string()),
+    icon: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -93,9 +94,9 @@ export const update = mutation({
   },
 });
 
-// Delete a tag (soft delete)
+// Delete an admin allocation category (soft delete)
 export const remove = mutation({
-  args: { id: v.id("tags") },
+  args: { id: v.id("admin_allocation_categories") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");

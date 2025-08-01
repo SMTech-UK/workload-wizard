@@ -26,7 +26,6 @@ export function AcademicYearTest() {
         endDate: "2026-08-31",
         description: "Test academic year",
         isActive: true,
-        isDefault: true,
       });
     } catch (error) {
       console.error('Failed to create test academic year:', error);
@@ -45,7 +44,6 @@ export function AcademicYearTest() {
             <div className="flex items-center gap-2">
               <span>{currentAcademicYear.name}</span>
               {currentAcademicYear.isActive && <Badge>Active</Badge>}
-              {currentAcademicYear.isDefault && <Badge variant="secondary">Default</Badge>}
             </div>
           ) : (
             <p className="text-muted-foreground">No active academic year</p>
@@ -60,7 +58,6 @@ export function AcademicYearTest() {
                 <div key={year._id} className="flex items-center gap-2 p-2 border rounded">
                   <span>{year.name}</span>
                   {year.isActive && <Badge>Active</Badge>}
-                  {year.isDefault && <Badge variant="secondary">Default</Badge>}
                 </div>
               ))}
             </div>

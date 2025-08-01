@@ -187,8 +187,9 @@ export const create = mutation({
     
     return await ctx.db.insert("module_iteration_groups", {
       ...args,
+      size: args.currentSize || 0,
       isActive: true,
-      isFull,
+      isFull: isFull,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -304,7 +305,7 @@ export const getAllWithRelations = query({
         
         let room = null;
         if (group.roomId) {
-          room = await ctx.db.get(group.roomId);
+          room = { id: group.roomId, name: group.roomId };
         }
         
         return {

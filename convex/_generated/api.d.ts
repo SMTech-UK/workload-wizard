@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as academic_years from "../academic_years.js";
+import type * as admin_allocation_categories from "../admin_allocation_categories.js";
 import type * as admin_allocations from "../admin_allocations.js";
 import type * as allocation_types from "../allocation_types.js";
 import type * as assessment_types from "../assessment_types.js";
@@ -30,7 +31,13 @@ import type * as external_systems from "../external_systems.js";
 import type * as faculties from "../faculties.js";
 import type * as file_attachments from "../file_attachments.js";
 import type * as lecturer_profiles from "../lecturer_profiles.js";
+import type * as lecturer_statuses from "../lecturer_statuses.js";
 import type * as lecturers from "../lecturers.js";
+import type * as migrations_academic_year_migration from "../migrations/academic_year_migration.js";
+import type * as migrations_data_normalization from "../migrations/data_normalization.js";
+import type * as migrations_index from "../migrations/index.js";
+import type * as migrations_profile_migration from "../migrations/profile_migration.js";
+import type * as migrations_seed_data from "../migrations/seed_data.js";
 import type * as migrations from "../migrations.js";
 import type * as module_iteration_assessments from "../module_iteration_assessments.js";
 import type * as module_iteration_groups from "../module_iteration_groups.js";
@@ -69,6 +76,7 @@ import type * as workload_reports from "../workload_reports.js";
  */
 declare const fullApi: ApiFromModules<{
   academic_years: typeof academic_years;
+  admin_allocation_categories: typeof admin_allocation_categories;
   admin_allocations: typeof admin_allocations;
   allocation_types: typeof allocation_types;
   assessment_types: typeof assessment_types;
@@ -85,7 +93,13 @@ declare const fullApi: ApiFromModules<{
   faculties: typeof faculties;
   file_attachments: typeof file_attachments;
   lecturer_profiles: typeof lecturer_profiles;
+  lecturer_statuses: typeof lecturer_statuses;
   lecturers: typeof lecturers;
+  "migrations/academic_year_migration": typeof migrations_academic_year_migration;
+  "migrations/data_normalization": typeof migrations_data_normalization;
+  "migrations/index": typeof migrations_index;
+  "migrations/profile_migration": typeof migrations_profile_migration;
+  "migrations/seed_data": typeof migrations_seed_data;
   migrations: typeof migrations;
   module_iteration_assessments: typeof module_iteration_assessments;
   module_iteration_groups: typeof module_iteration_groups;

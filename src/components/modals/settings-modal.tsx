@@ -24,6 +24,7 @@ import { useQuery } from "convex/react";
 import { useTheme } from "next-themes";
 import { updateSettings as updateSettingsUtil } from "@/lib/utils";
 import { useDevMode } from "@/hooks/useDevMode";
+import { useAcademicYear } from "@/hooks/useAcademicYear";
 
 export type TabType = "profile" | "settings" | "general" | "lecturer-preferences" | "developer" | "organisation-general" | "organisation-academic-years";
 
@@ -215,12 +216,15 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   });
 
   // Always call hooks at the top level, but handle authentication in data processing
-  const preferences = useQuery(api.users.getPreferences);
-  const profileFields = useQuery(api.users.getProfileFields);
-  const userSettings = useQuery(api.users.getSettings);
-  const organisationSettings = useQuery(api.organisations.get);
-  const academicYears = useQuery(api.academic_years.getAll);
-  const activeAcademicYear = useQuery(api.academic_years.getActive);
+  const preferences = useQuery(api.users.getPreferences, {});
+  const profileFields = useQuery(api.users.getProfileFields, {});
+  const userSettings = useQuery(api.users.getSettings, {});
+  const organisationSettings = useQuery(api.organisations.get, {});
+  const academicYears = useQuery(api.academic_years.getAll, {});
+  const activeAcademicYear = useQuery(api.academic_years.getActive, {});
+  
+  // Get current academic year context
+  const { currentAcademicYear } = useAcademicYear();
 
   // Use the data only when user is authenticated and loaded
   const safePreferences = isLoaded && user && preferences ? preferences : null;
@@ -325,6 +329,13 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
       setHasOrganisationSettingsChanged(false);
     }
   }, [activeTab, organisationSettings]);
+
+  // Update academic year context when active academic year changes
+  React.useEffect(() => {
+    if (activeAcademicYear && currentAcademicYear !== activeAcademicYear._id) {
+      // The academic year context will be updated by the useAcademicYear hook
+    }
+  }, [activeAcademicYear, currentAcademicYear]);
 
   // Sync theme with user's saved setting when settings are loaded
   React.useEffect(() => {
@@ -1300,6 +1311,24 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                               </p>
                             </div>
                             <Badge variant="secondary">Active</Badge>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Current Academic Year Context */}
+                      {currentAcademicYear && (
+                        <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">Current View Context</h4>
+                              <p className="text-sm text-muted-foreground">
+                                You are currently viewing data for: {academicYears?.find(ay => ay._id === currentAcademicYear)?.name || 'Unknown Year'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                This affects which data you see throughout the application
+                              </p>
+                            </div>
+                            <Badge variant="outline">View Context</Badge>
                           </div>
                         </div>
                       )}

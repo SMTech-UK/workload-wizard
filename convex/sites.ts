@@ -1,26 +1,20 @@
-import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
-export default defineTable({
-  name: v.string(),
-  code: v.string(), // Site code (e.g., "MAIN", "CITY", "NORTH")
-  description: v.optional(v.string()),
-  address: v.optional(v.string()),
-  city: v.optional(v.string()),
-  postcode: v.optional(v.string()),
-  country: v.optional(v.string()),
-  latitude: v.optional(v.number()),
-  longitude: v.optional(v.number()),
-  contactEmail: v.optional(v.string()),
-  contactPhone: v.optional(v.string()),
-  website: v.optional(v.string()),
-  isActive: v.boolean(),
-  isMainSite: v.boolean(), // Whether this is the main campus site
-  organisationId: v.optional(v.id("organisations")),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
+// Get all sites (alias for getAll)
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db
+      .query("sites")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      .order("asc")
+      .collect();
+  },
 });
 
 // Get all sites

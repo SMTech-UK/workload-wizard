@@ -1,19 +1,7 @@
-import { defineTable } from "convex/server";
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { createForAcademicYear as createLecturersForYear } from "./lecturers";
-import { createForAcademicYear as createModulesForYear } from "./modules";
 
-export default defineTable({
-  name: v.string(), // e.g., "2025/26", "2026/27"
-  startDate: v.string(), // ISO date string
-  endDate: v.string(), // ISO date string
-  isActive: v.boolean(), // Whether this is the current active academic year
-  isStaging: v.boolean(), // Whether this is the staging academic year for planning
-  description: v.optional(v.string()),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-});
+
 
 // Get all academic years
 export const getAll = query({
@@ -86,14 +74,8 @@ export const create = mutation({
       updatedAt: Date.now(),
     });
 
-    // Automatically create lecturer and module instances for this new academic year
-    try {
-      await createLecturersForYear({ academicYearId });
-      await createModulesForYear({ academicYearId });
-    } catch (error) {
-      console.error("Failed to create lecturer/module instances for new academic year:", error);
-      // Don't fail the academic year creation if this fails
-    }
+    // Note: Lecturer and module instances should be created separately
+    // using the createForAcademicYear functions in lecturers.ts and modules.ts
 
     return academicYearId;
   },

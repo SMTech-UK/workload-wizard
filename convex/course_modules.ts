@@ -265,7 +265,7 @@ export const getAllWithRelations = query({
         const module = await ctx.db.get(courseModule.moduleId);
         
         // Fetch prerequisite modules
-        let prerequisites = [];
+        let prerequisites: any[] = [];
         if (courseModule.prerequisites) {
           prerequisites = await Promise.all(
             courseModule.prerequisites.map(async (prereqId) => {
@@ -275,7 +275,7 @@ export const getAllWithRelations = query({
         }
         
         // Fetch co-requisite modules
-        let coRequisites = [];
+        let coRequisites: any[] = [];
         if (courseModule.coRequisites) {
           coRequisites = await Promise.all(
             courseModule.coRequisites.map(async (coreqId) => {

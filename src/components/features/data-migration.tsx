@@ -36,6 +36,8 @@ interface MigrationPhase {
 }
 
 export function DataMigration() {
+  // Note: New migrations (Profile Structure, Academic Year Assignment, Data Normalization, Seed Data)
+  // will be available after Convex types are regenerated. Until then, only existing migrations will run.
   const [currentPhase, setCurrentPhase] = React.useState<string>("");
   const [migrationPhases, setMigrationPhases] = React.useState<MigrationPhase[]>([
     {
@@ -99,8 +101,8 @@ export function DataMigration() {
   const [isMigrating, setIsMigrating] = React.useState(false);
   const [overallProgress, setOverallProgress] = React.useState(0);
   
-  const migrationStatus = useQuery(api.migrations.getMigrationStatus);
-  const dataIntegrity = useQuery(api.migrations.validateDataIntegrity);
+  const migrationStatus = useQuery(api.migrations.getMigrationStatus, {});
+  const dataIntegrity = useQuery(api.migrations.validateDataIntegrity, {});
 
   const migrateAcademicYears = useMutation(api.migrations.migrateAcademicYears);
   const migrateLecturers = useMutation(api.migrations.migrateLecturers);
@@ -109,19 +111,31 @@ export function DataMigration() {
   const migrateAdminAllocations = useMutation(api.migrations.migrateAdminAllocations);
   const migrateCohorts = useMutation(api.migrations.migrateCohorts);
   const migrateDeptSummary = useMutation(api.migrations.migrateDeptSummary);
+  
+  // New migration functions (optional - may not be available until types are regenerated)
+  const migrateProfileStructure = useMutation((api.migrations as any).migrateProfileStructure);
+  const migrateAcademicYearAssignment = useMutation((api.migrations as any).migrateAcademicYearAssignment);
+  const migrateDataNormalization = useMutation((api.migrations as any).migrateDataNormalization);
+  const migrateSeedData = useMutation((api.migrations as any).migrateSeedData);
 
   const handleFullMigration = async () => {
     setIsMigrating(true);
     setOverallProgress(0);
     
     const migrations = [
+      // New migrations (only include if available)
+      ...(migrateProfileStructure ? [{ name: "Profile Structure", fn: migrateProfileStructure, phase: "core-tables" }] : []),
+      ...(migrateAcademicYearAssignment ? [{ name: "Academic Year Assignment", fn: migrateAcademicYearAssignment, phase: "academic-structure" }] : []),
+      ...(migrateDataNormalization ? [{ name: "Data Normalization", fn: migrateDataNormalization, phase: "system-tables" }] : []),
+      ...(migrateSeedData ? [{ name: "Seed Data", fn: migrateSeedData, phase: "system-tables" }] : []),
+      // Existing migrations
       { name: "Academic Years", fn: migrateAcademicYears, phase: "academic-structure" },
       { name: "Lecturers", fn: migrateLecturers, phase: "staff-management" },
       { name: "Module Iterations", fn: migrateModuleIterations, phase: "module-delivery" },
       { name: "Module Allocations", fn: migrateModuleAllocations, phase: "module-delivery" },
       { name: "Admin Allocations", fn: migrateAdminAllocations, phase: "staff-management" },
       { name: "Cohorts", fn: migrateCohorts, phase: "course-module" },
-      { name: "Department Summary", fn: migrateDeptSummary, phase: "reporting-analytics" },
+      { name: "Team Summary", fn: migrateDeptSummary, phase: "reporting-analytics" },
     ];
 
     let completedMigrations = 0;
@@ -200,7 +214,11 @@ export function DataMigration() {
     try {
       // Define migrations for each phase
       const phaseMigrations: Record<string, Array<{ name: string; fn: any }>> = {
+        "core-tables": [
+          ...(migrateProfileStructure ? [{ name: "Profile Structure", fn: migrateProfileStructure }] : [])
+        ],
         "academic-structure": [
+          ...(migrateAcademicYearAssignment ? [{ name: "Academic Year Assignment", fn: migrateAcademicYearAssignment }] : []),
           { name: "Academic Years", fn: migrateAcademicYears }
         ],
         "staff-management": [
@@ -215,7 +233,11 @@ export function DataMigration() {
           { name: "Cohorts", fn: migrateCohorts }
         ],
         "reporting-analytics": [
-          { name: "Department Summary", fn: migrateDeptSummary }
+          { name: "Team Summary", fn: migrateDeptSummary }
+        ],
+        "system-tables": [
+          ...(migrateDataNormalization ? [{ name: "Data Normalization", fn: migrateDataNormalization }] : []),
+          ...(migrateSeedData ? [{ name: "Seed Data", fn: migrateSeedData }] : [])
         ]
       };
 
@@ -347,6 +369,16 @@ export function DataMigration() {
           <p className="text-xs text-muted-foreground">
             This will migrate all data to the new normalized schema structure as defined in the DATABASE_SCHEMA_REFERENCE.md
           </p>
+          
+          {(!migrateProfileStructure || !migrateAcademicYearAssignment || !migrateDataNormalization || !migrateSeedData) && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                <strong>Note:</strong> New migrations (Profile Structure, Academic Year Assignment, Data Normalization, Seed Data) 
+                will be available after Convex types are regenerated. Currently only existing migrations will run.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
 

@@ -1,44 +1,32 @@
-import { defineTable } from "convex/server";
+import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-
-export default defineTable({
-  name: v.string(),
-  code: v.string(), // Course code (e.g., "CS101", "MATH201")
-  description: v.optional(v.string()),
-  level: v.string(), // e.g., "Undergraduate", "Postgraduate", "Foundation"
-  credits: v.number(), // Total credits for the course
-  duration: v.number(), // Duration in years
-  departmentId: v.optional(v.id("departments")),
-  facultyId: v.optional(v.id("faculties")),
-  courseLeaderId: v.optional(v.id("user_profiles")),
-  contactEmail: v.optional(v.string()),
-  contactPhone: v.optional(v.string()),
-  website: v.optional(v.string()),
-  entryRequirements: v.optional(v.string()),
-  learningOutcomes: v.optional(v.array(v.string())),
-  isActive: v.boolean(),
-  isAccredited: v.boolean(), // Whether the course is professionally accredited
-  accreditationBody: v.optional(v.string()),
-  organisationId: v.optional(v.id("organisations")),
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
-});
 
 // Get all courses
 export const getAll = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .order("asc")
-      .collect();
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    let query = ctx.db.query("courses")
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+    
+    if (args.isActive !== undefined) {
+      query = query.filter(q => q.eq(q.field("isActive"), args.isActive));
+    }
+    
+    return await query.collect();
   },
 });
 
@@ -50,91 +38,28 @@ export const getById = query({
     if (!identity) throw new Error("Not authenticated");
     
     const course = await ctx.db.get(args.id);
-    if (!course || course.deletedAt) return null;
-    return course;
-  },
-});
-
-// Get course by code
-export const getByCode = query({
-  args: { code: v.string() },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    if (!course) return null;
     
-    return await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("code"), args.code))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .first();
-  },
-});
-
-// Get courses by department
-export const getByDepartment = query({
-  args: { departmentId: v.id("departments") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    
-    return await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("departmentId"), args.departmentId))
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .order("asc")
+    // Get related modules for this course
+    const courseModules = await ctx.db.query("course_modules")
+      .filter(q => q.eq(q.field("courseId"), args.id))
       .collect();
-  },
-});
-
-// Get courses by faculty
-export const getByFaculty = query({
-  args: { facultyId: v.id("faculties") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("facultyId"), args.facultyId))
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .order("asc")
-      .collect();
-  },
-});
-
-// Get courses by level
-export const getByLevel = query({
-  args: { level: v.string() },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
+    // Get module details for each course module
+    const modulesWithDetails = await Promise.all(
+      courseModules.map(async (courseModule) => {
+        const module = await ctx.db.get(courseModule.moduleId);
+        return {
+          ...courseModule,
+          module,
+        };
+      })
+    );
     
-    return await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("level"), args.level))
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .order("asc")
-      .collect();
-  },
-});
-
-// Get accredited courses
-export const getAccreditedCourses = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    
-    return await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("isAccredited"), true))
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .order("asc")
-      .collect();
+    return {
+      ...course,
+      modules: modulesWithDetails,
+    };
   },
 });
 
@@ -147,50 +72,76 @@ export const create = mutation({
     level: v.string(),
     credits: v.number(),
     duration: v.number(),
-    departmentId: v.optional(v.id("departments")),
     facultyId: v.optional(v.id("faculties")),
+    departmentId: v.optional(v.id("departments")),
     courseLeaderId: v.optional(v.id("user_profiles")),
     contactEmail: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
     website: v.optional(v.string()),
     entryRequirements: v.optional(v.string()),
     learningOutcomes: v.optional(v.array(v.string())),
-    isAccredited: v.optional(v.boolean()),
+    isAccredited: v.boolean(),
     accreditationBody: v.optional(v.string()),
-    organisationId: v.optional(v.id("organisations")),
+    isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    // Check if code already exists
-    const existing = await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("code"), args.code))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
       .first();
     
-    if (existing) {
-      throw new Error("Course code already exists");
+    if (!organisation) {
+      throw new Error("No active organisation found");
     }
     
-    // Validate credits
+    // Validate input data
     if (args.credits <= 0) {
       throw new Error("Credits must be greater than 0");
     }
     
-    // Validate duration
     if (args.duration <= 0) {
       throw new Error("Duration must be greater than 0");
     }
     
-    return await ctx.db.insert("courses", {
+    // Check if course code already exists
+    const existingCourse = await ctx.db.query("courses")
+      .filter(q => 
+        q.and(
+          q.eq(q.field("code"), args.code),
+          q.eq(q.field("organisationId"), organisation._id)
+        )
+      )
+      .first();
+    
+    if (existingCourse) {
+      throw new Error("Course code already exists");
+    }
+    
+    const courseId = await ctx.db.insert("courses", {
       ...args,
-      isActive: true,
-      isAccredited: args.isAccredited ?? false,
+      isActive: args.isActive ?? true,
+      organisationId: organisation._id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "create",
+      entityType: "courses",
+      entityId: courseId,
+      changes: args,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return courseId;
   },
 });
 
@@ -204,137 +155,363 @@ export const update = mutation({
     level: v.optional(v.string()),
     credits: v.optional(v.number()),
     duration: v.optional(v.number()),
-    departmentId: v.optional(v.id("departments")),
     facultyId: v.optional(v.id("faculties")),
+    departmentId: v.optional(v.id("departments")),
     courseLeaderId: v.optional(v.id("user_profiles")),
     contactEmail: v.optional(v.string()),
     contactPhone: v.optional(v.string()),
     website: v.optional(v.string()),
     entryRequirements: v.optional(v.string()),
     learningOutcomes: v.optional(v.array(v.string())),
-    isActive: v.optional(v.boolean()),
     isAccredited: v.optional(v.boolean()),
     accreditationBody: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
     const { id, ...updates } = args;
     
-    // If updating code, check for duplicates
+    // Validate numeric inputs
+    if (updates.credits !== undefined && updates.credits <= 0) {
+      throw new Error("Credits must be greater than 0");
+    }
+    
+    if (updates.duration !== undefined && updates.duration <= 0) {
+      throw new Error("Duration must be greater than 0");
+    }
+    
+    // Check if course code already exists (if being updated)
     if (updates.code) {
-      const existing = await ctx.db
-        .query("courses")
-        .filter((q) => q.eq(q.field("code"), updates.code))
-        .filter((q) => q.neq(q.field("_id"), id))
-        .filter((q) => q.eq(q.field("deletedAt"), undefined))
+      const existingCourse = await ctx.db.query("courses")
+        .filter(q => 
+          q.and(
+            q.eq(q.field("code"), updates.code),
+            q.eq(q.field("organisationId"), organisation._id),
+            q.neq(q.field("_id"), id)
+          )
+        )
         .first();
       
-      if (existing) {
+      if (existingCourse) {
         throw new Error("Course code already exists");
       }
     }
     
-    // Validate credits if provided
-    if (updates.credits !== undefined) {
-      if (updates.credits <= 0) {
-        throw new Error("Credits must be greater than 0");
-      }
-    }
-    
-    // Validate duration if provided
-    if (updates.duration !== undefined) {
-      if (updates.duration <= 0) {
-        throw new Error("Duration must be greater than 0");
-      }
-    }
-    
-    return await ctx.db.patch(id, {
+    await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
     });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "update",
+      entityType: "courses",
+      entityId: id,
+      changes: updates,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return id;
   },
 });
 
-// Soft delete a course
+// Delete a course (soft delete)
 export const remove = mutation({
   args: { id: v.id("courses") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    return await ctx.db.patch(args.id, {
-      deletedAt: Date.now(),
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    await ctx.db.patch(args.id, {
+      isActive: false,
       updatedAt: Date.now(),
     });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "delete",
+      entityType: "courses",
+      entityId: args.id,
+      changes: { isActive: false },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return args.id;
   },
 });
 
-// Get courses with department and faculty information
-export const getAllWithRelations = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    
-    const courses = await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .order("asc")
-      .collect();
-    
-    // Fetch related information for each course
-    const coursesWithRelations = await Promise.all(
-      courses.map(async (course) => {
-        let department = null;
-        if (course.departmentId) {
-          department = await ctx.db.get(course.departmentId);
-        }
-        
-        let faculty = null;
-        if (course.facultyId) {
-          faculty = await ctx.db.get(course.facultyId);
-        }
-        
-        let courseLeader = null;
-        if (course.courseLeaderId) {
-          courseLeader = await ctx.db.get(course.courseLeaderId);
-        }
-        
-        return {
-          ...course,
-          department,
-          faculty,
-          courseLeader,
-        };
-      })
-    );
-    
-    return coursesWithRelations;
+// Add module to course
+export const addModule = mutation({
+  args: {
+    courseId: v.id("courses"),
+    moduleId: v.id("modules"),
+    yearOfStudy: v.number(),
+    isCore: v.boolean(),
+    isOptional: v.boolean(),
+    order: v.optional(v.number()),
+    prerequisites: v.optional(v.array(v.id("modules"))),
+    coRequisites: v.optional(v.array(v.id("modules"))),
   },
-});
-
-// Search courses by name or code
-export const search = query({
-  args: { query: v.string() },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const courses = await ctx.db
-      .query("courses")
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .filter((q) => q.eq(q.field("deletedAt"), undefined))
-      .collect();
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
     
-    // Filter by name or code (case-insensitive)
-    const query = args.query.toLowerCase();
-    return courses.filter(
-      (course) =>
-        course.name.toLowerCase().includes(query) ||
-        course.code.toLowerCase().includes(query)
-    );
+    // Check if module is already in this course
+    const existingCourseModule = await ctx.db.query("course_modules")
+      .filter(q => 
+        q.and(
+          q.eq(q.field("courseId"), args.courseId),
+          q.eq(q.field("moduleId"), args.moduleId)
+        )
+      )
+      .first();
+    
+    if (existingCourseModule) {
+      throw new Error("Module is already in this course");
+    }
+    
+    const courseModuleId = await ctx.db.insert("course_modules", {
+      courseId: args.courseId,
+      moduleId: args.moduleId,
+      yearOfStudy: args.yearOfStudy,
+      isCore: args.isCore,
+      isOptional: args.isOptional,
+      order: args.order ?? 1,
+      prerequisites: args.prerequisites,
+      coRequisites: args.coRequisites,
+      isActive: true,
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "create",
+      entityType: "course_modules",
+      entityId: courseModuleId,
+      changes: args,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return courseModuleId;
+  },
+});
+
+// Remove module from course
+export const removeModule = mutation({
+  args: {
+    courseId: v.id("courses"),
+    moduleId: v.id("modules"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    // Find the course module relationship
+    const courseModule = await ctx.db.query("course_modules")
+      .filter(q => 
+        q.and(
+          q.eq(q.field("courseId"), args.courseId),
+          q.eq(q.field("moduleId"), args.moduleId)
+        )
+      )
+      .first();
+    
+    if (!courseModule) {
+      throw new Error("Module is not in this course");
+    }
+    
+    await ctx.db.delete(courseModule._id);
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "delete",
+      entityType: "course_modules",
+      entityId: courseModule._id,
+      changes: { courseId: args.courseId, moduleId: args.moduleId },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return courseModule._id;
+  },
+});
+
+// Get courses by department
+export const getByDepartment = query({
+  args: { departmentId: v.id("departments") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db.query("courses")
+      .filter(q => q.eq(q.field("departmentId"), args.departmentId))
+      .collect();
+  },
+});
+
+// Get courses by faculty
+export const getByFaculty = query({
+  args: { facultyId: v.id("faculties") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    return await ctx.db.query("courses")
+      .filter(q => q.eq(q.field("facultyId"), args.facultyId))
+      .collect();
+  },
+});
+
+// Bulk import courses
+export const bulkImport = mutation({
+  args: {
+    courses: v.array(
+      v.object({
+        name: v.string(),
+        code: v.string(),
+        description: v.optional(v.string()),
+        level: v.string(),
+        credits: v.number(),
+        duration: v.number(),
+        facultyId: v.optional(v.id("faculties")),
+        departmentId: v.optional(v.id("departments")),
+        courseLeaderId: v.optional(v.id("user_profiles")),
+        contactEmail: v.optional(v.string()),
+        contactPhone: v.optional(v.string()),
+        website: v.optional(v.string()),
+        entryRequirements: v.optional(v.string()),
+        learningOutcomes: v.optional(v.array(v.string())),
+        isAccredited: v.boolean(),
+        accreditationBody: v.optional(v.string()),
+        isActive: v.optional(v.boolean()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    const results = [];
+    for (const courseData of args.courses) {
+      try {
+        // Validate input data
+        if (courseData.credits <= 0) {
+          throw new Error("Credits must be greater than 0");
+        }
+        
+        if (courseData.duration <= 0) {
+          throw new Error("Duration must be greater than 0");
+        }
+        
+        // Check if course code already exists
+        const existingCourse = await ctx.db.query("courses")
+          .filter(q => 
+            q.and(
+              q.eq(q.field("code"), courseData.code),
+              q.eq(q.field("organisationId"), organisation._id)
+            )
+          )
+          .first();
+        
+        if (existingCourse) {
+          throw new Error(`Course code ${courseData.code} already exists`);
+        }
+        
+        const courseId = await ctx.db.insert("courses", {
+          ...courseData,
+          isActive: courseData.isActive ?? true,
+          organisationId: organisation._id,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        
+        results.push({ success: true, id: courseId, code: courseData.code });
+      } catch (error) {
+        results.push({ success: false, code: courseData.code, error: String(error) });
+      }
+    }
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "bulk_import",
+      entityType: "courses",
+      entityId: "bulk",
+      changes: { 
+        total: args.courses.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length 
+      },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return results;
   },
 }); 

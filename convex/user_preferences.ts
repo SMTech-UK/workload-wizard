@@ -6,13 +6,15 @@ export default defineTable({
   userId: v.string(), // Clerk user ID
   key: v.string(), // Preference key
   value: v.any(), // Preference value (can be any type)
-  category: v.optional(v.string()), // e.g., "ui", "workflow", "notifications"
-  description: v.optional(v.string()),
+  category: v.string(), // e.g., "ui", "workflow", "notifications"
   isSystem: v.boolean(), // Whether this is a system preference
   organisationId: v.optional(v.id("organisations")),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
+
+// If you want to display descriptions for user preferences in the UI,
+// use a frontend-side lookup/config, not a DB field. The DB schema does not support a description column.
 
 // Get all preferences for a user
 export const getByUserId = query({
@@ -72,8 +74,7 @@ export const set = mutation({
     userId: v.string(),
     key: v.string(),
     value: v.any(),
-    category: v.optional(v.string()),
-    description: v.optional(v.string()),
+    category: v.string(),
     isSystem: v.optional(v.boolean()),
     organisationId: v.optional(v.id("organisations")),
   },
@@ -91,7 +92,6 @@ export const set = mutation({
       return await ctx.db.patch(existing._id, {
         value: args.value,
         category: args.category,
-        description: args.description,
         updatedAt: Date.now(),
       });
     } else {
@@ -136,8 +136,7 @@ export const setMultiple = mutation({
     preferences: v.array(v.object({
       key: v.string(),
       value: v.any(),
-      category: v.optional(v.string()),
-      description: v.optional(v.string()),
+      category: v.string(),
     })),
   },
   handler: async (ctx, args) => {
@@ -157,7 +156,6 @@ export const setMultiple = mutation({
         const result = await ctx.db.patch(existing._id, {
           value: pref.value,
           category: pref.category,
-          description: pref.description,
           updatedAt: Date.now(),
         });
         results.push(result);
@@ -197,11 +195,11 @@ export const resetToDefaults = mutation({
     
     // Create default preferences
     const defaults = [
-      { key: "dashboard_layout", value: "grid", category: "ui", description: "Dashboard layout preference" },
-      { key: "table_page_size", value: 25, category: "ui", description: "Number of items per page in tables" },
-      { key: "show_help_tooltips", value: true, category: "ui", description: "Show help tooltips" },
-      { key: "auto_save_forms", value: true, category: "workflow", description: "Auto-save form data" },
-      { key: "confirm_deletions", value: true, category: "workflow", description: "Show confirmation dialogs for deletions" },
+      { key: "dashboard_layout", value: "grid", category: "ui" },
+      { key: "table_page_size", value: 25, category: "ui" },
+      { key: "show_help_tooltips", value: true, category: "ui" },
+      { key: "auto_save_forms", value: true, category: "workflow" },
+      { key: "confirm_deletions", value: true, category: "workflow" },
     ];
     
     const results = [];

@@ -1,78 +1,35 @@
-import { defineTable } from "convex/server";
-import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-
-export default defineTable({
-  // Core team info
-  name: v.string(),
-  code: v.string(),
-  description: v.optional(v.string()),
-  
-  // Team classification
-  teamType: v.string(), // "department", "faculty", "school", "institute", "center", "unit"
-  level: v.string(), // "faculty", "department", "module", "course"
-  
-  // Relationships
-  departmentId: v.optional(v.id("departments")),
-  facultyId: v.optional(v.id("faculties")),
-  parentTeamId: v.optional(v.id("teams")), // For hierarchical team structure
-  
-  // Team leadership
-  teamLeaderId: v.optional(v.id("user_profiles")),
-  deputyLeaderId: v.optional(v.id("user_profiles")),
-  
-  // Academic context
-  academicYearId: v.optional(v.id("academic_years")), // For year-specific teams
-  
-  // Team composition
-  memberCount: v.optional(v.number()),
-  maxMembers: v.optional(v.number()),
-  isFull: v.optional(v.boolean()),
-  
-  // Team settings
-  isActive: v.boolean(),
-  isSystem: v.boolean(), // System-defined teams
-  isPublic: v.boolean(), // Visible to all users
-  
-  // Workload settings
-  defaultWorkloadHours: v.optional(v.number()),
-  workloadDistribution: v.optional(v.object({
-    teaching: v.optional(v.number()),
-    research: v.optional(v.number()),
-    admin: v.optional(v.number()),
-    other: v.optional(v.number()),
-  })),
-  
-  // Metadata
-  tags: v.optional(v.array(v.string())),
-  notes: v.optional(v.string()),
-  organisationId: v.id("organisations"),
-  
-  // Timestamps
-  createdAt: v.number(),
-  updatedAt: v.number(),
-  deletedAt: v.optional(v.number()),
-});
+import { v } from "convex/values";
 
 // Get all teams
 export const getAll = query({
   args: {
-    academicYearId: v.optional(v.id("academic_years")),
-    teamType: v.optional(v.string()),
+    departmentId: v.optional(v.id("departments")),
+    facultyId: v.optional(v.id("faculties")),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    let query = ctx.db.query("teams");
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
     
-    if (args.academicYearId) {
-      query = query.filter(q => q.eq(q.field("academicYearId"), args.academicYearId));
+    if (!organisation) {
+      throw new Error("No active organisation found");
     }
     
-    if (args.teamType) {
-      query = query.filter(q => q.eq(q.field("teamType"), args.teamType));
+    let query = ctx.db.query("teams")
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+    
+    if (args.departmentId) {
+      query = query.filter(q => q.eq(q.field("departmentId"), args.departmentId));
+    }
+    
+    if (args.facultyId) {
+      query = query.filter(q => q.eq(q.field("facultyId"), args.facultyId));
     }
     
     if (args.isActive !== undefined) {
@@ -83,7 +40,7 @@ export const getAll = query({
   },
 });
 
-// Get team by ID with related data
+// Get team by ID
 export const getById = query({
   args: { id: v.id("teams") },
   handler: async (ctx, args) => {
@@ -93,23 +50,224 @@ export const getById = query({
     const team = await ctx.db.get(args.id);
     if (!team) return null;
     
-    // Get related data
-    const [department, faculty, teamLeader, deputyLeader, parentTeam] = await Promise.all([
+    // Get related department and faculty
+    const [department, faculty] = await Promise.all([
       team.departmentId ? ctx.db.get(team.departmentId) : null,
       team.facultyId ? ctx.db.get(team.facultyId) : null,
-      team.teamLeaderId ? ctx.db.get(team.teamLeaderId) : null,
-      team.deputyLeaderId ? ctx.db.get(team.deputyLeaderId) : null,
-      team.parentTeamId ? ctx.db.get(team.parentTeamId) : null,
     ]);
     
     return {
       ...team,
       department,
       faculty,
-      teamLeader,
-      deputyLeader,
-      parentTeam,
     };
+  },
+});
+
+// Create a new team
+export const create = mutation({
+  args: {
+    name: v.string(),
+    code: v.string(),
+    description: v.optional(v.string()),
+    departmentId: v.optional(v.id("departments")),
+    facultyId: v.optional(v.id("faculties")),
+    teamLeaderId: v.optional(v.id("user_profiles")),
+    contactEmail: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    location: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    // Check if team code already exists
+    const existingTeam = await ctx.db.query("teams")
+      .filter(q => 
+        q.and(
+          q.eq(q.field("code"), args.code),
+          q.eq(q.field("organisationId"), organisation._id)
+        )
+      )
+      .first();
+    
+    if (existingTeam) {
+      throw new Error("Team code already exists");
+    }
+    
+    // Validate that department and faculty belong to the same organisation
+    if (args.departmentId) {
+      const department = await ctx.db.get(args.departmentId);
+      if (!department || department.organisationId !== organisation._id) {
+        throw new Error("Department does not belong to this organisation");
+      }
+    }
+    
+    if (args.facultyId) {
+      const faculty = await ctx.db.get(args.facultyId);
+      if (!faculty || faculty.organisationId !== organisation._id) {
+        throw new Error("Faculty does not belong to this organisation");
+      }
+    }
+    
+         const teamId = await ctx.db.insert("teams", {
+       ...args,
+       teamType: "department", // Default team type
+       level: "department", // Default level
+       isActive: args.isActive ?? true,
+       organisationId: organisation._id,
+       createdAt: Date.now(),
+       updatedAt: Date.now(),
+     });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "create",
+      entityType: "teams",
+      entityId: teamId,
+      changes: args,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return teamId;
+  },
+});
+
+// Update a team
+export const update = mutation({
+  args: {
+    id: v.id("teams"),
+    name: v.optional(v.string()),
+    code: v.optional(v.string()),
+    description: v.optional(v.string()),
+    departmentId: v.optional(v.id("departments")),
+    facultyId: v.optional(v.id("faculties")),
+    teamLeaderId: v.optional(v.id("user_profiles")),
+    contactEmail: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    location: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    const { id, ...updates } = args;
+    
+    // Check if team code already exists (if being updated)
+    if (updates.code) {
+      const existingTeam = await ctx.db.query("teams")
+        .filter(q => 
+          q.and(
+            q.eq(q.field("code"), updates.code),
+            q.eq(q.field("organisationId"), organisation._id),
+            q.neq(q.field("_id"), id)
+          )
+        )
+        .first();
+      
+      if (existingTeam) {
+        throw new Error("Team code already exists");
+      }
+    }
+    
+    // Validate that department and faculty belong to the same organisation
+    if (updates.departmentId) {
+      const department = await ctx.db.get(updates.departmentId);
+      if (!department || department.organisationId !== organisation._id) {
+        throw new Error("Department does not belong to this organisation");
+      }
+    }
+    
+    if (updates.facultyId) {
+      const faculty = await ctx.db.get(updates.facultyId);
+      if (!faculty || faculty.organisationId !== organisation._id) {
+        throw new Error("Faculty does not belong to this organisation");
+      }
+    }
+    
+    await ctx.db.patch(id, {
+      ...updates,
+      updatedAt: Date.now(),
+    });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "update",
+      entityType: "teams",
+      entityId: id,
+      changes: updates,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return id;
+  },
+});
+
+// Delete a team (soft delete)
+export const remove = mutation({
+  args: { id: v.id("teams") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    await ctx.db.patch(args.id, {
+      isActive: false,
+      updatedAt: Date.now(),
+    });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "delete",
+      entityType: "teams",
+      entityId: args.id,
+      changes: { isActive: false },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+    
+    return args.id;
   },
 });
 
@@ -139,147 +297,145 @@ export const getByFaculty = query({
   },
 });
 
-// Create new team
-export const create = mutation({
-  args: {
-    name: v.string(),
-    code: v.string(),
-    description: v.optional(v.string()),
-    teamType: v.string(),
-    level: v.string(),
-    departmentId: v.optional(v.id("departments")),
-    facultyId: v.optional(v.id("faculties")),
-    parentTeamId: v.optional(v.id("teams")),
-    teamLeaderId: v.optional(v.id("user_profiles")),
-    deputyLeaderId: v.optional(v.id("user_profiles")),
-    academicYearId: v.optional(v.id("academic_years")),
-    memberCount: v.optional(v.number()),
-    maxMembers: v.optional(v.number()),
-    defaultWorkloadHours: v.optional(v.number()),
-    workloadDistribution: v.optional(v.object({
-      teaching: v.optional(v.number()),
-      research: v.optional(v.number()),
-      admin: v.optional(v.number()),
-      other: v.optional(v.number()),
-    })),
-    isActive: v.optional(v.boolean()),
-    isSystem: v.optional(v.boolean()),
-    isPublic: v.optional(v.boolean()),
-    tags: v.optional(v.array(v.string())),
-    notes: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
+// Get teams with department and faculty information
+export const getAllWithRelations = query({
+  args: {},
+  handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    // Validate code uniqueness
-    const existingTeam = await ctx.db.query("teams")
-      .filter(q => q.eq(q.field("code"), args.code))
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
       .first();
     
-    if (existingTeam) {
-      throw new Error("Team code must be unique");
+    if (!organisation) {
+      throw new Error("No active organisation found");
     }
     
-    return await ctx.db.insert("teams", {
-      ...args,
-      isActive: args.isActive ?? true,
-      isSystem: args.isSystem ?? false,
-      isPublic: args.isPublic ?? true,
-      isFull: args.maxMembers ? (args.memberCount || 0) >= args.maxMembers : false,
-      organisationId: "default", // TODO: Get from context
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    const teams = await ctx.db.query("teams")
+      .filter(q => q.eq(q.field("organisationId"), organisation._id))
+      .collect();
+    
+    // Fetch related information for each team
+    const teamsWithRelations = await Promise.all(
+      teams.map(async (team) => {
+        const [department, faculty, teamLeader] = await Promise.all([
+          team.departmentId ? ctx.db.get(team.departmentId) : null,
+          team.facultyId ? ctx.db.get(team.facultyId) : null,
+          team.teamLeaderId ? ctx.db.get(team.teamLeaderId) : null,
+        ]);
+        
+        return {
+          ...team,
+          department,
+          faculty,
+          teamLeader,
+        };
+      })
+    );
+    
+    return teamsWithRelations;
   },
 });
 
-// Update team
-export const update = mutation({
+// Bulk import teams
+export const bulkImport = mutation({
   args: {
-    id: v.id("teams"),
-    name: v.optional(v.string()),
-    code: v.optional(v.string()),
-    description: v.optional(v.string()),
-    teamType: v.optional(v.string()),
-    level: v.optional(v.string()),
-    departmentId: v.optional(v.id("departments")),
-    facultyId: v.optional(v.id("faculties")),
-    parentTeamId: v.optional(v.id("teams")),
-    teamLeaderId: v.optional(v.id("user_profiles")),
-    deputyLeaderId: v.optional(v.id("user_profiles")),
-    academicYearId: v.optional(v.id("academic_years")),
-    memberCount: v.optional(v.number()),
-    maxMembers: v.optional(v.number()),
-    defaultWorkloadHours: v.optional(v.number()),
-    workloadDistribution: v.optional(v.object({
-      teaching: v.optional(v.number()),
-      research: v.optional(v.number()),
-      admin: v.optional(v.number()),
-      other: v.optional(v.number()),
-    })),
-    isActive: v.optional(v.boolean()),
-    isPublic: v.optional(v.boolean()),
-    tags: v.optional(v.array(v.string())),
-    notes: v.optional(v.string()),
+    teams: v.array(
+      v.object({
+        name: v.string(),
+        code: v.string(),
+        description: v.optional(v.string()),
+        departmentId: v.optional(v.id("departments")),
+        facultyId: v.optional(v.id("faculties")),
+        teamLeaderId: v.optional(v.id("user_profiles")),
+        contactEmail: v.optional(v.string()),
+        contactPhone: v.optional(v.string()),
+        location: v.optional(v.string()),
+        isActive: v.optional(v.boolean()),
+        notes: v.optional(v.string()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const { id, ...updateData } = args;
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
     
-    // Validate code uniqueness if code is being updated
-    if (updateData.code) {
-      const existingTeam = await ctx.db.query("teams")
-        .filter(q => 
-          q.and(
-            q.eq(q.field("code"), updateData.code),
-            q.neq(q.field("_id"), id)
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    const results = [];
+    for (const teamData of args.teams) {
+      try {
+        // Check if team code already exists
+        const existingTeam = await ctx.db.query("teams")
+          .filter(q => 
+            q.and(
+              q.eq(q.field("code"), teamData.code),
+              q.eq(q.field("organisationId"), organisation._id)
+            )
           )
-        )
-        .first();
-      
-      if (existingTeam) {
-        throw new Error("Team code must be unique");
+          .first();
+        
+        if (existingTeam) {
+          throw new Error(`Team code ${teamData.code} already exists`);
+        }
+        
+        // Validate that department and faculty belong to the same organisation
+        if (teamData.departmentId) {
+          const department = await ctx.db.get(teamData.departmentId);
+          if (!department || department.organisationId !== organisation._id) {
+            throw new Error(`Department does not belong to this organisation for team ${teamData.code}`);
+          }
+        }
+        
+        if (teamData.facultyId) {
+          const faculty = await ctx.db.get(teamData.facultyId);
+          if (!faculty || faculty.organisationId !== organisation._id) {
+            throw new Error(`Faculty does not belong to this organisation for team ${teamData.code}`);
+          }
+        }
+        
+                 const teamId = await ctx.db.insert("teams", {
+           ...teamData,
+           teamType: "department", // Default team type
+           level: "department", // Default level
+           isActive: teamData.isActive ?? true,
+           organisationId: organisation._id,
+           createdAt: Date.now(),
+           updatedAt: Date.now(),
+         });
+        
+        results.push({ success: true, id: teamId, code: teamData.code });
+      } catch (error) {
+        results.push({ success: false, code: teamData.code, error: String(error) });
       }
     }
     
-    // Update isFull status if memberCount or maxMembers changed
-    if (updateData.memberCount !== undefined || updateData.maxMembers !== undefined) {
-      const currentTeam = await ctx.db.get(id);
-      if (currentTeam) {
-        const newMemberCount = updateData.memberCount ?? currentTeam.memberCount ?? 0;
-        const newMaxMembers = updateData.maxMembers ?? currentTeam.maxMembers;
-        updateData.isFull = newMaxMembers ? newMemberCount >= newMaxMembers : false;
-      }
-    }
-    
-    return await ctx.db.patch(id, {
-      ...updateData,
-      updatedAt: Date.now(),
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "bulk_import",
+      entityType: "teams",
+      entityId: "bulk",
+      changes: { 
+        total: args.teams.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length 
+      },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
     });
-  },
-});
-
-// Delete team
-export const remove = mutation({
-  args: { id: v.id("teams") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
     
-    const team = await ctx.db.get(args.id);
-    if (!team) throw new Error("Team not found");
-    
-    if (team.isSystem) {
-      throw new Error("Cannot delete system teams");
-    }
-    
-    // Soft delete
-    return await ctx.db.patch(args.id, {
-      deletedAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    return results;
   },
 }); 
