@@ -1,6 +1,9 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { useUser } from "@clerk/nextjs"
+import { useQuery, useMutation } from "convex/react"
+import { api } from "../../convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -8,49 +11,46 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Camera, Check, X, User, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import type { Id } from "../../convex/_generated/dataModel"
 
 export default function Component() {
+  const { user } = useUser();
   const [open, setOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string>("/placeholder.svg?height=80&width=80");
   const [formData, setFormData] = useState({
-    name: "",
+    fullName: "",
     email: "",
-    job_title: "",
+    jobTitle: "",
     team: "",
     specialism: "",
-    office_location: "",
+    officeLocation: "",
   });
   const [tempData, setTempData] = useState(formData);
 
+  // Fetch user profile from Convex
+  const userProfile = useQuery(api.user_profiles.getByUserId, user?.id ? { userId: user.id } : "skip");
+  const updateProfile = useMutation(api.user_profiles.update);
+
+  // Set form data when profile loads
   useEffect(() => {
-    setLoading(true);
-    fetch("/api/user-profile")
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch user profile");
-        return res.json();
-      })
-      .then(data => {
-        setProfile(data);
-        setFormData({
-          name: data.name || "",
-          email: data.email || "",
-          job_title: data.user_metadata?.job_title || "",
-          team: data.user_metadata?.team || "",
-          specialism: data.user_metadata?.specialism || "",
-          office_location: data.user_metadata?.office_location || "",
-        });
-        setAvatarUrl(data.picture || "/placeholder.svg?height=80&width=80");
-        setLoading(false);
-      })
-      .catch(err => {
-        setError(err.message);
-        setLoading(false);
+    if (userProfile) {
+      setFormData({
+        fullName: userProfile.fullName || "",
+        email: userProfile.email || "",
+        jobTitle: userProfile.jobTitle || "",
+        team: userProfile.team || "",
+        specialism: userProfile.specialism || "",
+        officeLocation: userProfile.officeLocation || "",
       });
-  }, []);
+      setAvatarUrl(userProfile.avatarUrl || "/placeholder.svg?height=80&width=80");
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    setTempData(formData);
+  }, [formData]);
 
   useEffect(() => {
     setTempData(formData);
@@ -62,45 +62,26 @@ export default function Component() {
   }
 
   const handleSave = async () => {
-    if (!profile) {
-      alert("User not found. Please log in again.");
+    if (!userProfile) {
+      toast.error("User profile not found. Please log in again.");
       return;
     }
     setIsEditing(false);
     try {
-      const res = await fetch("/api/auth0-update-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: profile.sub,
-          name: tempData.name,
-          email: tempData.email,
-          picture: avatarUrl,
-          user_metadata: {
-            job_title: tempData.job_title,
-            team: tempData.team,
-            specialism: tempData.specialism,
-            office_location: tempData.office_location,
-          },
-        }),
+      await updateProfile({
+        id: userProfile._id,
+        fullName: tempData.fullName,
+        email: tempData.email,
+        jobTitle: tempData.jobTitle,
+        team: tempData.team,
+        specialism: tempData.specialism,
+        officeLocation: tempData.officeLocation,
+        avatarUrl: avatarUrl,
       });
-      if (res.ok) {
-        const { user: updatedUser } = await res.json();
-        setProfile(updatedUser);
-        setFormData({
-          name: updatedUser.name,
-          email: updatedUser.email,
-          job_title: updatedUser.user_metadata?.job_title || "",
-          team: updatedUser.user_metadata?.team || "",
-          specialism: updatedUser.user_metadata?.specialism || "",
-          office_location: updatedUser.user_metadata?.office_location || "",
-        });
-        setAvatarUrl(updatedUser.picture);
-      } else {
-        alert("Failed to update profile.");
-      }
+      toast.success("Profile updated successfully");
     } catch (err) {
-      alert("Failed to update profile.");
+      toast.error("Failed to update profile.");
+      console.error("Profile update error:", err);
     }
   }
 
@@ -129,19 +110,17 @@ export default function Component() {
       .slice(0, 2)
   }
 
-  if (loading) {
+  if (!user) {
+    return <div className="flex items-center justify-center min-h-screen bg-gray-50">You must be logged in to view your profile.</div>;
+  }
+
+  if (!userProfile) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
         <Loader2 className="animate-spin h-8 w-8 text-primary mb-4" />
         <span className="text-muted-foreground text-lg font-medium">Loading your profile, please wait...</span>
       </div>
     );
-  }
-  if (error) {
-    return <div className="flex items-center justify-center min-h-screen bg-gray-50">{error}</div>;
-  }
-  if (!profile) {
-    return <div className="flex items-center justify-center min-h-screen bg-gray-50">You must be logged in to view your profile.</div>;
   }
 
   return (
@@ -150,8 +129,8 @@ export default function Component() {
         <PopoverTrigger asChild>
           <Button variant="ghost" className="relative h-10 w-10 rounded-full">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={isEditing ? (avatarUrl || "/placeholder.svg") : (profile.picture || "/placeholder.svg") } alt={isEditing ? tempData.name : profile.name} />
-              <AvatarFallback>{getInitials(isEditing ? tempData.name : (profile.name || ""))}</AvatarFallback>
+              <AvatarImage src={isEditing ? (avatarUrl || "/placeholder.svg") : (userProfile.avatarUrl || "/placeholder.svg") } alt={isEditing ? tempData.fullName : userProfile.fullName} />
+              <AvatarFallback>{getInitials(isEditing ? tempData.fullName : (userProfile.fullName || ""))}</AvatarFallback>
             </Avatar>
           </Button>
         </PopoverTrigger>
@@ -160,8 +139,8 @@ export default function Component() {
             <div className="flex items-center space-x-4 mb-4">
               <div className="relative">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={isEditing ? (avatarUrl || "/placeholder.svg") : (profile.picture || "/placeholder.svg")} alt={isEditing ? tempData.name : profile.name} />
-                  <AvatarFallback className="text-lg">{getInitials(isEditing ? tempData.name : (profile.name || ""))}</AvatarFallback>
+                  <AvatarImage src={isEditing ? (avatarUrl || "/placeholder.svg") : (userProfile.avatarUrl || "/placeholder.svg")} alt={isEditing ? tempData.fullName : userProfile.fullName} />
+                  <AvatarFallback className="text-lg">{getInitials(isEditing ? tempData.fullName : (userProfile.fullName || ""))}</AvatarFallback>
                 </Avatar>
                 {isEditing && (
                   <label
@@ -180,8 +159,8 @@ export default function Component() {
                 )}
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-lg">{isEditing ? tempData.name : profile.name}</h3>
-                <p className="text-sm text-muted-foreground">{isEditing ? tempData.email : profile.email}</p>
+                <h3 className="font-semibold text-lg">{isEditing ? tempData.fullName : userProfile.fullName}</h3>
+                <p className="text-sm text-muted-foreground">{isEditing ? tempData.email : userProfile.email}</p>
               </div>
             </div>
 
@@ -190,11 +169,11 @@ export default function Component() {
             {isEditing ? (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label htmlFor="fullName">Full Name</Label>
                   <Input
-                    id="name"
-                    value={tempData.name}
-                    onChange={(e) => setTempData({ ...tempData, name: e.target.value })}
+                    id="fullName"
+                    value={tempData.fullName}
+                    onChange={(e) => setTempData({ ...tempData, fullName: e.target.value })}
                     placeholder="Enter your full name"
                   />
                 </div>
@@ -209,11 +188,11 @@ export default function Component() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="job_title">Job Title</Label>
+                  <Label htmlFor="jobTitle">Job Title</Label>
                   <Input
-                    id="job_title"
-                    value={tempData.job_title}
-                    onChange={(e) => setTempData({ ...tempData, job_title: e.target.value })}
+                    id="jobTitle"
+                    value={tempData.jobTitle}
+                    onChange={(e) => setTempData({ ...tempData, jobTitle: e.target.value })}
                     placeholder="e.g. Senior Lecturer"
                   />
                 </div>
@@ -236,11 +215,11 @@ export default function Component() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="office_location">Office Location</Label>
+                  <Label htmlFor="officeLocation">Office Location</Label>
                   <Input
-                    id="office_location"
-                    value={tempData.office_location}
-                    onChange={(e) => setTempData({ ...tempData, office_location: e.target.value })}
+                    id="officeLocation"
+                    value={tempData.officeLocation}
+                    onChange={(e) => setTempData({ ...tempData, officeLocation: e.target.value })}
                     placeholder="e.g. Paragon House"
                   />
                 </div>
@@ -262,37 +241,37 @@ export default function Component() {
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Full Name
                     </Label>
-                    <p className="text-sm font-medium mt-1">{profile.name}</p>
+                    <p className="text-sm font-medium mt-1">{userProfile.fullName}</p>
                   </div>
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Email Address
                     </Label>
-                    <p className="text-sm font-medium mt-1">{profile.email}</p>
+                    <p className="text-sm font-medium mt-1">{userProfile.email}</p>
                   </div>
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Job Title
                     </Label>
-                    <p className="text-sm font-medium mt-1">{profile.user_metadata?.job_title || '-'}</p>
+                    <p className="text-sm font-medium mt-1">{userProfile.jobTitle || '-'}</p>
                   </div>
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Team
                     </Label>
-                    <p className="text-sm font-medium mt-1">{profile.user_metadata?.team || '-'}</p>
+                    <p className="text-sm font-medium mt-1">{userProfile.team || '-'}</p>
                   </div>
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Specialism
                     </Label>
-                    <p className="text-sm font-medium mt-1">{profile.user_metadata?.specialism || '-'}</p>
+                    <p className="text-sm font-medium mt-1">{userProfile.specialism || '-'}</p>
                   </div>
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Office Location
                     </Label>
-                    <p className="text-sm font-medium mt-1">{profile.user_metadata?.office_location || '-'}</p>
+                    <p className="text-sm font-medium mt-1">{userProfile.officeLocation || '-'}</p>
                   </div>
                 </div>
                 <Button onClick={handleEdit} className="w-full" size="sm">
