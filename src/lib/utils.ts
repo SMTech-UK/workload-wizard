@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-
 import isDeepEqual from "fast-deep-equal";
+import type { Id } from "../../convex/_generated/dataModel";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -82,6 +82,31 @@ export function formatDate(date: Date | string | number | null | undefined): str
 }
 
 /**
+ * Format timestamp to readable string with time
+ */
+export function formatDateTime(date: Date | string | number | null | undefined): string {
+  if (!date) {
+    return 'Invalid Date';
+  }
+  
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return 'Invalid Date';
+    }
+    return dateObj.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return 'Invalid Date';
+  }
+}
+
+/**
  * Debounce function calls
  */
 export function debounce<T extends (...args: any[]) => any>(
@@ -116,9 +141,17 @@ export function throttle<T extends (...args: any[]) => any>(
 
 /**
  * Generate contract string (e.g., 1AP, 0.6TA) and total contract hours based on FTE and family.
- * Uses Math.round for all rounding.
+ * Updated for new profile-based schema.
  */
-export function generateContractAndHours({ fte, family, standardContractHours }: { fte: number; family: string; standardContractHours: number }) {
+export function generateContractAndHours({ 
+  fte, 
+  family, 
+  standardContractHours = 1650 
+}: { 
+  fte: number; 
+  family: string; 
+  standardContractHours?: number;
+}) {
   const roundedFte = Math.round(fte * 100) / 100;
   const fteStr = Number.isInteger(roundedFte) ? String(roundedFte) : String(roundedFte);
   const familyInitials = getFamilyInitialsForContract(family);
@@ -129,9 +162,17 @@ export function generateContractAndHours({ fte, family, standardContractHours }:
 
 /**
  * Calculate max teaching hours and teaching availability.
- * Uses Math.round for all rounding.
+ * Updated for new profile-based schema.
  */
-export function calculateTeachingHours({ totalContract, family, allocatedTeachingHours = 0 }: { totalContract: number; family: string; allocatedTeachingHours?: number }) {
+export function calculateTeachingHours({ 
+  totalContract, 
+  family, 
+  allocatedTeachingHours = 0 
+}: { 
+  totalContract: number; 
+  family: string; 
+  allocatedTeachingHours?: number;
+}) {
   const teachingPct = getTeachingPercentage(family);
   const maxTeachingHours = Math.round(totalContract * teachingPct);
   const teachingAvailability = maxTeachingHours - allocatedTeachingHours;
@@ -139,10 +180,129 @@ export function calculateTeachingHours({ totalContract, family, allocatedTeachin
 }
 
 /**
+ * Calculate utilization percentage for a lecturer
+ * @param allocatedHours - Total allocated hours
+ * @param contractHours - Total contract hours
+ * @returns Utilization percentage (0-100+)
+ */
+export function calculateUtilization(allocatedHours: number, contractHours: number): number {
+  if (contractHours <= 0) return 0;
+  return Math.round((allocatedHours / contractHours) * 100);
+}
+
+/**
+ * Get utilization status based on percentage
+ * @param utilization - Utilization percentage
+ * @returns Status string
+ */
+export function getUtilizationStatus(utilization: number): 'overloaded' | 'near-capacity' | 'good' | 'available' {
+  if (utilization > 100) return 'overloaded';
+  if (utilization >= 90) return 'near-capacity';
+  if (utilization >= 70) return 'good';
+  return 'available';
+}
+
+/**
+ * Validate academic year format
+ * @param academicYear - Academic year string to validate
+ * @returns True if valid format
+ */
+export function isValidAcademicYear(academicYear: string): boolean {
+  const pattern = /^\d{4}-\d{2}$/;
+  if (!pattern.test(academicYear)) {
+    return false;
+  }
+  
+  const [startYear, endYear] = academicYear.split('-');
+  const start = parseInt(startYear, 10);
+  const end = parseInt(endYear, 10);
+  
+  return end === start + 1;
+}
+
+/**
+ * Format academic year for display
+ * @param academicYear - Academic year string
+ * @returns Formatted string
+ */
+export function formatAcademicYear(academicYear: string): string {
+  return `Academic Year ${academicYear}`;
+}
+
+/**
+ * Get semester label from semester number
+ * @param semester - Semester number (1, 2, 3)
+ * @returns Semester label
+ */
+export function getSemesterLabel(semester: string | number): string {
+  switch (String(semester)) {
+    case "1":
+      return "Semester 1";
+    case "2":
+      return "Semester 2";
+    case "3":
+      return "Summer";
+    default:
+      return `Semester ${semester}`;
+  }
+}
+
+/**
  * Deep equality check for objects (uses fast-deep-equal).
  */
 export function deepEqual(a: any, b: any) {
   return isDeepEqual(a, b);
+}
+
+/**
+ * Generate a unique ID for temporary use
+ * @returns Temporary ID string
+ */
+export function generateTempId(): string {
+  return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Validate email format
+ * @param email - Email string to validate
+ * @returns True if valid email format
+ */
+export function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
+ * Capitalize first letter of each word
+ * @param str - String to capitalize
+ * @returns Capitalized string
+ */
+export function capitalizeWords(str: string): string {
+  return str.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+/**
+ * Format file size in human readable format
+ * @param bytes - File size in bytes
+ * @returns Formatted file size string
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Check if a value is a valid ID
+ * @param value - Value to check
+ * @returns True if valid ID format
+ */
+export function isValidId(value: any): boolean {
+  return typeof value === 'string' && value.length > 0 && value !== 'undefined' && value !== 'null';
 }
 
 // These helpers are copied from staff-edit-modal for reuse

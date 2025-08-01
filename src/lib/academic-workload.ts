@@ -4,7 +4,7 @@
  * Provides comprehensive functions for FTE calculations, workload validation,
  * academic year management, and workload distribution algorithms.
  * 
- * Based on WorkloadWizard PRD requirements and academic workload standards.
+ * Updated for new profile-based database schema.
  */
 
 import { Id } from "../../convex/_generated/dataModel";
@@ -13,79 +13,100 @@ import { Id } from "../../convex/_generated/dataModel";
 // TYPES AND INTERFACES
 // ============================================================================
 
-export interface Lecturer {
-  _id: Id<"lecturers">;
+export interface LecturerProfile {
+  _id: Id<"lecturer_profiles">;
   fullName: string;
   email: string;
-  contract: string;
+  family: string;
   fte: number;
-  team: string;
-  role: string;
-  status: "active" | "inactive";
-  totalContract: number;
-  maxTeachingHours: number;
-  allocatedTeachingHours: number;
-  allocatedAdminHours: number;
   capacity: number;
+  maxTeachingHours: number;
+  totalContract: number;
+  isActive: boolean;
+  organisationId: Id<"organisations">;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Lecturer {
+  _id: Id<"lecturers">;
+  profileId: Id<"lecturer_profiles">;
+  academicYearId: Id<"academic_years">;
   teachingAvailability: number;
   totalAllocated: number;
-  specialism?: string;
+  allocatedTeachingHours: number;
+  allocatedAdminHours: number;
+  allocatedResearchHours: number;
+  allocatedOtherHours: number;
+  team?: string;
+  isActive: boolean;
+  organisationId: Id<"organisations">;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface Module {
   _id: Id<"modules">;
   code: string;
   title: string;
+  description?: string;
   credits: number;
   level: number;
-  moduleLeader: string;
+  moduleLeaderId?: Id<"lecturer_profiles">;
   defaultTeachingHours: number;
   defaultMarkingHours: number;
+  isActive: boolean;
+  organisationId: Id<"organisations">;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface ModuleIteration {
   _id: Id<"module_iterations">;
-  module_id: Id<"modules">;
-  cohort_id: Id<"cohorts">;
+  moduleId: Id<"modules">;
+  academicYearId: Id<"academic_years">;
   semester: string;
-  sites: string[];
-  hours: {
-    teaching: number;
-    marking: number;
-    cpd: number;
-    leadership: number;
-  };
-  assessments: {
-    internal: boolean;
-    external_examiner: boolean;
-    requirements: string;
-  };
+  year: number;
+  assignedLecturerIds: string[];
+  assignedStatus: string;
+  isActive: boolean;
+  organisationId: Id<"organisations">;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface ModuleAllocation {
   _id: Id<"module_allocations">;
-  module_iteration_id: Id<"module_iterations">;
-  lecturer_id: Id<"lecturers">;
-  group: string;
-  site: string;
-  hours: {
-    teaching: number;
-    marking: number;
-    cpd: number;
-    leadership: number;
-  };
-  notes?: string;
-  created_at: number;
-  updated_at: number;
+  moduleIterationId: Id<"module_iterations">;
+  lecturerId: Id<"lecturers">;
+  allocationTypeId?: Id<"allocation_types">;
+  teachingHours: number;
+  markingHours: number;
+  isActive: boolean;
+  organisationId: Id<"organisations">;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface AdminAllocation {
   _id: Id<"admin_allocations">;
-  lecturer_id: Id<"lecturers">;
-  academic_year: string;
-  category: "leadership" | "research" | "admin" | "other";
+  lecturerId: Id<"lecturers">;
+  academicYearId: Id<"academic_years">;
+  categoryId: Id<"admin_allocation_categories">;
   hours: number;
   description: string;
+  isActive: boolean;
+  organisationId: Id<"organisations">;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AcademicYear {
+  _id: Id<"academic_years">;
+  name: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
 }
 
 export interface WorkloadValidationResult {
@@ -101,9 +122,9 @@ export interface FTECalculationResult {
   breakdown: {
     teaching: number;
     marking: number;
-    cpd: number;
-    leadership: number;
     admin: number;
+    research: number;
+    other: number;
   };
   utilization: number;
   capacity: number;
@@ -124,13 +145,14 @@ export interface AcademicYearInfo {
 
 export interface WorkloadDistributionResult {
   lecturerId: Id<"lecturers">;
+  profileId: Id<"lecturer_profiles">;
   totalHours: number;
   breakdown: {
     teaching: number;
     marking: number;
-    cpd: number;
-    leadership: number;
     admin: number;
+    research: number;
+    other: number;
   };
   utilization: number;
   capacity: number;
@@ -168,7 +190,7 @@ export const ACADEMIC_CONSTANTS = {
   // Validation rules
   MIN_CREDITS: 10,
   MAX_CREDITS: 60,
-  MIN_LEVEL: 4, // Undergraduate level 4
+  MIN_LEVEL: 3, // Undergraduate level 3
   MAX_LEVEL: 7, // Postgraduate level 7
 } as const;
 
@@ -195,6 +217,7 @@ export function calculateFTE(
 
 /**
  * Calculate total workload hours from various allocations
+ * Updated for new schema structure
  * @param allocations - Array of module allocations
  * @param adminAllocations - Array of administrative allocations
  * @returns Total hours breakdown
@@ -205,26 +228,24 @@ export function calculateTotalWorkloadHours(
 ): {
   teaching: number;
   marking: number;
-  cpd: number;
-  leadership: number;
   admin: number;
+  research: number;
+  other: number;
   total: number;
 } {
   const workload = {
     teaching: 0,
     marking: 0,
-    cpd: 0,
-    leadership: 0,
     admin: 0,
+    research: 0,
+    other: 0,
     total: 0,
   };
 
   // Sum up module allocation hours
   for (const allocation of allocations) {
-    workload.teaching += allocation.hours.teaching || 0;
-    workload.marking += allocation.hours.marking || 0;
-    workload.cpd += allocation.hours.cpd || 0;
-    workload.leadership += allocation.hours.leadership || 0;
+    workload.teaching += allocation.teachingHours || 0;
+    workload.marking += allocation.markingHours || 0;
   }
 
   // Sum up administrative allocation hours
@@ -232,28 +253,32 @@ export function calculateTotalWorkloadHours(
     workload.admin += adminAlloc.hours || 0;
   }
 
-  workload.total = workload.teaching + workload.marking + workload.cpd + 
-                   workload.leadership + workload.admin;
+  workload.total = workload.teaching + workload.marking + workload.admin + 
+                   workload.research + workload.other;
 
   return workload;
 }
 
 /**
  * Calculate comprehensive FTE breakdown for a lecturer
+ * Updated for profile-based schema
  * @param lecturer - Lecturer data
+ * @param profile - Lecturer profile data
  * @param allocations - Module allocations for the lecturer
  * @param adminAllocations - Administrative allocations for the lecturer
  * @returns Detailed FTE calculation result
  */
 export function calculateLecturerFTE(
   lecturer: Lecturer,
+  profile: LecturerProfile,
   allocations: ModuleAllocation[],
   adminAllocations: AdminAllocation[] = []
 ): FTECalculationResult {
   const workload = calculateTotalWorkloadHours(allocations, adminAllocations);
   const fte = calculateFTE(workload.total);
-  const utilization = workload.total / lecturer.totalContract;
-  const capacity = lecturer.totalContract - workload.total;
+  const totalContract = profile.totalContract || lecturer.totalAllocated;
+  const utilization = totalContract > 0 ? workload.total / totalContract : 0;
+  const capacity = totalContract - workload.total;
 
   return {
     fte,
@@ -275,7 +300,7 @@ export function calculateUtilization(
   contractHours: number
 ): number {
   if (contractHours <= 0) {
-    throw new Error("Contract hours must be greater than 0");
+    return 0;
   }
   
   return (allocatedHours / contractHours) * 100;
@@ -287,13 +312,16 @@ export function calculateUtilization(
 
 /**
  * Validate lecturer workload against academic standards
+ * Updated for profile-based schema
  * @param lecturer - Lecturer data
+ * @param profile - Lecturer profile data
  * @param allocations - Module allocations
  * @param adminAllocations - Administrative allocations
  * @returns Validation result with errors, warnings, and recommendations
  */
 export function validateLecturerWorkload(
   lecturer: Lecturer,
+  profile: LecturerProfile,
   allocations: ModuleAllocation[],
   adminAllocations: AdminAllocation[] = []
 ): WorkloadValidationResult {
@@ -304,84 +332,65 @@ export function validateLecturerWorkload(
     recommendations: [],
   };
 
-  const fteResult = calculateLecturerFTE(lecturer, allocations, adminAllocations);
+  const fteResult = calculateLecturerFTE(lecturer, profile, allocations, adminAllocations);
   const workload = fteResult.breakdown;
+  const totalContract = profile.totalContract;
 
   // Check for critical overload
   if (fteResult.utilization > ACADEMIC_CONSTANTS.CRITICAL_OVERLOAD) {
     result.isValid = false;
     result.errors.push(
-      `Critical overload: ${fteResult.utilization.toFixed(1)}% utilization exceeds ${ACADEMIC_CONSTANTS.CRITICAL_OVERLOAD * 100}%`
+      `Critical overload: ${(fteResult.utilization * 100).toFixed(1)}% utilization exceeds ${ACADEMIC_CONSTANTS.CRITICAL_OVERLOAD * 100}%`
     );
   }
 
   // Check for overload warning
   if (fteResult.utilization > ACADEMIC_CONSTANTS.OVERLOAD_THRESHOLD) {
     result.warnings.push(
-      `High utilization: ${fteResult.utilization.toFixed(1)}% utilization exceeds ${ACADEMIC_CONSTANTS.OVERLOAD_THRESHOLD * 100}%`
+      `High utilization: ${(fteResult.utilization * 100).toFixed(1)}% utilization exceeds ${ACADEMIC_CONSTANTS.OVERLOAD_THRESHOLD * 100}%`
     );
   }
 
   // Check for underload
   if (fteResult.utilization < ACADEMIC_CONSTANTS.UNDERLOAD_THRESHOLD) {
     result.warnings.push(
-      `Low utilization: ${fteResult.utilization.toFixed(1)}% utilization below ${ACADEMIC_CONSTANTS.UNDERLOAD_THRESHOLD * 100}%`
+      `Low utilization: ${(fteResult.utilization * 100).toFixed(1)}% utilization below ${ACADEMIC_CONSTANTS.UNDERLOAD_THRESHOLD * 100}%`
     );
   }
 
   // Validate teaching ratio
-  const teachingRatio = workload.teaching / lecturer.totalContract;
-  if (teachingRatio > ACADEMIC_CONSTANTS.MAX_TEACHING_RATIO) {
-    result.errors.push(
-      `Teaching hours (${workload.teaching}) exceed maximum ratio of ${ACADEMIC_CONSTANTS.MAX_TEACHING_RATIO * 100}%`
-    );
-    result.isValid = false;
-  }
+  if (totalContract > 0) {
+    const teachingRatio = workload.teaching / totalContract;
+    if (teachingRatio > ACADEMIC_CONSTANTS.MAX_TEACHING_RATIO) {
+      result.errors.push(
+        `Teaching hours (${workload.teaching}) exceed maximum ratio of ${ACADEMIC_CONSTANTS.MAX_TEACHING_RATIO * 100}%`
+      );
+      result.isValid = false;
+    }
 
-  // Validate marking ratio
-  const markingRatio = workload.marking / lecturer.totalContract;
-  if (markingRatio > ACADEMIC_CONSTANTS.MAX_MARKING_RATIO) {
-    result.errors.push(
-      `Marking hours (${workload.marking}) exceed maximum ratio of ${ACADEMIC_CONSTANTS.MAX_MARKING_RATIO * 100}%`
-    );
-    result.isValid = false;
-  }
+    // Validate marking ratio
+    const markingRatio = workload.marking / totalContract;
+    if (markingRatio > ACADEMIC_CONSTANTS.MAX_MARKING_RATIO) {
+      result.errors.push(
+        `Marking hours (${workload.marking}) exceed maximum ratio of ${ACADEMIC_CONSTANTS.MAX_MARKING_RATIO * 100}%`
+      );
+      result.isValid = false;
+    }
 
-  // Validate CPD minimum
-  if (workload.cpd < ACADEMIC_CONSTANTS.MIN_CPD_HOURS) {
-    result.warnings.push(
-      `CPD hours (${workload.cpd}) below minimum requirement of ${ACADEMIC_CONSTANTS.MIN_CPD_HOURS} hours`
-    );
-  }
-
-  // Validate leadership ratio
-  const leadershipRatio = workload.leadership / lecturer.totalContract;
-  if (leadershipRatio > ACADEMIC_CONSTANTS.MAX_LEADERSHIP_RATIO) {
-    result.errors.push(
-      `Leadership hours (${workload.leadership}) exceed maximum ratio of ${ACADEMIC_CONSTANTS.MAX_LEADERSHIP_RATIO * 100}%`
-    );
-    result.isValid = false;
-  }
-
-  // Validate admin ratio
-  const adminRatio = workload.admin / lecturer.totalContract;
-  if (adminRatio > ACADEMIC_CONSTANTS.MAX_ADMIN_RATIO) {
-    result.errors.push(
-      `Administrative hours (${workload.admin}) exceed maximum ratio of ${ACADEMIC_CONSTANTS.MAX_ADMIN_RATIO * 100}%`
-    );
-    result.isValid = false;
+    // Validate admin ratio
+    const adminRatio = workload.admin / totalContract;
+    if (adminRatio > ACADEMIC_CONSTANTS.MAX_ADMIN_RATIO) {
+      result.errors.push(
+        `Administrative hours (${workload.admin}) exceed maximum ratio of ${ACADEMIC_CONSTANTS.MAX_ADMIN_RATIO * 100}%`
+      );
+      result.isValid = false;
+    }
   }
 
   // Generate recommendations
   if (fteResult.utilization > ACADEMIC_CONSTANTS.OVERLOAD_THRESHOLD) {
     result.recommendations.push(
       "Consider redistributing workload or reducing teaching commitments"
-    );
-  }
-
-  if (workload.cpd < ACADEMIC_CONSTANTS.MIN_CPD_HOURS) {
-    result.recommendations.push(
-      "Increase CPD allocation to meet minimum requirements"
     );
   }
 
@@ -396,6 +405,7 @@ export function validateLecturerWorkload(
 
 /**
  * Validate module data against academic standards
+ * Updated for new schema
  * @param module - Module data
  * @returns Validation result
  */
@@ -464,14 +474,17 @@ export function validateModule(module: Module): WorkloadValidationResult {
 
 /**
  * Validate module allocation against lecturer capacity
+ * Updated for new schema
  * @param allocation - Module allocation
  * @param lecturer - Lecturer data
+ * @param profile - Lecturer profile data
  * @param existingAllocations - Existing allocations for the lecturer
  * @returns Validation result
  */
 export function validateModuleAllocation(
   allocation: ModuleAllocation,
   lecturer: Lecturer,
+  profile: LecturerProfile,
   existingAllocations: ModuleAllocation[] = []
 ): WorkloadValidationResult {
   const result: WorkloadValidationResult = {
@@ -482,36 +495,32 @@ export function validateModuleAllocation(
   };
 
   // Calculate total hours for this allocation
-  const allocationHours = 
-    allocation.hours.teaching + 
-    allocation.hours.marking + 
-    allocation.hours.cpd + 
-    allocation.hours.leadership;
+  const allocationHours = allocation.teachingHours + allocation.markingHours;
 
   // Check if allocation exceeds lecturer capacity
-  if (allocationHours > lecturer.capacity) {
+  if (allocationHours > profile.capacity) {
     result.errors.push(
-      `Allocation hours (${allocationHours}) exceed lecturer capacity (${lecturer.capacity})`
+      `Allocation hours (${allocationHours}) exceed lecturer capacity (${profile.capacity})`
     );
     result.isValid = false;
   }
 
   // Check if allocation exceeds teaching availability
-  if (allocation.hours.teaching > lecturer.teachingAvailability) {
+  if (allocation.teachingHours > lecturer.teachingAvailability) {
     result.errors.push(
-      `Teaching hours (${allocation.hours.teaching}) exceed teaching availability (${lecturer.teachingAvailability})`
+      `Teaching hours (${allocation.teachingHours}) exceed teaching availability (${lecturer.teachingAvailability})`
     );
     result.isValid = false;
   }
 
   // Simulate adding this allocation to existing workload
   const simulatedAllocations = [...existingAllocations, allocation];
-  const fteResult = calculateLecturerFTE(lecturer, simulatedAllocations);
+  const fteResult = calculateLecturerFTE(lecturer, profile, simulatedAllocations);
 
   // Check for overload after allocation
   if (fteResult.utilization > ACADEMIC_CONSTANTS.OVERLOAD_THRESHOLD) {
     result.warnings.push(
-      `Allocation would result in ${fteResult.utilization.toFixed(1)}% utilization`
+      `Allocation would result in ${(fteResult.utilization * 100).toFixed(1)}% utilization`
     );
   }
 
@@ -637,33 +646,46 @@ export function getTeachingWeeksForSemester(
 
 /**
  * Distribute workload across lecturers based on capacity and preferences
+ * Updated for profile-based schema
  * @param lecturers - Available lecturers
+ * @param profiles - Lecturer profiles
  * @param moduleIterations - Module iterations to allocate
  * @param existingAllocations - Existing allocations
  * @returns Distribution result for each lecturer
  */
 export function distributeWorkload(
   lecturers: Lecturer[],
+  profiles: LecturerProfile[],
   moduleIterations: ModuleIteration[],
   existingAllocations: ModuleAllocation[] = []
 ): WorkloadDistributionResult[] {
   const results: WorkloadDistributionResult[] = [];
   
+  // Create profile lookup map
+  const profileMap = new Map<Id<"lecturer_profiles">, LecturerProfile>();
+  for (const profile of profiles) {
+    profileMap.set(profile._id, profile);
+  }
+  
   // Group existing allocations by lecturer
   const allocationsByLecturer = new Map<Id<"lecturers">, ModuleAllocation[]>();
   for (const allocation of existingAllocations) {
-    const lecturerAllocations = allocationsByLecturer.get(allocation.lecturer_id) || [];
+    const lecturerAllocations = allocationsByLecturer.get(allocation.lecturerId) || [];
     lecturerAllocations.push(allocation);
-    allocationsByLecturer.set(allocation.lecturer_id, lecturerAllocations);
+    allocationsByLecturer.set(allocation.lecturerId, lecturerAllocations);
   }
 
   // Calculate current workload for each lecturer
   for (const lecturer of lecturers) {
+    const profile = profileMap.get(lecturer.profileId);
+    if (!profile) continue;
+    
     const currentAllocations = allocationsByLecturer.get(lecturer._id) || [];
-    const fteResult = calculateLecturerFTE(lecturer, currentAllocations);
+    const fteResult = calculateLecturerFTE(lecturer, profile, currentAllocations);
     
     const result: WorkloadDistributionResult = {
       lecturerId: lecturer._id,
+      profileId: lecturer.profileId,
       totalHours: fteResult.totalHours,
       breakdown: fteResult.breakdown,
       utilization: fteResult.utilization,
@@ -680,136 +702,26 @@ export function distributeWorkload(
       result.recommendations.push("Available for additional teaching responsibilities");
     }
 
-    if (fteResult.breakdown.cpd < ACADEMIC_CONSTANTS.MIN_CPD_HOURS) {
-      result.recommendations.push("CPD allocation below minimum requirements");
-    }
-
     results.push(result);
   }
 
   return results;
 }
 
-/**
- * Optimize workload distribution using a greedy algorithm
- * @param lecturers - Available lecturers
- * @param moduleIterations - Module iterations to allocate
- * @param existingAllocations - Existing allocations
- * @returns Optimized allocation suggestions
- */
-export function optimizeWorkloadDistribution(
-  lecturers: Lecturer[],
-  moduleIterations: ModuleIteration[],
-  existingAllocations: ModuleAllocation[] = []
-): {
-  suggestions: Array<{
-    lecturerId: Id<"lecturers">;
-    moduleIterationId: Id<"module_iterations">;
-    hours: { teaching: number; marking: number; cpd: number; leadership: number };
-    priority: "high" | "medium" | "low";
-  }>;
-  totalUtilization: number;
-  balanceScore: number;
-} {
-  const suggestions: Array<{
-    lecturerId: Id<"lecturers">;
-    moduleIterationId: Id<"module_iterations">;
-    hours: { teaching: number; marking: number; cpd: number; leadership: number };
-    priority: "high" | "medium" | "low";
-  }> = [];
 
-  // Calculate current utilization for each lecturer
-  const currentUtilization = new Map<Id<"lecturers">, number>();
-  const allocationsByLecturer = new Map<Id<"lecturers">, ModuleAllocation[]>();
-  
-  for (const allocation of existingAllocations) {
-    const lecturerAllocations = allocationsByLecturer.get(allocation.lecturer_id) || [];
-    lecturerAllocations.push(allocation);
-    allocationsByLecturer.set(allocation.lecturer_id, lecturerAllocations);
-  }
-
-  for (const lecturer of lecturers) {
-    const currentAllocations = allocationsByLecturer.get(lecturer._id) || [];
-    const fteResult = calculateLecturerFTE(lecturer, currentAllocations);
-    currentUtilization.set(lecturer._id, fteResult.utilization);
-  }
-
-  // Sort lecturers by utilization (ascending - least utilized first)
-  const sortedLecturers = [...lecturers].sort((a, b) => {
-    const utilA = currentUtilization.get(a._id) || 0;
-    const utilB = currentUtilization.get(b._id) || 0;
-    return utilA - utilB;
-  });
-
-  // Sort module iterations by total hours (descending - largest first)
-  const sortedModuleIterations = [...moduleIterations].sort((a, b) => {
-    const hoursA = a.hours.teaching + a.hours.marking + a.hours.cpd + a.hours.leadership;
-    const hoursB = b.hours.teaching + b.hours.marking + b.hours.cpd + b.hours.leadership;
-    return hoursB - hoursA;
-  });
-
-  // Distribute modules to lecturers
-  for (const moduleIteration of sortedModuleIterations) {
-    let allocated = false;
-    
-    for (const lecturer of sortedLecturers) {
-      const currentUtil = currentUtilization.get(lecturer._id) || 0;
-      const moduleHours = moduleIteration.hours.teaching + moduleIteration.hours.marking + 
-                         moduleIteration.hours.cpd + moduleIteration.hours.leadership;
-      
-      // Check if lecturer can take this module
-      if (currentUtil + (moduleHours / lecturer.totalContract) <= ACADEMIC_CONSTANTS.OVERLOAD_THRESHOLD) {
-        suggestions.push({
-          lecturerId: lecturer._id,
-          moduleIterationId: moduleIteration._id,
-          hours: moduleIteration.hours,
-          priority: currentUtil < ACADEMIC_CONSTANTS.UNDERLOAD_THRESHOLD ? "high" : "medium",
-        });
-        
-        // Update utilization
-        currentUtilization.set(lecturer._id, currentUtil + (moduleHours / lecturer.totalContract));
-        allocated = true;
-        break;
-      }
-    }
-    
-    if (!allocated) {
-      // If no lecturer can take it without overload, assign to least utilized
-      const leastUtilized = sortedLecturers[0];
-      suggestions.push({
-        lecturerId: leastUtilized._id,
-        moduleIterationId: moduleIteration._id,
-        hours: moduleIteration.hours,
-        priority: "low", // This will cause overload
-      });
-    }
-  }
-
-  // Calculate overall metrics
-  const totalUtilization = Array.from(currentUtilization.values()).reduce((sum, util) => sum + util, 0) / lecturers.length;
-  
-  // Calculate balance score (lower is better - closer to 1.0)
-  const utilizations = Array.from(currentUtilization.values());
-  const meanUtilization = utilizations.reduce((sum, util) => sum + util, 0) / utilizations.length;
-  const variance = utilizations.reduce((sum, util) => sum + Math.pow(util - meanUtilization, 2), 0) / utilizations.length;
-  const balanceScore = Math.sqrt(variance);
-
-  return {
-    suggestions,
-    totalUtilization,
-    balanceScore,
-  };
-}
 
 /**
  * Calculate workload balance metrics for a department
+ * Updated for profile-based schema
  * @param lecturers - Department lecturers
+ * @param profiles - Lecturer profiles
  * @param allocations - All allocations
  * @param adminAllocations - Administrative allocations
  * @returns Balance metrics
  */
 export function calculateDepartmentBalance(
   lecturers: Lecturer[],
+  profiles: LecturerProfile[],
   allocations: ModuleAllocation[],
   adminAllocations: AdminAllocation[] = []
 ): {
@@ -826,27 +738,36 @@ export function calculateDepartmentBalance(
   let underloadedCount = 0;
   let balancedCount = 0;
 
+  // Create profile lookup map
+  const profileMap = new Map<Id<"lecturer_profiles">, LecturerProfile>();
+  for (const profile of profiles) {
+    profileMap.set(profile._id, profile);
+  }
+
   // Group allocations by lecturer
   const allocationsByLecturer = new Map<Id<"lecturers">, ModuleAllocation[]>();
   for (const allocation of allocations) {
-    const lecturerAllocations = allocationsByLecturer.get(allocation.lecturer_id) || [];
+    const lecturerAllocations = allocationsByLecturer.get(allocation.lecturerId) || [];
     lecturerAllocations.push(allocation);
-    allocationsByLecturer.set(allocation.lecturer_id, lecturerAllocations);
+    allocationsByLecturer.set(allocation.lecturerId, lecturerAllocations);
   }
 
   // Group admin allocations by lecturer
   const adminAllocationsByLecturer = new Map<Id<"lecturers">, AdminAllocation[]>();
   for (const adminAlloc of adminAllocations) {
-    const lecturerAdminAllocs = adminAllocationsByLecturer.get(adminAlloc.lecturer_id) || [];
+    const lecturerAdminAllocs = adminAllocationsByLecturer.get(adminAlloc.lecturerId) || [];
     lecturerAdminAllocs.push(adminAlloc);
-    adminAllocationsByLecturer.set(adminAlloc.lecturer_id, lecturerAdminAllocs);
+    adminAllocationsByLecturer.set(adminAlloc.lecturerId, lecturerAdminAllocs);
   }
 
   // Calculate utilization for each lecturer
   for (const lecturer of lecturers) {
+    const profile = profileMap.get(lecturer.profileId);
+    if (!profile) continue;
+    
     const lecturerAllocations = allocationsByLecturer.get(lecturer._id) || [];
     const lecturerAdminAllocs = adminAllocationsByLecturer.get(lecturer._id) || [];
-    const fteResult = calculateLecturerFTE(lecturer, lecturerAllocations, lecturerAdminAllocs);
+    const fteResult = calculateLecturerFTE(lecturer, profile, lecturerAllocations, lecturerAdminAllocs);
     
     utilizations.push(fteResult.utilization);
 
@@ -859,8 +780,14 @@ export function calculateDepartmentBalance(
     }
   }
 
-  const averageUtilization = utilizations.reduce((sum, util) => sum + util, 0) / utilizations.length;
-  const variance = utilizations.reduce((sum, util) => sum + Math.pow(util - averageUtilization, 2), 0) / utilizations.length;
+  const averageUtilization = utilizations.length > 0 
+    ? utilizations.reduce((sum, util) => sum + util, 0) / utilizations.length 
+    : 0;
+    
+  const variance = utilizations.length > 0 
+    ? utilizations.reduce((sum, util) => sum + Math.pow(util - averageUtilization, 2), 0) / utilizations.length 
+    : 0;
+    
   const balanceScore = Math.sqrt(variance);
 
   const recommendations: string[] = [];
@@ -938,6 +865,43 @@ export function isValidAcademicYear(academicYear: string): boolean {
   return end === start + 1;
 }
 
+/**
+ * Get lecturer profile by lecturer ID
+ * @param lecturerId - Lecturer ID
+ * @param lecturers - Array of lecturers
+ * @param profiles - Array of profiles
+ * @returns Lecturer profile or null
+ */
+export function getLecturerProfile(
+  lecturerId: Id<"lecturers">,
+  lecturers: Lecturer[],
+  profiles: LecturerProfile[]
+): LecturerProfile | null {
+  const lecturer = lecturers.find(l => l._id === lecturerId);
+  if (!lecturer) return null;
+  
+  return profiles.find(p => p._id === lecturer.profileId) || null;
+}
+
+/**
+ * Get lecturer by profile ID
+ * @param profileId - Profile ID
+ * @param lecturers - Array of lecturers
+ * @param academicYearId - Academic year ID (optional)
+ * @returns Lecturer or null
+ */
+export function getLecturerByProfile(
+  profileId: Id<"lecturer_profiles">,
+  lecturers: Lecturer[],
+  academicYearId?: Id<"academic_years">
+): Lecturer | null {
+  if (academicYearId) {
+    return lecturers.find(l => l.profileId === profileId && l.academicYearId === academicYearId) || null;
+  }
+  
+  return lecturers.find(l => l.profileId === profileId) || null;
+}
+
 // ============================================================================
 // DEFAULT EXPORT
 // ============================================================================
@@ -962,13 +926,14 @@ const AcademicWorkload = {
   
   // Distribution
   distributeWorkload,
-  optimizeWorkloadDistribution,
   calculateDepartmentBalance,
   
   // Utilities
   formatAcademicYear,
   calculateHoursPerCredit,
   isValidAcademicYear,
+  getLecturerProfile,
+  getLecturerByProfile,
   
   // Constants
   ACADEMIC_CONSTANTS,
