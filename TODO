@@ -1,97 +1,280 @@
-# WorkloadWizard - Complete Build Fix Guide for AI Assistant
+## URGENT: Missing Return Type Validators - Must Fix First
+
+### Phase 1: Add Missing Return Type Validators (CRITICAL)
+
+**Status: ❌ NOT DONE - This is blocking the build**
+
+All Convex functions are missing required `returns:` validators. This will cause build failures.
+
+#### 1.1 Fix `convex/lecturers.ts`
+**Add return validators to ALL functions:**
+```typescript
+export const getAll = query({
+  args: { /* existing args */ },
+  returns: v.array(v.object({
+    _id: v.id("lecturers"),
+    _creationTime: v.number(),
+    profileId: v.id("lecturer_profiles"),
+    academicYearId: v.id("academic_years"),
+    status: v.string(),
+    teachingAvailability: v.number(),
+    totalAllocated: v.number(),
+    allocatedTeachingHours: v.number(),
+    allocatedAdminHours: v.number(),
+    allocatedResearchHours: v.number(),
+    allocatedOtherHours: v.number(),
+    notes: v.optional(v.string()),
+    isActive: v.boolean(),
+    organisationId: v.optional(v.id("organisations")),
+    updatedAt: v.number(),
+    deletedAt: v.optional(v.number()),
+    // Profile data (joined)
+    fullName: v.string(),
+    email: v.string(),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
+    contract: v.string(),
+    role: v.optional(v.string()),
+    family: v.optional(v.string()),
+    fte: v.number(),
+    capacity: v.number(),
+    maxTeachingHours: v.number(),
+    totalContract: v.number(),
+  })),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const getProfiles = query({
+  args: { isActive: v.optional(v.boolean()) },
+  returns: v.array(v.object({
+    _id: v.id("lecturer_profiles"),
+    _creationTime: v.number(),
+    fullName: v.string(),
+    email: v.string(),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
+    contract: v.string(),
+    role: v.optional(v.string()),
+    family: v.optional(v.string()),
+    fte: v.number(),
+    capacity: v.number(),
+    maxTeachingHours: v.number(),
+    totalContract: v.number(),
+    isActive: v.boolean(),
+    organisationId: v.optional(v.id("organisations")),
+    updatedAt: v.number(),
+  })),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const getById = query({
+  args: { id: v.id("lecturers") },
+  returns: v.union(
+    v.object({ /* same as getAll single item */ }),
+    v.null()
+  ),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const createNewLecturer = mutation({
+  args: { /* existing args */ },
+  returns: v.id("lecturer_profiles"),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const createLecturer = mutation({
+  args: { /* existing args */ },
+  returns: v.id("lecturers"),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const deleteProfile = mutation({
+  args: { id: v.id("lecturer_profiles") },
+  returns: v.null(),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+// Add returns: v.null() to all other mutation functions
+```
+
+#### 1.2 Fix `convex/modules.ts`
+**Add return validators to ALL functions:**
+```typescript
+export const getAll = query({
+  args: { /* existing args */ },
+  returns: v.array(v.object({
+    _id: v.id("modules"),
+    _creationTime: v.number(),
+    profileId: v.id("module_profiles"),
+    academicYearId: v.id("academic_years"),
+    status: v.string(),
+    isActive: v.boolean(),
+    organisationId: v.optional(v.id("organisations")),
+    updatedAt: v.number(),
+    // Profile data (joined)
+    code: v.string(),
+    title: v.string(),
+    credits: v.number(),
+    level: v.string(),
+    moduleLeader: v.optional(v.string()),
+    defaultTeachingHours: v.number(),
+    defaultMarkingHours: v.number(),
+  })),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const getById = query({
+  args: { id: v.id("modules") },
+  returns: v.union(
+    v.object({ /* same as getAll single item */ }),
+    v.null()
+  ),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const create = mutation({
+  args: { /* existing args */ },
+  returns: v.id("modules"),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const update = mutation({
+  args: { /* existing args */ },
+  returns: v.null(),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const delete = mutation({
+  args: { id: v.id("modules") },
+  returns: v.null(),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+```
+
+#### 1.3 Fix `convex/courses.ts`
+**Add return validators to ALL functions:**
+```typescript
+export const getAll = query({
+  args: { isActive: v.optional(v.boolean()) },
+  returns: v.array(v.object({
+    _id: v.id("courses"),
+    _creationTime: v.number(),
+    name: v.string(),
+    code: v.string(),
+    description: v.optional(v.string()),
+    level: v.string(),
+    credits: v.number(),
+    duration: v.number(),
+    facultyId: v.optional(v.id("faculties")),
+    departmentId: v.optional(v.id("departments")),
+    courseLeaderId: v.optional(v.id("user_profiles")),
+    contactEmail: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    website: v.optional(v.string()),
+    entryRequirements: v.optional(v.string()),
+    learningOutcomes: v.optional(v.array(v.string())),
+    isAccredited: v.boolean(),
+    isActive: v.boolean(),
+    organisationId: v.optional(v.id("organisations")),
+    updatedAt: v.number(),
+  })),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const getById = query({
+  args: { id: v.id("courses") },
+  returns: v.union(
+    v.object({ /* course schema + modules array */ }),
+    v.null()
+  ),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const create = mutation({
+  args: { /* existing args */ },
+  returns: v.id("courses"),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const update = mutation({
+  args: { /* existing args */ },
+  returns: v.null(),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const delete = mutation({
+  args: { id: v.id("courses") },
+  returns: v.null(),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+```
+
+#### 1.4 Fix `convex/cohorts.ts`
+**Add return validators to ALL functions:**
+```typescript
+export const getAll = query({
+  args: { /* existing args */ },
+  returns: v.array(v.object({
+    _id: v.id("cohorts"),
+    _creationTime: v.number(),
+    courseId: v.id("courses"),
+    academicYearId: v.id("academic_years"),
+    name: v.string(),
+    code: v.string(),
+    entryYear: v.number(),
+    maxStudents: v.optional(v.number()),
+    currentStudents: v.optional(v.number()),
+    status: v.string(),
+    isActive: v.boolean(),
+    organisationId: v.optional(v.id("organisations")),
+    updatedAt: v.number(),
+  })),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const getById = query({
+  args: { id: v.id("cohorts") },
+  returns: v.union(
+    v.object({ /* cohort schema + modulePlans array */ }),
+    v.null()
+  ),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const create = mutation({
+  args: { /* existing args */ },
+  returns: v.id("cohorts"),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const update = mutation({
+  args: { /* existing args */ },
+  returns: v.null(),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+
+export const delete = mutation({
+  args: { id: v.id("cohorts") },
+  returns: v.null(),
+  handler: async (ctx, args) => { /* existing handler */ }
+});
+```
+
+### Phase 2: Test Build After Return Validators
+```bash
+npm run build
+# Fix any remaining TypeScript errors
+# If build succeeds, move to Phase 3
+# If build fails, fix specific errors first
+```
+
+---
 
 ## Project Context
 - **Tech Stack**: Next.js 14+, TypeScript, Convex backend, Clerk auth
 - **Current Issue**: Database schema evolved but frontend components haven't been updated
 - **Goal**: Get `npm run build` working with no errors, frontend properly connected to backend
 - **Priority**: Data flow and type safety first, UI polish later
-
-## Phase 1: Environment Setup (Start Here)
-
-### 1.1 Remove Test Complexity
-```bash
-# Remove all test files and configs
-rm -rf src/__tests__/
-rm jest.config.js jest.setup.js
-rm -rf scripts/
-```
-
-### 1.2 Update package.json
-Remove these scripts from `package.json`:
-```json
-"test": "jest",
-"test:watch": "jest --watch", 
-"test:coverage": "jest --coverage",
-"test:full": "node scripts/run-tests.js",
-"test:report": "npm run test:coverage && node scripts/run-tests.js",
-"test:check": "npm run test:coverage -- --passWithNoTests",
-"test:ui": "node scripts/test-ui.js",
-"dev:tools": "node scripts/fix-test-issues.js",
-"migrate": "node scripts/run-migrations.js"
-```
-
-### 1.3 Regenerate Convex Types
-```bash
-npx convex dev
-# Wait for types to regenerate completely
-```
-
-## Phase 2: Fix API Function Mismatches
-
-### 2.1 Fix `convex/lecturers.ts`
-**Current Issues:**
-- `getAll` function returns mixed data structure
-- `getProfiles` function may not exist or be incorrect
-- Type definitions don't match schema
-
-**Required Fixes:**
-```typescript
-// Ensure these functions exist and work:
-export const getAll = query({...}) // Returns lecturer instances
-export const getProfiles = query({...}) // Returns lecturer profiles  
-export const getById = query({...}) // Returns single lecturer
-export const createNewLecturer = mutation({...}) // Creates profile + instance
-export const createLecturer = mutation({...}) // Creates instance only
-export const deleteProfile = mutation({...}) // Deletes profile
-```
-
-### 2.2 Fix `convex/modules.ts`
-**Current Issues:**
-- API function signatures may not match usage
-- Return types may be incorrect
-
-**Required Fixes:**
-```typescript
-// Ensure these functions exist and work:
-export const getAll = query({...}) // Returns modules
-export const getById = query({...}) // Returns single module
-export const getByLecturerId = query({...}) // Returns modules by lecturer
-export const create = mutation({...}) // Creates module
-export const update = mutation({...}) // Updates module
-export const delete = mutation({...}) // Deletes module
-```
-
-### 2.3 Fix `convex/courses.ts`
-**Required Fixes:**
-```typescript
-// Ensure these functions exist:
-export const getAll = query({...})
-export const getById = query({...})
-export const create = mutation({...})
-export const update = mutation({...})
-export const delete = mutation({...})
-```
-
-### 2.4 Fix `convex/cohorts.ts`
-**Required Fixes:**
-```typescript
-// Ensure these functions exist:
-export const getAll = query({...})
-export const getById = query({...})
-export const create = mutation({...})
-export const update = mutation({...})
-export const delete = mutation({...})
-```
 
 ## Phase 3: Fix Component Data Fetching
 

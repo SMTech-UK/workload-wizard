@@ -6,16 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:full": "node scripts/run-tests.js",
-    "test:report": "npm run test:coverage && node scripts/run-tests.js",
-    "test:check": "npm run test:coverage -- --passWithNoTests",
-    "test:ui": "node scripts/test-ui.js",
-    "dev:tools": "node scripts/fix-test-issues.js",
-    "migrate": "node scripts/run-migrations.js"
+    "lint": "next lint"
   },
   "dependencies": {
     "@auth0/auth0-react": "^2.4.0",

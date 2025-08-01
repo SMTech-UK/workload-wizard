@@ -1,13 +1,43 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 
-// Query to get all lecturers with their profiles
+// Query to get all lecturers with their profiles for a specific academic year
 export const getAll = query({
   args: {
     academicYearId: v.optional(v.id("academic_years")),
     status: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
   },
+  returns: v.array(v.object({
+    _id: v.id("lecturers"),
+    _creationTime: v.number(),
+    profileId: v.id("lecturer_profiles"),
+    academicYearId: v.id("academic_years"),
+    status: v.string(),
+    teachingAvailability: v.number(),
+    totalAllocated: v.number(),
+    allocatedTeachingHours: v.number(),
+    allocatedAdminHours: v.number(),
+    allocatedResearchHours: v.number(),
+    allocatedOtherHours: v.number(),
+    notes: v.optional(v.string()),
+    isActive: v.boolean(),
+    organisationId: v.optional(v.id("organisations")),
+    updatedAt: v.number(),
+    deletedAt: v.optional(v.number()),
+    // Profile data (joined)
+    fullName: v.string(),
+    email: v.string(),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
+    contract: v.string(),
+    role: v.optional(v.string()),
+    family: v.optional(v.string()),
+    fte: v.number(),
+    capacity: v.number(),
+    maxTeachingHours: v.number(),
+    totalContract: v.number(),
+  })),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -22,7 +52,8 @@ export const getAll = query({
     }
     
     let query = ctx.db.query("lecturers")
-      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+      .filter(q => q.eq(q.field("organisationId"), organisation._id))
+      .filter(q => q.eq(q.field("isActive"), true));
     
     if (args.academicYearId) {
       query = query.filter((q) => q.eq(q.field("academicYearId"), args.academicYearId));
@@ -41,42 +72,26 @@ export const getAll = query({
     // Join with lecturer profiles to get complete data
     const lecturersWithProfiles = await Promise.all(
       lecturers.map(async (lecturer) => {
-        // Always get profile data if profileId exists
-        if (lecturer.profileId) {
-          const profile = await ctx.db.get(lecturer.profileId);
-          return {
-            ...lecturer,
-            // Include profile data with fallbacks
-            fullName: profile?.fullName || "Unknown",
-            team: profile?.team || "Unknown",
-            specialism: profile?.specialism || "Unknown",
-            contract: profile?.contract || "Unknown",
-            email: profile?.email || "",
-            role: profile?.role || "Unknown",
-            family: profile?.family || "Unknown",
-            fte: profile?.fte || 1.0,
-            capacity: profile?.capacity || 0,
-            maxTeachingHours: profile?.maxTeachingHours || 0,
-            totalContract: profile?.totalContract || 0,
-          };
-        } else {
-          // For old structure, provide default values
-          return {
-            ...lecturer,
-            profileId: null,
-            fullName: "Unknown",
-            team: "Unknown",
-            specialism: "Unknown",
-            contract: "Unknown",
-            email: "",
-            role: "Unknown",
-            family: "Unknown",
-            fte: 1.0,
-            capacity: 0,
-            maxTeachingHours: 0,
-            totalContract: 0,
-          };
+        const profile = await ctx.db.get(lecturer.profileId);
+        if (!profile) {
+          throw new Error(`Profile not found for lecturer ${lecturer._id}`);
         }
+        
+        return {
+          ...lecturer,
+          // Include profile data
+          fullName: profile.fullName,
+          team: profile.team,
+          specialism: profile.specialism,
+          contract: profile.contract,
+          email: profile.email,
+          role: profile.role,
+          family: profile.family,
+          fte: profile.fte,
+          capacity: profile.capacity,
+          maxTeachingHours: profile.maxTeachingHours,
+          totalContract: profile.totalContract,
+        };
       })
     );
     
@@ -89,6 +104,24 @@ export const getAvailableProfiles = query({
   args: {
     academicYearId: v.id("academic_years"),
   },
+  returns: v.array(v.object({
+    _id: v.id("lecturer_profiles"),
+    _creationTime: v.number(),
+    fullName: v.string(),
+    email: v.string(),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
+    contract: v.string(),
+    role: v.optional(v.string()),
+    family: v.optional(v.string()),
+    fte: v.number(),
+    capacity: v.number(),
+    maxTeachingHours: v.number(),
+    totalContract: v.number(),
+    isActive: v.boolean(),
+    organisationId: v.optional(v.id("organisations")),
+    updatedAt: v.number(),
+  })),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -103,23 +136,19 @@ export const getAvailableProfiles = query({
     }
     
     // Get all lecturer profiles for this organisation
-    let query = ctx.db.query("lecturer_profiles")
+    const allProfiles = await ctx.db.query("lecturer_profiles")
       .filter(q => q.eq(q.field("isActive"), true))
-      .filter(q => q.eq(q.field("organisationId"), organisation._id));
-    
-    const allProfiles = await query.collect();
+      .filter(q => q.eq(q.field("organisationId"), organisation._id))
+      .collect();
     
     // Get profiles that are already in this academic year
-    let lecturersQuery = ctx.db.query("lecturers")
+    const existingLecturers = await ctx.db.query("lecturers")
       .filter((q) => q.eq(q.field("academicYearId"), args.academicYearId))
-      .filter(q => q.eq(q.field("organisationId"), organisation._id));
-    
-    const existingLecturers = await lecturersQuery.collect();
+      .filter(q => q.eq(q.field("organisationId"), organisation._id))
+      .collect();
     
     const existingProfileIds = new Set(
-      existingLecturers
-        .filter(l => l.profileId) // Only include records with profileId
-        .map(l => l.profileId)
+      existingLecturers.map(l => l.profileId)
     );
     
     // Return profiles that aren't in this academic year
@@ -127,9 +156,124 @@ export const getAvailableProfiles = query({
   },
 });
 
-// Mutation to update status
+// Get lecturer profiles (not instances)
+export const getProfiles = query({
+  args: {
+    isActive: v.optional(v.boolean()),
+  },
+  returns: v.array(v.object({
+    _id: v.id("lecturer_profiles"),
+    _creationTime: v.number(),
+    fullName: v.string(),
+    email: v.string(),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
+    contract: v.string(),
+    role: v.optional(v.string()),
+    family: v.optional(v.string()),
+    fte: v.number(),
+    capacity: v.number(),
+    maxTeachingHours: v.number(),
+    totalContract: v.number(),
+    isActive: v.boolean(),
+    organisationId: v.optional(v.id("organisations")),
+    updatedAt: v.number(),
+  })),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+    
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    let query = ctx.db.query("lecturer_profiles")
+      .filter(q => q.eq(q.field("organisationId"), organisation._id));
+    
+    if (args.isActive !== undefined) {
+      query = query.filter(q => q.eq(q.field("isActive"), args.isActive));
+    }
+    
+    return await query.collect();
+  },
+});
+
+// Get lecturer by ID with profile data
+export const getById = query({
+  args: { id: v.id("lecturers") },
+  returns: v.union(
+    v.object({
+      _id: v.id("lecturers"),
+      _creationTime: v.number(),
+      profileId: v.id("lecturer_profiles"),
+      academicYearId: v.id("academic_years"),
+      status: v.string(),
+      teachingAvailability: v.number(),
+      totalAllocated: v.number(),
+      allocatedTeachingHours: v.number(),
+      allocatedAdminHours: v.number(),
+      allocatedResearchHours: v.number(),
+      allocatedOtherHours: v.number(),
+      notes: v.optional(v.string()),
+      isActive: v.boolean(),
+      organisationId: v.optional(v.id("organisations")),
+      updatedAt: v.number(),
+      deletedAt: v.optional(v.number()),
+      // Profile data (joined)
+      fullName: v.string(),
+      email: v.string(),
+      team: v.optional(v.string()),
+      specialism: v.optional(v.string()),
+      contract: v.string(),
+      role: v.optional(v.string()),
+      family: v.optional(v.string()),
+      fte: v.number(),
+      capacity: v.number(),
+      maxTeachingHours: v.number(),
+      totalContract: v.number(),
+    }),
+    v.null()
+  ),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    const lecturer = await ctx.db.get(args.id);
+    if (!lecturer) return null;
+    
+    // Get profile data
+    const profile = await ctx.db.get(lecturer.profileId);
+    if (!profile) {
+      throw new Error(`Profile not found for lecturer ${args.id}`);
+    }
+    
+    return {
+      ...lecturer,
+      // Include profile data
+      fullName: profile.fullName,
+      team: profile.team,
+      specialism: profile.specialism,
+      contract: profile.contract,
+      email: profile.email,
+      role: profile.role,
+      family: profile.family,
+      fte: profile.fte,
+      capacity: profile.capacity,
+      maxTeachingHours: profile.maxTeachingHours,
+      totalContract: profile.totalContract,
+    };
+  },
+});
+
+// Mutation to update lecturer status
 export const updateStatus = mutation({
   args: { id: v.id("lecturers"), status: v.string() },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -163,7 +307,7 @@ export const updateStatus = mutation({
   },
 });
 
-// Mutation to create a new lecturer for a specific academic year
+// Create a new lecturer instance for a specific academic year (requires existing profile)
 export const createLecturer = mutation({
   args: {
     profileId: v.id("lecturer_profiles"),
@@ -177,6 +321,7 @@ export const createLecturer = mutation({
     allocatedOtherHours: v.optional(v.number()),
     notes: v.optional(v.string()),
   },
+  returns: v.id("lecturers"),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -251,20 +396,19 @@ export const createLecturer = mutation({
 // Create a new lecturer profile (not instance)
 export const createNewLecturer = mutation({
   args: {
-    // Profile data - include legacy fields that are still in schema
     fullName: v.string(),
     email: v.string(),
-    family: v.string(),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
+    contract: v.string(),
+    role: v.optional(v.string()),
+    family: v.optional(v.string()),
     fte: v.number(),
     capacity: v.number(),
     maxTeachingHours: v.number(),
     totalContract: v.number(),
-    // Legacy fields that are still required/optional in schema
-    contract: v.string(),
-    team: v.optional(v.string()),
-    specialism: v.optional(v.string()),
-    role: v.optional(v.string()),
   },
+  returns: v.id("lecturer_profiles"),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -299,15 +443,15 @@ export const createNewLecturer = mutation({
     const profileId = await ctx.db.insert("lecturer_profiles", {
       fullName: args.fullName,
       email: args.email,
+      team: args.team,
+      specialism: args.specialism,
+      contract: args.contract,
+      role: args.role,
       family: args.family,
       fte: args.fte,
       capacity: args.capacity,
       maxTeachingHours: args.maxTeachingHours,
       totalContract: args.totalContract,
-      contract: args.contract,
-      team: args.team,
-      specialism: args.specialism,
-      role: args.role,
       isActive: true,
       organisationId: organisation._id,
       createdAt: Date.now(),
@@ -331,6 +475,7 @@ export const createNewLecturer = mutation({
   },
 });
 
+// Update lecturer instance
 export const updateLecturer = mutation({
   args: {
     id: v.id("lecturers"),
@@ -343,6 +488,7 @@ export const updateLecturer = mutation({
     allocatedOtherHours: v.optional(v.number()),
     notes: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -402,57 +548,79 @@ export const updateLecturer = mutation({
   },
 });
 
-export const getById = query({
-  args: { id: v.id("lecturers") },
+// Update lecturer profile
+export const updateProfile = mutation({
+  args: {
+    id: v.id("lecturer_profiles"),
+    fullName: v.optional(v.string()),
+    team: v.optional(v.string()),
+    specialism: v.optional(v.string()),
+    contract: v.optional(v.string()),
+    email: v.optional(v.string()),
+    role: v.optional(v.string()),
+    family: v.optional(v.string()),
+    fte: v.optional(v.number()),
+    capacity: v.optional(v.number()),
+    maxTeachingHours: v.optional(v.number()),
+    totalContract: v.optional(v.number()),
+    isActive: v.optional(v.boolean()),
+  },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     
-    const lecturer = await ctx.db.get(args.id);
-    if (!lecturer) return null;
-    
-    // Get profile data if available
-    if (lecturer.profileId) {
-      const profile = await ctx.db.get(lecturer.profileId);
-      return {
-        ...lecturer,
-        // Include profile data with fallbacks
-        fullName: profile?.fullName || "Unknown",
-        team: profile?.team || "Unknown",
-        specialism: profile?.specialism || "Unknown",
-        contract: profile?.contract || "Unknown",
-        email: profile?.email || "",
-        role: profile?.role || "Unknown",
-        family: profile?.family || "Unknown",
-        fte: profile?.fte || 1.0,
-        capacity: profile?.capacity || 0,
-        maxTeachingHours: profile?.maxTeachingHours || 0,
-        totalContract: profile?.totalContract || 0,
-      };
-    } else {
-      // For old structure, provide default values
-      return {
-        ...lecturer,
-        profileId: null,
-        fullName: "Unknown",
-        team: "Unknown",
-        specialism: "Unknown",
-        contract: "Unknown",
-        email: "",
-        role: "Unknown",
-        family: "Unknown",
-        fte: 1.0,
-        capacity: 0,
-        maxTeachingHours: 0,
-        totalContract: 0,
-      };
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
     }
+    
+    // Validate numeric inputs
+    if (args.fte !== undefined && (args.fte <= 0 || args.fte > 2)) {
+      throw new Error("FTE must be between 0 and 2");
+    }
+    
+    if (args.capacity !== undefined && args.capacity < 0) {
+      throw new Error("Capacity cannot be negative");
+    }
+    
+    if (args.maxTeachingHours !== undefined && args.maxTeachingHours < 0) {
+      throw new Error("Maximum teaching hours cannot be negative");
+    }
+    
+    if (args.totalContract !== undefined && args.totalContract < 0) {
+      throw new Error("Total contract hours cannot be negative");
+    }
+    
+    const { id, ...updateData } = args;
+    await ctx.db.patch(id, {
+      ...updateData,
+      updatedAt: Date.now(),
+    });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "update",
+      entityType: "lecturer_profiles",
+      entityId: id,
+      changes: updateData,
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
   },
 });
 
-// Delete lecturer mutation (soft delete)
+// Delete lecturer instance (soft delete)
 export const deleteLecturer = mutation({
   args: { id: v.id("lecturers") },
+  returns: v.null(),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -487,11 +655,55 @@ export const deleteLecturer = mutation({
   },
 });
 
-// Mutation to create lecturer instances for a new academic year
+// Delete lecturer profile (soft delete)
+export const deleteProfile = mutation({
+  args: { id: v.id("lecturer_profiles") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    
+    // Get the current organisation
+    const organisation = await ctx.db.query("organisations")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .first();
+
+    if (!organisation) {
+      throw new Error("No active organisation found");
+    }
+    
+    // Soft delete
+    await ctx.db.patch(args.id, {
+      isActive: false,
+      updatedAt: Date.now(),
+    });
+    
+    // Log audit event
+    await ctx.db.insert("audit_logs", {
+      userId: identity.subject,
+      action: "delete",
+      entityType: "lecturer_profiles",
+      entityId: args.id,
+      changes: { isActive: false },
+      ipAddress: identity.tokenIdentifier,
+      userAgent: "system",
+      organisationId: organisation._id,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+// Create lecturer instances for all profiles in a new academic year
 export const createForAcademicYear = mutation({
   args: {
     academicYearId: v.id("academic_years"),
   },
+  returns: v.array(v.object({
+    success: v.boolean(),
+    id: v.optional(v.id("lecturers")),
+    email: v.string(),
+    error: v.optional(v.string()),
+  })),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -506,26 +718,24 @@ export const createForAcademicYear = mutation({
     }
     
     // Get all lecturer profiles for this organisation
-    let query = ctx.db.query("lecturer_profiles")
+    const profiles = await ctx.db.query("lecturer_profiles")
       .filter(q => q.eq(q.field("isActive"), true))
-      .filter(q => q.eq(q.field("organisationId"), organisation._id));
-    
-    const profiles = await query.collect();
+      .filter(q => q.eq(q.field("organisationId"), organisation._id))
+      .collect();
     
     const results = [];
     for (const profile of profiles) {
       try {
         // Check if lecturer already exists for this academic year
-        let existingQuery = ctx.db.query("lecturers")
+        const existing = await ctx.db.query("lecturers")
           .filter((q) => 
             q.and(
               q.eq(q.field("profileId"), profile._id),
               q.eq(q.field("academicYearId"), args.academicYearId),
               q.eq(q.field("organisationId"), organisation._id)
             )
-          );
-        
-        const existing = await existingQuery.first();
+          )
+          .first();
         
         if (!existing) {
           // Create new lecturer instance for this academic year with default values
@@ -562,6 +772,7 @@ export const addProfileToAcademicYear = mutation({
     profileId: v.id("lecturer_profiles"),
     academicYearId: v.id("academic_years"),
   },
+  returns: v.id("lecturers"),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -576,16 +787,15 @@ export const addProfileToAcademicYear = mutation({
     }
     
     // Check if lecturer already exists for this academic year
-    let existingQuery = ctx.db.query("lecturers")
+    const existing = await ctx.db.query("lecturers")
       .filter((q) => 
         q.and(
           q.eq(q.field("profileId"), args.profileId),
           q.eq(q.field("academicYearId"), args.academicYearId),
           q.eq(q.field("organisationId"), organisation._id)
         )
-      );
-    
-    const existing = await existingQuery.first();
+      )
+      .first();
     
     if (existing) {
       throw new Error("Lecturer already exists for this academic year");
@@ -634,7 +844,7 @@ export const addProfileToAcademicYear = mutation({
   },
 });
 
-// Mutation to bulk import lecturers
+// Bulk import lecturers (creates profiles + instances)
 export const bulkImport = mutation({
   args: {
     lecturers: v.array(
@@ -662,6 +872,12 @@ export const bulkImport = mutation({
       })
     ),
   },
+  returns: v.array(v.object({
+    success: v.boolean(),
+    id: v.optional(v.id("lecturers")),
+    email: v.string(),
+    error: v.optional(v.string()),
+  })),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -699,11 +915,11 @@ export const bulkImport = mutation({
         const profileId = await ctx.db.insert("lecturer_profiles", {
           fullName: lecturerData.fullName,
           email: lecturerData.email,
-          team: lecturerData.team || "Unknown",
-          specialism: lecturerData.specialism || "Unknown",
+          team: lecturerData.team,
+          specialism: lecturerData.specialism,
           contract: lecturerData.contract,
-          role: lecturerData.role || "Unknown",
-          family: lecturerData.family || "Unknown",
+          role: lecturerData.role,
+          family: lecturerData.family,
           fte: lecturerData.fte,
           capacity: lecturerData.capacity,
           maxTeachingHours: lecturerData.maxTeachingHours,
@@ -756,139 +972,5 @@ export const bulkImport = mutation({
     });
     
     return results;
-  },
-});
-
-// Get lecturer profiles
-export const getProfiles = query({
-  args: {
-    isActive: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    
-    // Get the current organisation
-    const organisation = await ctx.db.query("organisations")
-      .filter(q => q.eq(q.field("isActive"), true))
-      .first();
-    
-    if (!organisation) {
-      throw new Error("No active organisation found");
-    }
-    
-    let query = ctx.db.query("lecturer_profiles")
-      .filter(q => q.eq(q.field("organisationId"), organisation._id));
-    
-    if (args.isActive !== undefined) {
-      query = query.filter(q => q.eq(q.field("isActive"), args.isActive));
-    }
-    
-    return await query.collect();
-  },
-});
-
-// Update lecturer profile
-export const updateProfile = mutation({
-  args: {
-    id: v.id("lecturer_profiles"),
-    fullName: v.optional(v.string()),
-    team: v.optional(v.string()),
-    specialism: v.optional(v.string()),
-    contract: v.optional(v.string()),
-    email: v.optional(v.string()),
-    role: v.optional(v.string()),
-    family: v.optional(v.string()),
-    fte: v.optional(v.number()),
-    capacity: v.optional(v.number()),
-    maxTeachingHours: v.optional(v.number()),
-    totalContract: v.optional(v.number()),
-    isActive: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    
-    // Get the current organisation
-    const organisation = await ctx.db.query("organisations")
-      .filter(q => q.eq(q.field("isActive"), true))
-      .first();
-
-    if (!organisation) {
-      throw new Error("No active organisation found");
-    }
-    
-    // Validate numeric inputs
-    if (args.fte !== undefined && (args.fte <= 0 || args.fte > 2)) {
-      throw new Error("FTE must be between 0 and 2");
-    }
-    
-    if (args.capacity !== undefined && args.capacity < 0) {
-      throw new Error("Capacity cannot be negative");
-    }
-    
-    if (args.maxTeachingHours !== undefined && args.maxTeachingHours < 0) {
-      throw new Error("Maximum teaching hours cannot be negative");
-    }
-    
-    if (args.totalContract !== undefined && args.totalContract < 0) {
-      throw new Error("Total contract hours cannot be negative");
-    }
-    
-    const { id, ...updateData } = args;
-    await ctx.db.patch(id, {
-      ...updateData,
-      updatedAt: Date.now(),
-    });
-    
-    // Log audit event
-    await ctx.db.insert("audit_logs", {
-      userId: identity.subject,
-      action: "update",
-      entityType: "lecturer_profiles",
-      entityId: id,
-      changes: updateData,
-      ipAddress: identity.tokenIdentifier,
-      userAgent: "system",
-      organisationId: organisation._id,
-      createdAt: Date.now(),
-    });
-  },
-});
-
-// Delete lecturer profile (soft delete)
-export const deleteProfile = mutation({
-  args: { id: v.id("lecturer_profiles") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    
-    // Get the current organisation
-    const organisation = await ctx.db.query("organisations")
-      .filter(q => q.eq(q.field("isActive"), true))
-      .first();
-
-    if (!organisation) {
-      throw new Error("No active organisation found");
-    }
-    
-    // Soft delete
-    await ctx.db.patch(args.id, {
-      isActive: false,
-      updatedAt: Date.now(),
-    });
-    
-    // Log audit event
-    await ctx.db.insert("audit_logs", {
-      userId: identity.subject,
-      action: "delete",
-      entityType: "lecturer_profiles",
-      entityId: args.id,
-      changes: { isActive: false },
-      ipAddress: identity.tokenIdentifier,
-      userAgent: "system",
-      organisationId: organisation._id,
-      createdAt: Date.now(),
-    });
   },
 });
