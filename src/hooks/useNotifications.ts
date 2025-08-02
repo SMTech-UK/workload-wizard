@@ -1,53 +1,52 @@
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import type { Id } from "../../convex/_generated/dataModel";
 
 export function useNotifications() {
-  const [selectedNotificationId, setSelectedNotificationId] = useState<Id<'notifications'> | null>(null);
+  const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
   
   // Get all notifications
-  const notifications = useQuery(api.notifications.getAll, {});
+  const notifications = useQuery('notifications:getAll' as any, {});
   
   // Get a specific notification by ID
   const selectedNotification = useQuery(
-    api.notifications.getById, 
+    'notifications:getById' as any, 
     selectedNotificationId ? { id: selectedNotificationId } : "skip"
   );
   
   // Get notification settings
-  const notificationSettings = useQuery(api.notification_settings.getAll, {});
+  const notificationSettings = useQuery('notification_settings:getAll' as any, {});
   
   // Mutations
-  const createNotification = useMutation(api.notifications.create);
-  const updateNotification = useMutation(api.notifications.update);
-  const deleteNotification = useMutation(api.notifications.remove);
-  const markAsRead = useMutation(api.notifications.markAsRead);
-  const markAllAsRead = useMutation(api.notifications.markAllAsRead);
+  const createNotification = useMutation('notifications:create' as any);
+  const updateNotification = useMutation('notifications:update' as any);
+  const deleteNotification = useMutation('notifications:remove' as any);
+  const markAsRead = useMutation('notifications:markAsRead' as any);
+  const markAllAsRead = useMutation('notifications:markAllAsRead' as any);
   
   // Get notifications by user
   const getNotificationsByUser = (userId: Id<'users'>) => {
-    return notifications?.filter(notification => notification.userId === userId) || [];
+    return notifications?.filter((notification: any) => notification.userId === userId) || [];
   };
   
   // Get unread notifications
   const getUnreadNotifications = () => {
-    return notifications?.filter(notification => !notification.isRead) || [];
+    return notifications?.filter((notification: any) => !notification.isRead) || [];
   };
   
   // Get read notifications
   const getReadNotifications = () => {
-    return notifications?.filter(notification => notification.isRead) || [];
+    return notifications?.filter((notification: any) => notification.isRead) || [];
   };
   
   // Get notifications by type
   const getNotificationsByType = (type: string) => {
-    return notifications?.filter(notification => notification.type === type) || [];
+    return notifications?.filter((notification: any) => notification.type === type) || [];
   };
   
   // Get notifications by priority
   const getNotificationsByPriority = (priority: string) => {
-    return notifications?.filter(notification => notification.priority === priority) || [];
+    return notifications?.filter((notification: any) => notification.priority === priority) || [];
   };
   
   // Get recent notifications
@@ -60,7 +59,7 @@ export function useNotifications() {
     if (!searchTerm.trim()) return notifications || [];
     
     const term = searchTerm.toLowerCase();
-    return notifications?.filter(notification => 
+    return notifications?.filter((notification: any) => 
       notification.title.toLowerCase().includes(term) ||
       notification.message.toLowerCase().includes(term) ||
       notification.type.toLowerCase().includes(term)
@@ -73,7 +72,7 @@ export function useNotifications() {
   };
   
   // Mark notification as read
-  const markNotificationAsRead = async (notificationId: Id<'notifications'>) => {
+  const markNotificationAsRead = async (notificationId: string) => {
     try {
       await markAsRead({ id: notificationId });
     } catch (error) {

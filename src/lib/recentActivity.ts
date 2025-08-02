@@ -1,4 +1,4 @@
-import { api } from "../../convex/_generated/api";
+
 import { useMutation } from "convex/react";
 import type { Id } from "../../convex/_generated/dataModel";
 
@@ -41,7 +41,7 @@ export function formatRecentActivity(args: RecentActivityArgs): string {
 
 // React hook to get a logger function
 export function useLogRecentActivity() {
-  const logActivity = useMutation(api.audit_logs.create);
+  const logActivity = useMutation('audit_logs:create' as any);
   
   return async (args: RecentActivityArgs) => {
     const now = args.timestamp || new Date().toISOString();

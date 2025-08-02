@@ -15,7 +15,7 @@ import ModuleAssignment from "@/components/features/module-management/module-ass
 import ReportsSection from "@/components/features/dashboard/reports-section"
 import { DashboardMetricCard } from "@/components/ui/dashboard-metric-card";
 import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+
 import { useMutation } from "convex/react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -226,11 +226,11 @@ function DashboardContent() {
   const { currentAcademicYearId } = useAcademicYear();
   
   // Fetch data from Convex
-  const lecturerProfiles = (useQuery(api.lecturer_profiles.getAll, {}) ?? []) as any[];
-  const lecturers = (useQuery(api.lecturers.getAll, {}) ?? []) as any[];
-  const modules = (useQuery(api.modules.getAll, {}) ?? []) as any[];
-  const moduleIterations = (useQuery(api.module_iterations.getAll, {}) ?? []) as any[];
-  const academicYears = (useQuery(api.academic_years.getAll, {}) ?? []) as any[];
+  const lecturerProfiles = (useQuery('lecturer_profiles:getAll' as any, {}) ?? []) as any[];
+  const lecturers = (useQuery('lecturers:getAll' as any, {}) ?? []) as any[];
+  const modules = (useQuery('modules:getAll' as any, {}) ?? []) as any[];
+  const moduleIterations = (useQuery('module_iterations:getAll' as any, {}) ?? []) as any[];
+  const academicYears = (useQuery('academic_years:getAll' as any, {}) ?? []) as any[];
   
   // Check if data is still loading
   const isLoading = !lecturerProfiles || !lecturers || !modules || !moduleIterations || !academicYears;

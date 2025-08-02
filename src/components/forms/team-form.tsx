@@ -16,6 +16,8 @@ import { useTeams } from "@/hooks/useTeams";
 import { useReferenceData } from "@/hooks/useReferenceData";
 import { useAcademicYear } from "@/hooks/useAcademicYear";
 import { useLogRecentActivity } from "@/lib/recentActivity";
+import { useQuery } from "convex/react";
+import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 import type { Id } from "../../../convex/_generated/dataModel";
 
@@ -80,9 +82,11 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
   const [newTag, setNewTag] = useState("");
   
   const { createTeam, updateTeam, selectedTeam, setSelectedTeamId, teams } = useTeams();
-  const { faculties, departments, userProfiles } = useReferenceData();
+  const { faculties, departments } = useReferenceData();
+  const userProfiles = useQuery('user_profiles:getAll' as any, {});
   const { academicYears, activeAcademicYear } = useAcademicYear();
   const logActivity = useLogRecentActivity();
+  const { user } = useUser();
 
   const form = useForm<TeamFormData>({
     resolver: zodResolver(teamFormSchema),
@@ -185,18 +189,24 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
       const teamData = {
         ...data,
         tags: tags,
-        departmentId: data.departmentId || undefined,
-        facultyId: data.facultyId || undefined,
-        parentTeamId: data.parentTeamId || undefined,
-        teamLeaderId: data.teamLeaderId || undefined,
-        deputyLeaderId: data.deputyLeaderId || undefined,
-        academicYearId: data.academicYearId || undefined,
+        departmentId: data.departmentId as Id<"departments"> | undefined,
+        facultyId: data.facultyId as Id<"faculties"> | undefined,
+        parentTeamId: data.parentTeamId as Id<"teams"> | undefined,
+        teamLeaderId: data.teamLeaderId as Id<"user_profiles"> | undefined,
+        deputyLeaderId: data.deputyLeaderId as Id<"user_profiles"> | undefined,
+        academicYearId: data.academicYearId as Id<"academic_years"> | undefined,
         maxMembers: data.maxMembers || undefined,
       };
 
       if (mode === "create") {
         await createTeam(teamData);
-        logActivity("team_created", { teamName: data.name, teamCode: data.code });
+        logActivity({
+          type: "create",
+          entity: "team",
+          description: `Created team: ${data.name} (${data.code})`,
+          userId: user?.id || "",
+          organisationId: "",
+        });
         toast.success("Team created successfully");
       } else {
         if (!teamId) {
@@ -204,7 +214,13 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
           return;
         }
         await updateTeam({ id: teamId, ...teamData });
-        logActivity("team_updated", { teamName: data.name, teamCode: data.code });
+        logActivity({
+          type: "edit",
+          entity: "team",
+          description: `Updated team: ${data.name} (${data.code})`,
+          userId: user?.id || "",
+          organisationId: "",
+        });
         toast.success("Team updated successfully");
       }
 
@@ -225,7 +241,7 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
   };
 
   // Get available parent teams (exclude current team in edit mode)
-  const availableParentTeams = teams?.filter(team => 
+  const availableParentTeams = teams?.filter((team: any) => 
     mode === "edit" ? team._id !== teamId : true
   ) || [];
 
@@ -344,7 +360,7 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
                     <SelectValue placeholder="Select faculty" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties?.map((faculty) => (
+                    {faculties?.map((faculty: any) => (
                       <SelectItem key={faculty._id} value={faculty._id}>
                         {faculty.name}
                       </SelectItem>
@@ -363,7 +379,7 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments?.map((department) => (
+                    {departments?.map((department: any) => (
                       <SelectItem key={department._id} value={department._id}>
                         {department.name}
                       </SelectItem>
@@ -383,7 +399,7 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
                   <SelectValue placeholder="Select parent team (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableParentTeams.map((team) => (
+                  {availableParentTeams.map((team: any) => (
                     <SelectItem key={team._id} value={team._id}>
                       {team.name}
                     </SelectItem>
@@ -409,7 +425,7 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
                     <SelectValue placeholder="Select team leader" />
                   </SelectTrigger>
                   <SelectContent>
-                    {userProfiles?.map((profile) => (
+                    {userProfiles?.map((profile: any) => (
                       <SelectItem key={profile._id} value={profile._id}>
                         {profile.firstName} {profile.lastName}
                       </SelectItem>
@@ -428,7 +444,7 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
                     <SelectValue placeholder="Select deputy leader" />
                   </SelectTrigger>
                   <SelectContent>
-                    {userProfiles?.map((profile) => (
+                    {userProfiles?.map((profile: any) => (
                       <SelectItem key={profile._id} value={profile._id}>
                         {profile.firstName} {profile.lastName}
                       </SelectItem>
@@ -454,7 +470,7 @@ export function TeamForm({ teamId, onSuccess, onCancel, mode = "create" }: TeamF
                   <SelectValue placeholder="Select academic year (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {academicYears?.map((year) => (
+                  {academicYears?.map((year: any) => (
                     <SelectItem key={year._id} value={year._id}>
                       {year.name} {year.isActive && "(Active)"}
                     </SelectItem>

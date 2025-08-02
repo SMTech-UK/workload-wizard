@@ -12,7 +12,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 // ============================================================================
 
 export interface Notification {
-  _id: Id<"notifications">;
+  _id: string;
   type: 'workload_alert' | 'allocation_change' | 'system_alert' | 'reminder' | 'report_ready' | 'user_activity';
   title: string;
   message: string;
@@ -29,20 +29,20 @@ export interface Notification {
 }
 
 export interface NotificationTemplate {
-  _id: Id<"notification_templates">;
+  _id: string;
   name: string;
   type: string;
   title: string;
   message: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   isActive: boolean;
-  organisationId: Id<"organisations">;
+  organisationId: string;
   createdAt: number;
   updatedAt: number;
 }
 
 export interface NotificationSettings {
-  _id: Id<"notification_settings">;
+  _id: string;
   userId: string;
   organisationId: string;
   emailNotifications: boolean;

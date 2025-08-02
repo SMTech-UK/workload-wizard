@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useQuery } from "convex/react"
-import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -27,7 +26,7 @@ import {
   Edit,
   Plus
 } from "lucide-react"
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs"; 
 import Navigation from "@/components/layout/navigation"
 import SettingsModal, { TabType } from "@/components/modals/settings-modal"
 import { useAcademicYear } from "@/hooks/useAcademicYear";
@@ -88,28 +87,28 @@ export default function AdminDashboardPage() {
   const router = useRouter();
 
   // Fetch data from Convex
-  const users = useQuery(api.users.getAll, {}) ?? [];
-  const organisation = useQuery(api.organisations.get, {}) ?? null;
-  const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
-  const modules = useQuery(api.modules.getAll, {}) ?? [];
-  const teams = useQuery(api.teams.getAll, {}) ?? [];
+  const users = useQuery('users:getAll' as any, {}) ?? [];
+  const organisation = useQuery('organisations:get' as any, {}) ?? null;
+  const academicYears = useQuery('academic_years:getAll' as any, {}) ?? [];
+  const lecturers = useQuery('lecturers:getAll' as any, {}) ?? [];
+  const modules = useQuery('modules:getAll' as any, {}) ?? [];
+  const teams = useQuery('teams:getAll' as any, {}) ?? [];
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
 
   // Calculate metrics
   const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.isActive).length;
+  const activeUsers = users.filter((u: any) => u.isActive).length;
   const totalOrganisations = organisation ? 1 : 0;
   const activeOrganisations = organisation?.isActive ? 1 : 0;
   const totalAcademicYears = academicYears.length;
-  const activeAcademicYears = academicYears.filter(ay => ay.isActive).length;
+  const activeAcademicYears = academicYears.filter((ay: any) => ay.isActive).length;
   const totalLecturers = lecturers.length;
-  const activeLecturers = lecturers.filter(l => l.isActive).length;
+  const activeLecturers = lecturers.filter((l: any) => l.isActive).length;
   const totalModules = modules.length;
-  const activeModules = modules.filter(m => m.isActive).length;
+  const activeModules = modules.filter((m: any) => m.isActive).length;
   const totalTeams = teams.length;
-  const activeTeams = teams.filter(t => t.isActive).length;
+  const activeTeams = teams.filter((t: any) => t.isActive).length;
 
   // Calculate system health metrics
   const systemHealth = {
@@ -345,7 +344,7 @@ export default function AdminDashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user) => (
+                    {users.map((user: any) => (
                       <TableRow key={user._id}>
                         <TableCell className="font-medium">
                           {`${user.profile?.firstName || ''} ${user.profile?.lastName || ''}`.trim() || 'N/A'}
@@ -440,7 +439,7 @@ export default function AdminDashboardPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {academicYears.map((ay) => (
+                      {academicYears.map((ay: any) => (
                         <TableRow key={ay._id}>
                           <TableCell className="font-medium">{ay.name}</TableCell>
                           <TableCell>

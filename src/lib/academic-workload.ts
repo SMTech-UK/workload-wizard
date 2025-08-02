@@ -14,7 +14,7 @@ import { Id } from "../../convex/_generated/dataModel";
 // ============================================================================
 
 export interface LecturerProfile {
-  _id: Id<"lecturer_profiles">;
+  _id: string;
   fullName: string;
   email: string;
   family: string;
@@ -29,7 +29,7 @@ export interface LecturerProfile {
 }
 
 export interface Lecturer {
-  _id: Id<"lecturers">;
+  _id: string;
   profileId: Id<"lecturer_profiles">;
   academicYearId: Id<"academic_years">;
   teachingAvailability: number;
@@ -46,7 +46,7 @@ export interface Lecturer {
 }
 
 export interface Module {
-  _id: Id<"modules">;
+  _id: string;
   code: string;
   title: string;
   description?: string;
@@ -62,7 +62,7 @@ export interface Module {
 }
 
 export interface ModuleIteration {
-  _id: Id<"module_iterations">;
+  _id: string;
   moduleId: Id<"modules">;
   academicYearId: Id<"academic_years">;
   semester: string;
@@ -76,7 +76,7 @@ export interface ModuleIteration {
 }
 
 export interface ModuleAllocation {
-  _id: Id<"module_allocations">;
+  _id: string;
   moduleIterationId: Id<"module_iterations">;
   lecturerId: Id<"lecturers">;
   allocationTypeId?: Id<"allocation_types">;
@@ -89,7 +89,7 @@ export interface ModuleAllocation {
 }
 
 export interface AdminAllocation {
-  _id: Id<"admin_allocations">;
+  _id: string;
   lecturerId: Id<"lecturers">;
   academicYearId: Id<"academic_years">;
   categoryId: Id<"admin_allocation_categories">;
@@ -102,7 +102,7 @@ export interface AdminAllocation {
 }
 
 export interface AcademicYear {
-  _id: Id<"academic_years">;
+  _id: string;
   name: string;
   startDate: string;
   endDate: string;
@@ -144,8 +144,8 @@ export interface AcademicYearInfo {
 }
 
 export interface WorkloadDistributionResult {
-  lecturerId: Id<"lecturers">;
-  profileId: Id<"lecturer_profiles">;
+  lecturerId: string;
+  profileId: string;
   totalHours: number;
   breakdown: {
     teaching: number;
@@ -662,13 +662,13 @@ export function distributeWorkload(
   const results: WorkloadDistributionResult[] = [];
   
   // Create profile lookup map
-  const profileMap = new Map<Id<"lecturer_profiles">, LecturerProfile>();
+  const profileMap = new Map<string, LecturerProfile>();
   for (const profile of profiles) {
     profileMap.set(profile._id, profile);
   }
   
   // Group existing allocations by lecturer
-  const allocationsByLecturer = new Map<Id<"lecturers">, ModuleAllocation[]>();
+  const allocationsByLecturer = new Map<string, ModuleAllocation[]>();
   for (const allocation of existingAllocations) {
     const lecturerAllocations = allocationsByLecturer.get(allocation.lecturerId) || [];
     lecturerAllocations.push(allocation);
@@ -739,13 +739,13 @@ export function calculateDepartmentBalance(
   let balancedCount = 0;
 
   // Create profile lookup map
-  const profileMap = new Map<Id<"lecturer_profiles">, LecturerProfile>();
+  const profileMap = new Map<string, LecturerProfile>();
   for (const profile of profiles) {
     profileMap.set(profile._id, profile);
   }
 
   // Group allocations by lecturer
-  const allocationsByLecturer = new Map<Id<"lecturers">, ModuleAllocation[]>();
+  const allocationsByLecturer = new Map<string, ModuleAllocation[]>();
   for (const allocation of allocations) {
     const lecturerAllocations = allocationsByLecturer.get(allocation.lecturerId) || [];
     lecturerAllocations.push(allocation);
@@ -753,7 +753,7 @@ export function calculateDepartmentBalance(
   }
 
   // Group admin allocations by lecturer
-  const adminAllocationsByLecturer = new Map<Id<"lecturers">, AdminAllocation[]>();
+  const adminAllocationsByLecturer = new Map<string, AdminAllocation[]>();
   for (const adminAlloc of adminAllocations) {
     const lecturerAdminAllocs = adminAllocationsByLecturer.get(adminAlloc.lecturerId) || [];
     lecturerAdminAllocs.push(adminAlloc);
@@ -873,7 +873,7 @@ export function isValidAcademicYear(academicYear: string): boolean {
  * @returns Lecturer profile or null
  */
 export function getLecturerProfile(
-  lecturerId: Id<"lecturers">,
+  lecturerId: string,
   lecturers: Lecturer[],
   profiles: LecturerProfile[]
 ): LecturerProfile | null {
@@ -891,9 +891,9 @@ export function getLecturerProfile(
  * @returns Lecturer or null
  */
 export function getLecturerByProfile(
-  profileId: Id<"lecturer_profiles">,
+  profileId: string,
   lecturers: Lecturer[],
-  academicYearId?: Id<"academic_years">
+  academicYearId?: string
 ): Lecturer | null {
   if (academicYearId) {
     return lecturers.find(l => l.profileId === profileId && l.academicYearId === academicYearId) || null;

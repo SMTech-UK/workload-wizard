@@ -32,7 +32,7 @@ import {
   XCircle,
   Code
 } from "lucide-react"
-import { AcademicYearTest } from "../academic-year-test";
+import { AcademicYearTest } from "@/components/features/academic-year-test";
 import { DataMigration } from "../data-migration";
 import { MigrationStatus } from "./migration-status";
 import { SeedDataManager } from "./seed-data-manager";

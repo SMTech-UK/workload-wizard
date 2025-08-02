@@ -19,7 +19,6 @@ import React, { useState } from "react"
 import { useTheme } from "next-themes";
 import { useMutation } from "convex/react";
 import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 
 interface UserProfileDropdownProps {
   onProfileClick?: () => void;
@@ -41,8 +40,8 @@ export default function UserProfileDropdown({ onProfileClick, onSettingsClick, m
   const modalTab = controlledModalTab !== undefined ? controlledModalTab : uncontrolledModalTab;
   const setModalTab = setControlledModalTab || setUncontrolledModalTab;
   const { setTheme, theme } = useTheme();
-  const setSettings = useMutation(api.users.setSettings);
-  const userSettings = useQuery(api.users.getSettings, {});
+  const setSettings = useMutation('users:setSettings' as any);
+  const userSettings = useQuery('users:getSettings' as any, {});
 
   if (!isLoaded || !user) return null;
 

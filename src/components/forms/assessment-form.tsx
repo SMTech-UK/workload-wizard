@@ -252,7 +252,7 @@ export function AssessmentForm({
                       <SelectValue placeholder="Select assessment type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {ASSESSMENT_TYPES.map((type) => (
+                      {ASSESSMENT_TYPES.map((type: any) => (
                         <SelectItem key={type.value} value={type.value}>
                           {type.label}
                         </SelectItem>

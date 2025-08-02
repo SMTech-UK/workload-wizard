@@ -7,52 +7,52 @@ export function useTeams() {
   const [selectedTeamId, setSelectedTeamId] = useState<Id<'teams'> | null>(null);
   
   // Get all teams with relations
-  const teams = useQuery(api.teams.getAllWithRelations, {});
+  const teams = useQuery('teams:getAllWithRelations' as any, {});
   
   // Get a specific team by ID
   const selectedTeam = useQuery(
-    api.teams.getById, 
+    'teams:getById' as any, 
     selectedTeamId ? { id: selectedTeamId } : "skip"
   );
   
   // Get departments and faculties for team selection
-  const departments = useQuery(api.departments.getAll, {});
-  const faculties = useQuery(api.faculties.getAll, {});
-  const userProfiles = useQuery(api.user_profiles.getAll, {});
+  const departments = useQuery('departments:getAll' as any, {});
+  const faculties = useQuery('faculties:getAll' as any, {});
+  const userProfiles = useQuery('user_profiles:getAll' as any, {});
   
   // Mutations
-  const createTeam = useMutation(api.teams.create);
-  const updateTeam = useMutation(api.teams.update);
-  const deleteTeam = useMutation(api.teams.remove);
+  const createTeam = useMutation('teams:create' as any);
+  const updateTeam = useMutation('teams:update' as any);
+  const deleteTeam = useMutation('teams:remove' as any);
   
   // Get teams by department
   const getTeamsByDepartment = (departmentId: Id<'departments'>) => {
-    return teams?.filter(team => team.departmentId === departmentId) || [];
+    return teams?.filter((team: any) => team.departmentId === departmentId) || [];
   };
   
   // Get teams by faculty
   const getTeamsByFaculty = (facultyId: Id<'faculties'>) => {
-    return teams?.filter(team => team.facultyId === facultyId) || [];
+    return teams?.filter((team: any) => team.facultyId === facultyId) || [];
   };
   
   // Get teams by type
   const getTeamsByType = (teamType: string) => {
-    return teams?.filter(team => team.teamType === teamType) || [];
+    return teams?.filter((team: any) => team.teamType === teamType) || [];
   };
   
   // Get teams by level
   const getTeamsByLevel = (level: string) => {
-    return teams?.filter(team => team.level === level) || [];
+    return teams?.filter((team: any) => team.level === level) || [];
   };
   
   // Get active teams
   const getActiveTeams = () => {
-    return teams?.filter(team => team.isActive) || [];
+    return teams?.filter((team: any) => team.isActive) || [];
   };
   
   // Get inactive teams
   const getInactiveTeams = () => {
-    return teams?.filter(team => !team.isActive) || [];
+    return teams?.filter((team: any) => !team.isActive) || [];
   };
   
   // Search teams
@@ -60,7 +60,7 @@ export function useTeams() {
     if (!searchTerm.trim()) return teams || [];
     
     const term = searchTerm.toLowerCase();
-    return teams?.filter(team => 
+    return teams?.filter((team: any) => 
       team.name.toLowerCase().includes(term) ||
       team.code.toLowerCase().includes(term) ||
       team.description?.toLowerCase().includes(term)

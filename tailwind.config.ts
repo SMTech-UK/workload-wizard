@@ -346,7 +346,7 @@ const config: Config = {
   plugins: [
     require("tailwindcss-animate"),
     // Custom plugin for academic-specific utilities
-    function({ addUtilities, theme }) {
+    function({ addUtilities, theme }: any) {
       const newUtilities = {
         '.text-balance': {
           'text-wrap': 'balance',

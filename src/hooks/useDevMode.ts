@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useQuery } from 'convex/react';
-import { api } from '../../convex/_generated/api';
 
 export function useDevMode() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -16,7 +15,7 @@ export function useDevMode() {
   }, []);
   
   // Always call useQuery, but handle authentication errors gracefully
-  const profileFields = useQuery(api.users.getProfileFields);
+  const profileFields = useQuery('users:getProfileFields' as any);
   
   // Check if user is admin - only if we have valid data and user is authenticated
   // Handle the case where profileFields might be null due to auth errors

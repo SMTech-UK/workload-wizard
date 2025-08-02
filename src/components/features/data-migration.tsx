@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -101,22 +100,22 @@ export function DataMigration() {
   const [isMigrating, setIsMigrating] = React.useState(false);
   const [overallProgress, setOverallProgress] = React.useState(0);
   
-  const migrationStatus = useQuery(api.migrations.getMigrationStatus, {});
-  const dataIntegrity = useQuery(api.migrations.validateDataIntegrity, {});
+  const migrationStatus = useQuery('migrations:getMigrationStatus' as any, {});
+  const dataIntegrity = useQuery('migrations:validateDataIntegrity' as any, {});
 
-  const migrateAcademicYears = useMutation(api.migrations.migrateAcademicYears);
-  const migrateLecturers = useMutation(api.migrations.migrateLecturers);
-  const migrateModuleIterations = useMutation(api.migrations.migrateModuleIterations);
-  const migrateModuleAllocations = useMutation(api.migrations.migrateModuleAllocations);
-  const migrateAdminAllocations = useMutation(api.migrations.migrateAdminAllocations);
-  const migrateCohorts = useMutation(api.migrations.migrateCohorts);
-  const migrateDeptSummary = useMutation(api.migrations.migrateDeptSummary);
+  const migrateAcademicYears = useMutation('migrations:migrateAcademicYears' as any);
+  const migrateLecturers = useMutation('migrations:migrateLecturers' as any);
+  const migrateModuleIterations = useMutation('migrations:migrateModuleIterations' as any);
+  const migrateModuleAllocations = useMutation('migrations:migrateModuleAllocations' as any);
+  const migrateAdminAllocations = useMutation('migrations:migrateAdminAllocations' as any);
+  const migrateCohorts = useMutation('migrations:migrateCohorts' as any);
+  const migrateDeptSummary = useMutation('migrations:migrateDeptSummary' as any);
   
   // New migration functions (optional - may not be available until types are regenerated)
-  const migrateProfileStructure = useMutation((api.migrations as any).migrateProfileStructure);
-  const migrateAcademicYearAssignment = useMutation((api.migrations as any).migrateAcademicYearAssignment);
-  const migrateDataNormalization = useMutation((api.migrations as any).migrateDataNormalization);
-  const migrateSeedData = useMutation((api.migrations as any).migrateSeedData);
+  const migrateProfileStructure = useMutation('migrations:migrateProfileStructure' as any);
+  const migrateAcademicYearAssignment = useMutation('migrations:migrateAcademicYearAssignment' as any);
+  const migrateDataNormalization = useMutation('migrations:migrateDataNormalization' as any);
+  const migrateSeedData = useMutation('migrations:migrateSeedData' as any);
 
   const handleFullMigration = async () => {
     setIsMigrating(true);
@@ -477,7 +476,7 @@ export function DataMigration() {
                     <div className="space-y-2">
                       <h4 className="font-medium">Issues Found:</h4>
                       <div className="space-y-1">
-                        {dataIntegrity.issues.slice(0, 5).map((issue, index) => (
+                        {dataIntegrity.issues.slice(0, 5).map((issue: any, index: any) => (
                           <div key={index} className="text-sm p-2 bg-red-50 border border-red-200 rounded">
                             <div className="font-medium">{issue.table}</div>
                             <div className="text-muted-foreground">{issue.issue}</div>
@@ -512,7 +511,7 @@ export function DataMigration() {
             <CardContent>
               {migrationStatus && migrationStatus.length > 0 ? (
                 <div className="space-y-2">
-                  {migrationStatus.slice(0, 10).map((migration, index) => (
+                  {migrationStatus.slice(0, 10).map((migration: any, index: any) => (
                     <div key={index} className="flex items-center justify-between p-2 border rounded">
                       <div>
                         <div className="font-medium">{migration.name}</div>

@@ -262,7 +262,7 @@ export function CourseForm({ courseId, onSuccess, onCancel, mode = "create" }: C
                     <SelectValue placeholder="Select faculty" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties?.map((faculty) => (
+                    {faculties?.map((faculty: any) => (
                       <SelectItem key={faculty._id} value={faculty._id}>
                         {faculty.name}
                       </SelectItem>
@@ -281,7 +281,7 @@ export function CourseForm({ courseId, onSuccess, onCancel, mode = "create" }: C
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments?.map((department) => (
+                    {departments?.map((department: any) => (
                       <SelectItem key={department._id} value={department._id}>
                         {department.name}
                       </SelectItem>

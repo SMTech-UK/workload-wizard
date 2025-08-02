@@ -154,7 +154,7 @@ export function CohortForm({ cohortId, onSuccess, onCancel, mode = "create" }: C
   };
 
   // Get selected course for display
-  const selectedCourse = courses?.find(course => course._id === form.watch("courseId"));
+  const selectedCourse = courses?.find((course: any) => course._id === form.watch("courseId"));
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -215,7 +215,7 @@ export function CohortForm({ cohortId, onSuccess, onCancel, mode = "create" }: C
                     <SelectValue placeholder="Select course" />
                   </SelectTrigger>
                   <SelectContent>
-                    {courses?.map((course) => (
+                    {courses?.map((course: any) => (
                       <SelectItem key={course._id} value={course._id}>
                         {course.code} - {course.name}
                       </SelectItem>
@@ -237,7 +237,7 @@ export function CohortForm({ cohortId, onSuccess, onCancel, mode = "create" }: C
                     <SelectValue placeholder="Select academic year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {academicYears?.map((year) => (
+                    {academicYears?.map((year: any) => (
                       <SelectItem key={year._id} value={year._id}>
                         {year.name} {year.isActive && "(Active)"}
                       </SelectItem>

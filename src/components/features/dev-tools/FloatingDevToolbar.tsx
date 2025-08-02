@@ -25,7 +25,6 @@ import {
   TestTube, 
   Code, 
   Database, 
-  Plus, 
   Play, 
   Settings, 
   ChevronUp, 
@@ -38,7 +37,6 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -114,7 +112,7 @@ function FloatingDevToolbarContent({
   testResults: { passed: number; failed: number; total: number } | null;
   setTestResults: (results: { passed: number; failed: number; total: number } | null) => void;
 }) {
-  const { shouldShowDevTools, devMode } = useDevMode();
+  const { shouldShowDevTools } = useDevMode();
   const { openDevSettings } = useDevSettings();
   const router = useRouter();
 

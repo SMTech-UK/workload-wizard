@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../convex/_generated/api";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -74,13 +74,13 @@ export default function CohortManagementPage() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // Fetch data from Convex
-  const organisation = useQuery(api.organisations.get, {}) ?? null;
-  const cohorts = useQuery(api.cohorts.getAll, {}) ?? [];
-  const courses = useQuery(api.courses.getAll, {}) ?? [];
-  const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
-  const createCohort = useMutation(api.cohorts.create);
-  const updateCohort = useMutation(api.cohorts.update);
-  const deleteCohort = useMutation(api.cohorts.remove);
+  const organisation = useQuery('organisations:get' as any, {}) ?? null;
+  const cohorts = useQuery('cohorts:getAll' as any, {}) ?? [];
+  const courses = useQuery('courses:getAll' as any, {}) ?? [];
+  const academicYears = useQuery('academic_years:getAll' as any, {}) ?? [];
+  const createCohort = useMutation('cohorts:create' as any);
+  const updateCohort = useMutation('cohorts:update' as any);
+  const deleteCohort = useMutation('cohorts:remove' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
@@ -219,12 +219,12 @@ export default function CohortManagementPage() {
   };
 
   const getCourseName = (courseId: Id<'courses'>) => {
-    const course = courses.find(c => c._id === courseId);
+    const course = courses.find((c: any) => c._id === courseId);
     return course ? `${course.code} - ${course.name}` : "Unknown Course";
   };
 
   const getAcademicYearName = (academicYearId: Id<'academic_years'>) => {
-    const academicYear = academicYears.find(ay => ay._id === academicYearId);
+    const academicYear = academicYears.find((ay: any) => ay._id === academicYearId);
     return academicYear?.name || "Unknown Year";
   };
 
@@ -250,7 +250,7 @@ export default function CohortManagementPage() {
     }
   };
 
-  const filteredCohorts = cohorts.filter(cohort =>
+  const filteredCohorts = cohorts.filter((cohort: any) =>
     cohort.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cohort.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     getCourseName(cohort.courseId).toLowerCase().includes(searchTerm.toLowerCase())
@@ -313,7 +313,7 @@ export default function CohortManagementPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Cohorts</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {cohorts.filter(c => c.isActive).length}
+                    {cohorts.filter((c: any) => c.isActive).length}
                   </p>
                 </div>
                 <Calendar className="w-8 h-8 text-green-600" />
@@ -339,7 +339,7 @@ export default function CohortManagementPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Courses</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {new Set(cohorts.map(c => c.courseId)).size}
+                    {new Set(cohorts.map((c: any) => c.courseId)).size}
                   </p>
                 </div>
                 <BookOpen className="w-8 h-8 text-amber-600" />
@@ -392,7 +392,7 @@ export default function CohortManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCohorts.map((cohort) => (
+                {filteredCohorts.map((cohort: any) => (
                   <TableRow key={cohort._id}>
                     <TableCell className="font-medium">{cohort.code}</TableCell>
                     <TableCell>{cohort.name}</TableCell>
@@ -465,7 +465,7 @@ export default function CohortManagementPage() {
                       <SelectValue placeholder="Select course" />
                     </SelectTrigger>
                     <SelectContent>
-                      {courses.map((course) => (
+                      {courses.map((course: any) => (
                         <SelectItem key={course._id} value={course._id}>
                           {course.code} - {course.name}
                         </SelectItem>
@@ -480,7 +480,7 @@ export default function CohortManagementPage() {
                       <SelectValue placeholder="Select academic year" />
                     </SelectTrigger>
                     <SelectContent>
-                      {academicYears.map((academicYear) => (
+                      {academicYears.map((academicYear: any) => (
                         <SelectItem key={academicYear._id} value={academicYear._id}>
                           {academicYear.name}
                         </SelectItem>

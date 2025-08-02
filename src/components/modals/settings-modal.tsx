@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { useQuery } from "convex/react";
 import { useTheme } from "next-themes";
 import { updateSettings as updateSettingsUtil } from "@/lib/utils";
@@ -216,12 +215,12 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
   });
 
   // Always call hooks at the top level, but handle authentication in data processing
-  const preferences = useQuery(api.users.getPreferences, {});
-  const profileFields = useQuery(api.users.getProfileFields, {});
-  const userSettings = useQuery(api.users.getSettings, {});
-  const organisationSettings = useQuery(api.organisations.get, {});
-  const academicYears = useQuery(api.academic_years.getAll, {});
-  const activeAcademicYear = useQuery(api.academic_years.getActive, {});
+  const preferences = useQuery('users:getPreferences' as any, {});
+  const profileFields = useQuery('users:getProfileFields' as any, {});
+  const userSettings = useQuery('users:getSettings' as any, {});
+  const organisationSettings = useQuery('organisations:get' as any, {});
+  const academicYears = useQuery('academic_years:getAll' as any, {});
+  const activeAcademicYear = useQuery('academic_years:getActive' as any, {});
   
   // Get current academic year context
   const { currentAcademicYear } = useAcademicYear();
@@ -344,15 +343,15 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
     }
   }, [activeTab, safeUserSettings, setTheme]);
 
-  const storeUser = useMutation(api.users.store);
-  const setPreferences = useMutation(api.users.setPreferences);
-  const setSettings = useMutation(api.users.setSettings);
-  const updateOrganisation = useMutation(api.organisations.update);
-  const createAcademicYear = useMutation(api.academic_years.create);
-  const updateAcademicYear = useMutation(api.academic_years.update);
-  const deleteAcademicYear = useMutation(api.academic_years.remove);
-  const setActiveAcademicYear = useMutation(api.academic_years.setActive);
-  const setStagingAcademicYear = useMutation(api.academic_years.setStaging);
+  const storeUser = useMutation('users:store' as any);
+  const setPreferences = useMutation('users:setPreferences' as any);
+  const setSettings = useMutation('users:setSettings' as any);
+  const updateOrganisation = useMutation('organisations:update' as any);
+  const createAcademicYear = useMutation('academic_years:create' as any);
+  const updateAcademicYear = useMutation('academic_years:update' as any);
+  const deleteAcademicYear = useMutation('academic_years:remove' as any);
+  const setActiveAcademicYear = useMutation('academic_years:setActive' as any);
+  const setStagingAcademicYear = useMutation('academic_years:setStaging' as any);
 
   const sidebarItems = [
     {
@@ -1322,7 +1321,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                             <div>
                               <h4 className="font-medium">Current View Context</h4>
                               <p className="text-sm text-muted-foreground">
-                                You are currently viewing data for: {academicYears?.find(ay => ay._id === currentAcademicYear)?.name || 'Unknown Year'}
+                                You are currently viewing data for: {academicYears?.find((ay: any) => ay._id === currentAcademicYear)?.name || 'Unknown Year'}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 This affects which data you see throughout the application
@@ -1338,7 +1337,7 @@ export default function SettingsModal({ open, onOpenChange, initialTab = "profil
                         <div className="space-y-2">
                           <h4 className="font-medium">All Academic Years</h4>
                           <div className="space-y-2">
-                            {academicYears.map((year) => (
+                            {academicYears.map((year: any) => (
                               <div key={year._id} className="flex items-center justify-between p-3 border rounded-lg">
                                 <div className="flex-1">
                                                                       <div className="flex items-center gap-2">

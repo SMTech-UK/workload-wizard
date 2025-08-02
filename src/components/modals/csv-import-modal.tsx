@@ -12,7 +12,6 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Upload, FileText, CheckCircle, AlertCircle, Download, X } from "lucide-react";
 import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
 
 interface CSVImportModalProps {
@@ -40,9 +39,9 @@ export default function CSVImportModal({ isOpen, onClose, importType }: CSVImpor
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const importModules = useMutation(api.modules.bulkImport);
-  const importModuleIterations = useMutation(api.module_iterations.bulkImport);
-  const importLecturers = useMutation(api.lecturers.bulkImport);
+  const importModules = useMutation('modules:bulkImport' as any);
+  const importModuleIterations = useMutation('module_iterations:bulkImport' as any);
+  const importLecturers = useMutation('lecturers:bulkImport' as any);
 
   const requiredFields = {
     modules: ["code", "title", "credits", "level", "moduleLeader", "defaultTeachingHours", "defaultMarkingHours"],

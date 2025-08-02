@@ -294,7 +294,7 @@ export function AllocationForm({
                     <SelectValue placeholder="Select academic year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {academicYears?.map((year) => (
+                    {academicYears?.map((year: any) => (
                       <SelectItem key={year._id} value={year._id}>
                         {year.name} {year.isActive && "(Active)"}
                       </SelectItem>

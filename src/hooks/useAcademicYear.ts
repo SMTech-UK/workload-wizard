@@ -1,18 +1,17 @@
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useState, useEffect } from "react";
 
 export function useAcademicYear() {
   const [currentAcademicYearId, setCurrentAcademicYearId] = useState<string | null>(null);
   
   // Get all academic years
-  const academicYears = useQuery(api.academic_years.getAll);
+  const academicYears = useQuery('academic_years:getAll' as any);
   
   // Get the active academic year
-  const activeAcademicYear = useQuery(api.academic_years.getActive);
+  const activeAcademicYear = useQuery('academic_years:getActive' as any);
   
   // Mutations
-  const setActiveAcademicYear = useMutation(api.academic_years.setActive);
+  const setActiveAcademicYear = useMutation('academic_years:setActive' as any);
   
   // Set the current academic year to the active one when it loads
   useEffect(() => {
@@ -22,7 +21,7 @@ export function useAcademicYear() {
   }, [activeAcademicYear]);
   
   // Get the current academic year object
-  const currentAcademicYear = academicYears?.find(year => year._id === currentAcademicYearId);
+  const currentAcademicYear = academicYears?.find((year: any) => year._id === currentAcademicYearId);
   
   // Function to change the current academic year
   const changeAcademicYear = async (academicYearId: string) => {

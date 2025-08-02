@@ -1,5 +1,4 @@
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import type { Id } from "../../convex/_generated/dataModel";
 
@@ -7,42 +6,42 @@ export function useCourses() {
   const [selectedCourseId, setSelectedCourseId] = useState<Id<'courses'> | null>(null);
   
   // Get all courses
-  const courses = useQuery(api.courses.getAll, { isActive: true });
+  const courses = useQuery('courses:getAll' as any, { isActive: true });
   
   // Get a specific course by ID
   const selectedCourse = useQuery(
-    api.courses.getById, 
+    'courses:getById' as any, 
     selectedCourseId ? { id: selectedCourseId } : "skip"
   );
   
   // Mutations
-  const createCourse = useMutation(api.courses.create);
-  const updateCourse = useMutation(api.courses.update);
-  const deleteCourse = useMutation(api.courses.remove);
+  const createCourse = useMutation('courses:create' as any);
+  const updateCourse = useMutation('courses:update' as any);
+  const deleteCourse = useMutation('courses:remove' as any);
   
   // Get courses by faculty
   const getCoursesByFaculty = (facultyId: Id<'faculties'>) => {
-    return courses?.filter(course => course.facultyId === facultyId) || [];
+    return courses?.filter((course: any) => course.facultyId === facultyId) || [];
   };
   
   // Get courses by department
   const getCoursesByDepartment = (departmentId: Id<'departments'>) => {
-    return courses?.filter(course => course.departmentId === departmentId) || [];
+    return courses?.filter((course: any) => course.departmentId === departmentId) || [];
   };
   
   // Get courses by level
   const getCoursesByLevel = (level: string) => {
-    return courses?.filter(course => course.level === level) || [];
+    return courses?.filter((course: any) => course.level === level) || [];
   };
   
   // Get active courses
   const getActiveCourses = () => {
-    return courses?.filter(course => course.isActive) || [];
+    return courses?.filter((course: any) => course.isActive) || [];
   };
   
   // Get inactive courses
   const getInactiveCourses = () => {
-    return courses?.filter(course => !course.isActive) || [];
+    return courses?.filter((course: any) => !course.isActive) || [];
   };
   
   // Search courses
@@ -50,7 +49,7 @@ export function useCourses() {
     if (!searchTerm.trim()) return courses || [];
     
     const term = searchTerm.toLowerCase();
-    return courses?.filter(course => 
+    return courses?.filter((course: any) => 
       course.name.toLowerCase().includes(term) ||
       course.code.toLowerCase().includes(term) ||
       course.description?.toLowerCase().includes(term)

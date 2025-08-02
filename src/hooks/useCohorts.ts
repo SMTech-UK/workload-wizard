@@ -1,5 +1,4 @@
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useState } from "react";
 import type { Id } from "../../convex/_generated/dataModel";
 import { useAcademicYear } from "./useAcademicYear";
@@ -9,53 +8,53 @@ export function useCohorts() {
   const { currentAcademicYearId } = useAcademicYear();
   
   // Get all cohorts for current academic year
-  const cohorts = useQuery(api.cohorts.getAll, { 
+  const cohorts = useQuery('cohorts:getAll' as any, { 
     academicYearId: currentAcademicYearId as any,
     isActive: true 
   });
   
   // Get a specific cohort by ID
   const selectedCohort = useQuery(
-    api.cohorts.getById, 
+    'cohorts:getById' as any, 
     selectedCohortId ? { id: selectedCohortId } : "skip"
   );
   
   // Get courses for cohort selection
-  const courses = useQuery(api.courses.getAll, { isActive: true });
+  const courses = useQuery('courses:getAll' as any, { isActive: true });
   
   // Mutations
-  const createCohort = useMutation(api.cohorts.create);
-  const updateCohort = useMutation(api.cohorts.update);
-  const deleteCohort = useMutation(api.cohorts.remove);
+  const createCohort = useMutation('cohorts:create' as any);
+  const updateCohort = useMutation('cohorts:update' as any);
+  const deleteCohort = useMutation('cohorts:remove' as any);
   
   // Get cohorts by course
   const getCohortsByCourse = (courseId: Id<'courses'>) => {
-    return cohorts?.filter(cohort => cohort.courseId === courseId) || [];
+    return cohorts?.filter((cohort: any) => cohort.courseId === courseId) || [];
   };
   
   // Get cohorts by entry year
   const getCohortsByEntryYear = (entryYear: number) => {
-    return cohorts?.filter(cohort => cohort.entryYear === entryYear) || [];
+    return cohorts?.filter((cohort: any) => cohort.entryYear === entryYear) || [];
   };
   
   // Get full-time cohorts
   const getFullTimeCohorts = () => {
-    return cohorts?.filter(cohort => cohort.isFullTime) || [];
+    return cohorts?.filter((cohort: any) => cohort.isFullTime) || [];
   };
   
   // Get part-time cohorts
   const getPartTimeCohorts = () => {
-    return cohorts?.filter(cohort => !cohort.isFullTime) || [];
+    return cohorts?.filter((cohort: any) => !cohort.isFullTime) || [];
   };
   
   // Get active cohorts
   const getActiveCohorts = () => {
-    return cohorts?.filter(cohort => cohort.isActive) || [];
+    return cohorts?.filter((cohort: any) => cohort.isActive) || [];
   };
   
   // Get inactive cohorts
   const getInactiveCohorts = () => {
-    return cohorts?.filter(cohort => !cohort.isActive) || [];
+    return cohorts?.filter((cohort: any) => !cohort.isActive) || [];
   };
   
   // Search cohorts
@@ -63,7 +62,7 @@ export function useCohorts() {
     if (!searchTerm.trim()) return cohorts || [];
     
     const term = searchTerm.toLowerCase();
-    return cohorts?.filter(cohort => 
+    return cohorts?.filter((cohort: any) => 
       cohort.name.toLowerCase().includes(term) ||
       cohort.code.toLowerCase().includes(term)
     ) || [];

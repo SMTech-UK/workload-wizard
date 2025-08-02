@@ -34,7 +34,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import StaffEditModal from "./staff-edit-modal"
 import AdminAllocationsEditModal from "./admin-allocations-edit-modal"
 import { useMutation, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { useConvex } from "convex/react";
 import Calculator from "@/lib/calculator";
@@ -99,22 +98,22 @@ export default function StaffProfileModal({
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [adminEditModalOpen, setAdminEditModalOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-  const updateLecturer = useMutation(api.lecturers.updateLecturer);
-  const updateProfile = useMutation(api.lecturers.updateProfile);
-  const deleteLecturer = useMutation(api.lecturers.deleteLecturer);
+  const updateLecturer = useMutation('lecturers:updateLecturer' as any);
+  const updateProfile = useMutation('lecturers:updateProfile' as any);
+  const deleteLecturer = useMutation('lecturers:deleteLecturer' as any);
   const convex = useConvex();
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
 
   // Fetch the latest lecturer data from Convex
-  const liveLecturer = useQuery(api.lecturers.getById, lecturer ? { id: lecturer._id } : "skip");
+  const liveLecturer = useQuery('lecturers:getById' as any, lecturer ? { id: lecturer._id } : "skip");
   const displayLecturer = liveLecturer || lecturer;
 
   // Fetch module allocations for this lecturer from Convex
-  const moduleAllocations = useQuery(api.modules.getByLecturerId, lecturer ? { lecturerId: lecturer._id } : "skip") ?? [];
+  const moduleAllocations = useQuery('modules:getByLecturerId' as any, lecturer ? { lecturerId: lecturer._id } : "skip") ?? [];
 
   // Fetch all admin allocations at the top level (fixes hooks rules violation)
-  const allAdminAllocations = useQuery(api.admin_allocations.getAll, {}) ?? [];
+  const allAdminAllocations = useQuery('admin_allocations:getAll' as any, {}) ?? [];
 
   // Early return after all hooks are called
   if (!displayLecturer) {
@@ -282,9 +281,9 @@ export default function StaffProfileModal({
 
       if (onLecturerUpdate) {
         // Fetch the updated lecturer from Convex
-        const freshLecturer = await convex.query(api.lecturers.getById, { id: lecturer._id });
+        const freshLecturer = await convex.query('lecturers:getById' as any, { id: lecturer._id });
         if (freshLecturer) {
-          onLecturerUpdate(freshLecturer);
+          onLecturerUpdate(freshLecturer as Lecturer);
         }
       }
       
@@ -292,19 +291,11 @@ export default function StaffProfileModal({
       
       // Log recent activity for editing personal details
       await logRecentActivity({
-        action: "user details edited",
-        changeType: "edit",
+        type: "edit",
         entity: "lecturer",
-        entityId: lecturer._id,
-        fullName: updatedStaffMember.fullName ?? lecturer.fullName,
-        modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
-        permission: "default",
-        type: "lecturer_edited",
-        details: {
-          fullName: updatedStaffMember.fullName ?? lecturer.fullName,
-          lecturerId: lecturer._id,
-          section: "User Details"
-        }
+        description: `Updated user details for ${updatedStaffMember.fullName ?? lecturer.fullName}`,
+        userId: user?.sub || "",
+        organisationId: "",
       });
 
       toast.success("Staff profile updated successfully.");
@@ -338,7 +329,7 @@ export default function StaffProfileModal({
     .reduce((sum, allocation) => sum + allocation.hours, 0)
 
   // Calculate total module hours
-  const totalModuleHours = moduleAllocations.reduce((sum, module) => sum + module.hoursAllocated, 0)
+  const totalModuleHours = moduleAllocations.reduce((sum: any, module: any) => sum + module.hoursAllocated, 0)
 
   async function handleDeleteLecturer() {
     if (!lecturer || !lecturer._id) return;
@@ -346,14 +337,11 @@ export default function StaffProfileModal({
     try {
       await deleteLecturer({ id: lecturer._id });
       await logRecentActivity({
-        action: "lecturer deleted",
-        changeType: "delete",
+        type: "delete",
         entity: "lecturer",
-        entityId: lecturer._id,
-        fullName: lecturer.fullName,
-        modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
-        permission: "default",
-        type: "lecturer_deleted"
+        description: `Deleted lecturer profile for ${lecturer.fullName}`,
+        userId: user?.sub || "",
+        organisationId: "",
       });
       toast("Staff profile deleted.");
       setDeleteConfirmOpen(false);
@@ -647,7 +635,7 @@ export default function StaffProfileModal({
                           No modules allocated.
                         </div>
                       ) : (
-                        moduleAllocations.map((module, index) => (
+                        moduleAllocations.map((module: any, index: any) => (
                           <div key={index} className="hover:bg-gray-50 border-b border-gray-100 p-6 transition-colors">
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
                               <div className="flex items-center gap-3">

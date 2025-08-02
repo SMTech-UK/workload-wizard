@@ -286,7 +286,13 @@ export function aggregateWorkloadData(
   };
 
   // Generate trends (simplified - would need historical data)
-  const trends = [];
+  const trends: Array<{
+    period: string;
+    utilization: number;
+    teachingHours: number;
+    adminHours: number;
+    researchHours: number;
+  }> = [];
 
   // Generate alerts
   const alerts = generateWorkloadAlerts(summary, breakdowns);
@@ -314,7 +320,12 @@ export function generateWorkloadAlerts(
   severity: 'low' | 'medium' | 'high' | 'critical';
   affectedEntities: string[];
 }> {
-  const alerts = [];
+  const alerts: Array<{
+    type: 'overload' | 'underload' | 'unbalanced' | 'capacity';
+    message: string;
+    severity: 'low' | 'medium' | 'high' | 'critical';
+    affectedEntities: string[];
+  }> = [];
 
   // Check for high utilization
   if (summary.averageUtilization > 100) {

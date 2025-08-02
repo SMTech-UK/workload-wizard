@@ -6,13 +6,11 @@ import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Loader2, 
   Plus, 
@@ -23,13 +21,10 @@ import {
   Users,
   FileText,
   Settings,
-  Calendar,
   Tag,
   Building,
   MapPin,
   Shield,
-  CheckCircle,
-  AlertTriangle,
   Database
 } from "lucide-react";
 import { toast } from "sonner";
@@ -50,47 +45,47 @@ export function SeedDataManager() {
   const [editForm, setEditForm] = React.useState<any>({});
 
   // Queries for reference data
-  const roles = useQuery(api.roles.list, {});
-  const assessmentTypes = useQuery(api.assessment_types.list, {});
-  const allocationTypes = useQuery(api.allocation_types.list, {});
-  const adminAllocationCategories = useQuery(api.admin_allocation_categories.list, {});
-  const lecturerStatuses = useQuery(api.lecturer_statuses.list, {});
-  const sites = useQuery(api.sites.list, {});
-  const faculties = useQuery(api.faculties.list, {});
-  const tags = useQuery(api.tags.list, {});
+  const roles = useQuery('roles:list' as any, {});
+  const assessmentTypes = useQuery('assessment_types:list' as any, {});
+  const allocationTypes = useQuery('allocation_types:list' as any, {});
+  const adminAllocationCategories = useQuery('admin_allocation_categories:list' as any, {});
+  const lecturerStatuses = useQuery('lecturer_statuses:list' as any, {});
+  const sites = useQuery('sites:list' as any, {});
+  const faculties = useQuery('faculties:list' as any, {});
+  const tags = useQuery('tags:list' as any, {});
 
   // Mutations
-  const createRole = useMutation(api.roles.create);
-  const updateRole = useMutation(api.roles.update);
-  const deleteRole = useMutation(api.roles.delete_);
+  const createRole = useMutation('roles:create' as any);
+  const updateRole = useMutation('roles:update' as any);
+  const deleteRole = useMutation('roles:delete_' as any);
   
-  const createAssessmentType = useMutation(api.assessment_types.create);
-  const updateAssessmentType = useMutation(api.assessment_types.update);
-  const deleteAssessmentType = useMutation(api.assessment_types.remove);
+  const createAssessmentType = useMutation('assessment_types:create' as any);
+  const updateAssessmentType = useMutation('assessment_types:update' as any);
+  const deleteAssessmentType = useMutation('assessment_types:remove' as any);
   
-  const createAllocationType = useMutation(api.allocation_types.create);
-  const updateAllocationType = useMutation(api.allocation_types.update);
-  const deleteAllocationType = useMutation(api.allocation_types.remove);
+  const createAllocationType = useMutation('allocation_types:create' as any);
+  const updateAllocationType = useMutation('allocation_types:update' as any);
+  const deleteAllocationType = useMutation('allocation_types:remove' as any);
   
-  const createAdminAllocationCategory = useMutation(api.admin_allocation_categories.create);
-  const updateAdminAllocationCategory = useMutation(api.admin_allocation_categories.update);
-  const deleteAdminAllocationCategory = useMutation(api.admin_allocation_categories.remove);
+  const createAdminAllocationCategory = useMutation('admin_allocation_categories:create' as any);
+  const updateAdminAllocationCategory = useMutation('admin_allocation_categories:update' as any);
+  const deleteAdminAllocationCategory = useMutation('admin_allocation_categories:remove' as any);
   
-  const createLecturerStatus = useMutation(api.lecturer_statuses.create);
-  const updateLecturerStatus = useMutation(api.lecturer_statuses.update);
-  const deleteLecturerStatus = useMutation(api.lecturer_statuses.remove);
+  const createLecturerStatus = useMutation('lecturer_statuses:create' as any);
+  const updateLecturerStatus = useMutation('lecturer_statuses:update' as any);
+  const deleteLecturerStatus = useMutation('lecturer_statuses:remove' as any);
   
-  const createSite = useMutation(api.sites.create);
-  const updateSite = useMutation(api.sites.update);
-  const deleteSite = useMutation(api.sites.remove);
+  const createSite = useMutation('sites:create' as any);
+  const updateSite = useMutation('sites:update' as any);
+  const deleteSite = useMutation('sites:remove' as any);
   
-  const createFaculty = useMutation(api.faculties.create);
-  const updateFaculty = useMutation(api.faculties.update);
-  const deleteFaculty = useMutation(api.faculties.remove);
+  const createFaculty = useMutation('faculties:create' as any);
+  const updateFaculty = useMutation('faculties:update' as any);
+  const deleteFaculty = useMutation('faculties:remove' as any);
   
-  const createTag = useMutation(api.tags.create);
-  const updateTag = useMutation(api.tags.update);
-  const deleteTag = useMutation(api.tags.remove);
+  const createTag = useMutation('tags:create' as any);
+  const updateTag = useMutation('tags:update' as any);
+  const deleteTag = useMutation('tags:remove' as any);
 
   // const runSeedDataMigration = useMutation(api.migrations.migrateSeedData);
 
@@ -266,7 +261,7 @@ export function SeedDataManager() {
             <TabsContent value="roles" className="space-y-4">
               <ScrollArea className="h-96">
                 <div className="space-y-2">
-                  {roles?.map((role) => (
+                  {roles?.map((role: any) => (
                     <div key={role._id} className="border rounded-lg p-4">
                       {editingItem === role._id ? (
                         <div className="space-y-3">
@@ -336,7 +331,7 @@ export function SeedDataManager() {
             <TabsContent value="assessmentTypes" className="space-y-4">
               <ScrollArea className="h-96">
                 <div className="space-y-2">
-                  {assessmentTypes?.map((type) => (
+                  {assessmentTypes?.map((type: any) => (
                     <div key={type._id} className="border rounded-lg p-4">
                       {editingItem === type._id ? (
                         <div className="space-y-3">
@@ -404,7 +399,7 @@ export function SeedDataManager() {
             <TabsContent value="allocationTypes" className="space-y-4">
               <ScrollArea className="h-96">
                 <div className="space-y-2">
-                  {allocationTypes?.map((type) => (
+                  {allocationTypes?.map((type: any) => (
                     <div key={type._id} className="border rounded-lg p-4">
                       {editingItem === type._id ? (
                         <div className="space-y-3">
@@ -472,7 +467,7 @@ export function SeedDataManager() {
             <TabsContent value="sites" className="space-y-4">
               <ScrollArea className="h-96">
                 <div className="space-y-2">
-                  {sites?.map((site) => (
+                  {sites?.map((site: any) => (
                     <div key={site._id} className="border rounded-lg p-4">
                       {editingItem === site._id ? (
                         <div className="space-y-3">

@@ -9,51 +9,51 @@ export function useReports() {
   const { currentAcademicYearId } = useAcademicYear();
   
   // Get all workload reports for current academic year
-  const workloadReports = useQuery(api.workload_reports.getAll, { 
+  const workloadReports = useQuery('workload_reports:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   });
   
   // Get a specific report by ID
   const selectedReport = useQuery(
-    api.workload_reports.getById, 
+    'workload_reports:getById' as any, 
     selectedReportId ? { id: selectedReportId } : "skip"
   );
   
   // Get team summaries for current academic year
-  const teamSummaries = useQuery(api.team_summaries.getAll, { 
+  const teamSummaries = useQuery('team_summaries:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   });
   
   // Get lecturers and profiles for reporting
-  const lecturers = useQuery(api.lecturers.getAll, { 
+  const lecturers = useQuery('lecturers:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   });
-  const lecturerProfiles = useQuery(api.lecturers.getProfiles, {});
-  const moduleAllocations = useQuery(api.module_allocations.getAll, { 
+  const lecturerProfiles = useQuery('lecturers:getProfiles' as any, {});
+  const moduleAllocations = useQuery('module_allocations:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   });
-  const adminAllocations = useQuery(api.admin_allocations.getAll, { 
+  const adminAllocations = useQuery('admin_allocations:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   });
   
   // Mutations
-  const createWorkloadReport = useMutation(api.workload_reports.create);
-  const updateWorkloadReport = useMutation(api.workload_reports.update);
-  const deleteWorkloadReport = useMutation(api.workload_reports.remove);
+  const createWorkloadReport = useMutation('workload_reports:create' as any);
+  const updateWorkloadReport = useMutation('workload_reports:update' as any);
+  const deleteWorkloadReport = useMutation('workload_reports:remove' as any);
   
   // Get reports by type
   const getReportsByType = (reportType: string) => {
-    return workloadReports?.filter(report => report.reportType === reportType) || [];
+    return workloadReports?.filter((report: any) => report.reportType === reportType) || [];
   };
   
   // Get active reports
   const getActiveReports = () => {
-    return workloadReports?.filter(report => report.isActive) || [];
+    return workloadReports?.filter((report: any) => report.isActive) || [];
   };
   
   // Get inactive reports
   const getInactiveReports = () => {
-    return workloadReports?.filter(report => !report.isActive) || [];
+    return workloadReports?.filter((report: any) => !report.isActive) || [];
   };
   
   // Search reports
@@ -61,7 +61,7 @@ export function useReports() {
     if (!searchTerm.trim()) return workloadReports || [];
     
     const term = searchTerm.toLowerCase();
-    return workloadReports?.filter(report => 
+    return workloadReports?.filter((report: any) => 
       report.reportName.toLowerCase().includes(term) ||
       report.reportType.toLowerCase().includes(term)
     ) || [];
@@ -73,14 +73,14 @@ export function useReports() {
       return [];
     }
     
-    return lecturers.map(lecturer => {
-      const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    return lecturers.map((lecturer: any) => {
+      const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
       const teachingHours = moduleAllocations
-        .filter(ma => ma.lecturerId === lecturer._id)
-        .reduce((total, allocation) => total + allocation.hours, 0);
+        .filter((ma: any) => ma.lecturerId === lecturer._id)
+        .reduce((total: any, allocation: any) => total + allocation.hours, 0);
       const adminHours = adminAllocations
-        .filter(aa => aa.lecturerId === lecturer._id)
-        .reduce((total, allocation) => total + allocation.hours, 0);
+        .filter((aa: any) => aa.lecturerId === lecturer._id)
+        .reduce((total: any, allocation: any) => total + allocation.hours, 0);
       
       const totalAllocated = lecturer.totalAllocated;
       const capacity = profile?.capacity || 0;
@@ -112,8 +112,8 @@ export function useReports() {
     
     const departmentData: Record<string, any> = {};
     
-    lecturers.forEach(lecturer => {
-      const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    lecturers.forEach((lecturer: any) => {
+      const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
       const family = profile?.family || "Unknown";
       
       if (!departmentData[family]) {
@@ -130,11 +130,11 @@ export function useReports() {
       }
       
       const teachingHours = moduleAllocations
-        ?.filter(ma => ma.lecturerId === lecturer._id)
-        .reduce((total, allocation) => total + allocation.hours, 0) || 0;
+        ?.filter((ma: any) => ma.lecturerId === lecturer._id)
+        .reduce((total: any, allocation: any) => total + allocation.hours, 0) || 0;
       const adminHours = adminAllocations
-        ?.filter(aa => aa.lecturerId === lecturer._id)
-        .reduce((total, allocation) => total + allocation.hours, 0) || 0;
+        ?.filter((aa: any) => aa.lecturerId === lecturer._id)
+        .reduce((total: any, allocation: any) => total + allocation.hours, 0) || 0;
       
       const totalAllocated = lecturer.totalAllocated;
       const capacity = profile?.capacity || 0;

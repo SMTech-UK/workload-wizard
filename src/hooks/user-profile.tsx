@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useQuery, useMutation } from "convex/react"
-import { api } from "../../convex/_generated/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,7 +11,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Camera, Check, X, User, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import type { Id } from "../../convex/_generated/dataModel"
 
 export default function Component() {
   const { user } = useUser();
@@ -30,8 +28,8 @@ export default function Component() {
   const [tempData, setTempData] = useState(formData);
 
   // Fetch user profile from Convex
-  const userProfile = useQuery(api.user_profiles.getByUserId, user?.id ? { userId: user.id } : "skip");
-  const updateProfile = useMutation(api.user_profiles.update);
+  const userProfile = useQuery('user_profiles:getByUserId' as any, user?.id ? { userId: user.id } : "skip");
+  const updateProfile = useMutation('user_profiles:update' as any);
 
   // Set form data when profile loads
   useEffect(() => {
@@ -224,7 +222,7 @@ export default function Component() {
                   />
                 </div>
                 <div className="flex space-x-2 pt-2">
-                  <Button onClick={handleSave} size="sm" className="flex-1" disabled={!profile}>
+                  <Button onClick={handleSave} size="sm" className="flex-1" disabled={!userProfile}>
                     <Check className="h-4 w-4 mr-1" />
                     Save
                   </Button>

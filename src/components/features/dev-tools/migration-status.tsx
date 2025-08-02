@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -36,7 +35,7 @@ interface MigrationStatus {
 }
 
 export function MigrationStatus() {
-  const migrationStatus = useQuery(api.migrations.getMigrationStatus, {});
+  const migrationStatus = useQuery('migrations:getMigrationStatus' as any, {});
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -87,10 +86,10 @@ export function MigrationStatus() {
     if (!migrationStatus) return null;
 
     const total = migrationStatus.length;
-    const completed = migrationStatus.filter(m => m.status === "completed").length;
-    const failed = migrationStatus.filter(m => m.status === "failed").length;
-    const withErrors = migrationStatus.filter(m => m.status === "completed_with_errors").length;
-    const running = migrationStatus.filter(m => m.status === "running").length;
+    const completed = migrationStatus.filter((m: any) => m.status === "completed").length;
+    const failed = migrationStatus.filter((m: any) => m.status === "failed").length;
+    const withErrors = migrationStatus.filter((m: any) => m.status === "completed_with_errors").length;
+    const running = migrationStatus.filter((m: any) => m.status === "running").length;
 
     return { total, completed, failed, withErrors, running };
   };
@@ -181,7 +180,7 @@ export function MigrationStatus() {
                   <p className="text-muted-foreground">No migrations found</p>
                 </div>
               ) : (
-                migrationStatus.map((migration, index) => (
+                migrationStatus.map((migration: any, index: any) => (
                   <div key={migration._id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -224,7 +223,7 @@ export function MigrationStatus() {
                         <AlertDescription>
                           <div className="space-y-1">
                             <div className="font-medium">Migration completed with errors:</div>
-                            {migration.details.errorDetails.slice(0, 3).map((error: any, idx: number) => (
+                            {migration.details.errorDetails.slice(0, 3).map((error: any, idx: any) => (
                               <div key={idx} className="text-sm">
                                 <span className="font-medium">{error.step}:</span> {error.error}
                               </div>

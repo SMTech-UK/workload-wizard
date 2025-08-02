@@ -68,7 +68,7 @@ export function AcademicYearSelector({
           </span>
         </SelectTrigger>
         <SelectContent>
-          {academicYears.map((year) => (
+          {academicYears.map((year: any) => (
             <SelectItem key={year._id} value={year._id}>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />

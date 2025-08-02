@@ -30,14 +30,14 @@ export function useStoreUserEffect() {
   // When this state is set we know the server
   // has stored the user.
   const [userId, setUserId] = useState<Id<"users"> | null>(null);
-  const storeUser = useMutation(api.users.store);
+  const storeUser = useMutation('users:store' as any);
   const prevAuth = useRef(isAuthenticated);
   
   // Track if Knock sync has already been performed for current user state
   const knockSyncRef = useRef<string | null>(null);
 
   // Fetch systemRole from Convex for the current user
-  const systemRoleResult = useQuery(api.users.getUserBySubject, user?.id ? { subject: user.id } : "skip") as UserBySubjectResult;
+  const systemRoleResult = useQuery('users:getUserBySubject' as any, user?.id ? { subject: user.id } : "skip") as UserBySubjectResult;
 
   // Wrap getLocaleAndTimezone in useCallback to prevent dependency changes
   const getLocaleAndTimezone = useCallback(() => {

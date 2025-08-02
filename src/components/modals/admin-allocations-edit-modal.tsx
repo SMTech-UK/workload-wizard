@@ -11,7 +11,6 @@ import { useState } from "react"
 import { toast } from "sonner"
 import Calculator from "@/lib/calculator"
 import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useLogRecentActivity } from "@/lib/recentActivity";
 import { useUser } from "@auth0/nextjs-auth0";
@@ -49,7 +48,7 @@ export default function AdminAllocationsEditModal({
     })) : []
   )
   const [errors, setErrors] = useState<{ [key: number]: { post1?: string; post2?: string } }>({})
-  const setAdminAllocations = useMutation(api.admin_allocations.setForLecturer);
+  const setAdminAllocations = useMutation('admin_allocations:setForLecturer' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
 
@@ -128,19 +127,11 @@ export default function AdminAllocationsEditModal({
         toast("Admin allocations saved.");
         // Log recent activity for editing admin allocations
         await logRecentActivity({
-          action: "admin allocation edited",
-          changeType: "edit",
+          type: "edit",
           entity: "lecturer",
-          entityId: lecturerId,
-          fullName: staffMemberName,
-          modifiedBy: user ? [{ name: user.name ?? "", email: user.email ?? "" }] : [],
-          permission: "default",
-          type: "lecturer_edited",
-          details: {
-            fullName: staffMemberName,
-            lecturerId,
-            section: "Admin Allocation"
-          }
+          description: `Updated admin allocations for ${staffMemberName}`,
+          userId: user?.sub || "",
+          organisationId: "",
         });
         onClose();
       } catch (err) {

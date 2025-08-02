@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -100,25 +100,25 @@ export default function ReferenceDataPage() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // Fetch data from Convex
-  const organisation = useQuery(api.organisations.get, {}) ?? null;
-  const faculties = useQuery(api.faculties.getAll, {}) ?? [];
-  const departments = useQuery(api.departments.getAll, {}) ?? [];
-  const allocationTypes = useQuery(api.allocation_types.getAll, {}) ?? [];
-  const assessmentTypes = useQuery(api.assessment_types.getAll, {}) ?? [];
+  const organisation = useQuery('organisations:get' as any, {}) ?? null;
+  const faculties = useQuery('faculties:getAll' as any, {}) ?? [];
+  const departments = useQuery('departments:getAll' as any, {}) ?? [];
+  const allocationTypes = useQuery('allocation_types:getAll' as any, {}) ?? [];
+  const assessmentTypes = useQuery('assessment_types:getAll' as any, {}) ?? [];
   
   // Mutations
-  const createFaculty = useMutation(api.faculties.create);
-  const updateFaculty = useMutation(api.faculties.update);
-  const deleteFaculty = useMutation(api.faculties.remove);
-  const createDepartment = useMutation(api.departments.create);
-  const updateDepartment = useMutation(api.departments.update);
-  const deleteDepartment = useMutation(api.departments.remove);
-  const createAllocationType = useMutation(api.allocation_types.create);
-  const updateAllocationType = useMutation(api.allocation_types.update);
-  const deleteAllocationType = useMutation(api.allocation_types.remove);
-  const createAssessmentType = useMutation(api.assessment_types.create);
-  const updateAssessmentType = useMutation(api.assessment_types.update);
-  const deleteAssessmentType = useMutation(api.assessment_types.remove);
+  const createFaculty = useMutation('faculties:create' as any);
+  const updateFaculty = useMutation('faculties:update' as any);
+  const deleteFaculty = useMutation('faculties:remove' as any);
+  const createDepartment = useMutation('departments:create' as any);
+  const updateDepartment = useMutation('departments:update' as any);
+  const deleteDepartment = useMutation('departments:remove' as any);
+  const createAllocationType = useMutation('allocation_types:create' as any);
+  const updateAllocationType = useMutation('allocation_types:update' as any);
+  const deleteAllocationType = useMutation('allocation_types:remove' as any);
+  const createAssessmentType = useMutation('assessment_types:create' as any);
+  const updateAssessmentType = useMutation('assessment_types:update' as any);
+  const deleteAssessmentType = useMutation('assessment_types:remove' as any);
   
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
@@ -326,29 +326,29 @@ export default function ReferenceDataPage() {
 
   const getFacultyName = (facultyId?: Id<'faculties'>) => {
     if (!facultyId) return "Not assigned";
-    const faculty = faculties.find(f => f._id === facultyId);
+    const faculty = faculties.find((f: any) => f._id === facultyId);
     return faculty?.name || "Unknown";
   };
 
   const getCurrentData = () => {
     switch (selectedTab) {
       case "faculties":
-        return faculties.filter((item) =>
+        return faculties.filter((item: any) =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.code.toLowerCase().includes(searchTerm.toLowerCase())
         );
       case "departments":
-        return departments.filter((item) =>
+        return departments.filter((item: any) =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
           getFacultyName(item.facultyId).toLowerCase().includes(searchTerm.toLowerCase())
         );
       case "allocation_types":
-        return allocationTypes.filter((item) =>
+        return allocationTypes.filter((item: any) =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
       case "assessment_types":
-        return assessmentTypes.filter((item) =>
+        return assessmentTypes.filter((item: any) =>
           item.name.toLowerCase().includes(searchTerm.toLowerCase())
         );
       default:
@@ -357,14 +357,14 @@ export default function ReferenceDataPage() {
   };
 
   const getFilteredFaculties = () => {
-    return faculties.filter((item) =>
+    return faculties.filter((item: any) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.code.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
   const getFilteredDepartments = () => {
-    return departments.filter((item) =>
+    return departments.filter((item: any) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       getFacultyName(item.facultyId).toLowerCase().includes(searchTerm.toLowerCase())
@@ -372,13 +372,13 @@ export default function ReferenceDataPage() {
   };
 
   const getFilteredAllocationTypes = () => {
-    return allocationTypes.filter((item) =>
+    return allocationTypes.filter((item: any) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
   const getFilteredAssessmentTypes = () => {
-    return assessmentTypes.filter((item) =>
+    return assessmentTypes.filter((item: any) =>
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
@@ -526,7 +526,7 @@ export default function ReferenceDataPage() {
               </TableHeader>
               <TableBody>
                 {selectedTab === "faculties" && 
-                  getFilteredFaculties().map((item) => (
+                  getFilteredFaculties().map((item: any) => (
                     <TableRow key={item._id}>
                       <TableCell className="font-medium">{item.code}</TableCell>
                       <TableCell>{item.name}</TableCell>
@@ -556,7 +556,7 @@ export default function ReferenceDataPage() {
                   ))
                 }
                 {selectedTab === "departments" && 
-                  getFilteredDepartments().map((item) => (
+                  getFilteredDepartments().map((item: any) => (
                     <TableRow key={item._id}>
                       <TableCell className="font-medium">{item.code}</TableCell>
                       <TableCell>{item.name}</TableCell>
@@ -587,7 +587,7 @@ export default function ReferenceDataPage() {
                   ))
                 }
                 {selectedTab === "allocation_types" && 
-                  getFilteredAllocationTypes().map((item) => (
+                  getFilteredAllocationTypes().map((item: any) => (
                     <TableRow key={item._id}>
                       <TableCell className="font-medium">{item.code}</TableCell>
                       <TableCell>{item.name}</TableCell>
@@ -618,7 +618,7 @@ export default function ReferenceDataPage() {
                   ))
                 }
                 {selectedTab === "assessment_types" && 
-                  getFilteredAssessmentTypes().map((item) => (
+                  getFilteredAssessmentTypes().map((item: any) => (
                     <TableRow key={item._id}>
                       <TableCell className="font-medium">{item.code}</TableCell>
                       <TableCell>{item.name}</TableCell>
@@ -704,7 +704,7 @@ export default function ReferenceDataPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Not assigned</SelectItem>
-                      {faculties.map((faculty) => (
+                      {faculties.map((faculty: any) => (
                         <SelectItem key={faculty._id} value={faculty._id}>
                           {faculty.name}
                         </SelectItem>

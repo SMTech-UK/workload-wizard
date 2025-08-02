@@ -7,8 +7,6 @@
  * Updated for new profile-based database schema.
  */
 
-import type { Id } from "../../convex/_generated/dataModel";
-
 /**
  * Calculate the total allocated hours.
  * @param {number} teachingHours - Allocated teaching hours

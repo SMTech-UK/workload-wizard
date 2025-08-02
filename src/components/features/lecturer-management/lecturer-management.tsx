@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -82,22 +81,22 @@ export default function LecturerManagement() {
   const { currentAcademicYearId } = useAcademicYear();
   
   // Fetch data with academic year context - using the correct API calls
-  const lecturerProfiles = useQuery(api.lecturers.getProfiles, {}) ?? [];
-  const lecturerInstances = useQuery(api.lecturers.getAll, { 
+  const lecturerProfiles = useQuery('lecturers:getProfiles' as any, {}) ?? [];
+  const lecturerInstances = useQuery('lecturers:getAll' as any, { 
     academicYearId: currentAcademicYearId as any
   }) ?? [];
-  const adminAllocations = useQuery(api.admin_allocations.getAll, { 
+  const adminAllocations = useQuery('admin_allocations:getAll' as any, { 
     academicYearId: currentAcademicYearId as any
   }) ?? [];
-  const modules = useQuery(api.modules.getAll, { 
+  const modules = useQuery('modules:getAll' as any, { 
     academicYearId: currentAcademicYearId as any
   }) ?? [];
-  const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
+  const academicYears = useQuery('academic_years:getAll' as any, {}) ?? [];
   
   // Use the correct mutations for the new schema
-  const createLecturerProfile = useMutation(api.lecturers.createNewLecturer);
-  const createLecturerInstance = useMutation(api.lecturers.createLecturer);
-  const deleteLecturerProfile = useMutation(api.lecturers.deleteProfile);
+  const createLecturerProfile = useMutation('lecturers:createNewLecturer' as any);
+  const createLecturerInstance = useMutation('lecturers:createLecturer' as any);
+  const deleteLecturerProfile = useMutation('lecturers:deleteProfile' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
 
@@ -109,7 +108,7 @@ export default function LecturerManagement() {
   ];
 
   function getFamilyLabel(value: string) {
-    const found = careerFamilies.find(f => f.value === value);
+    const found = careerFamilies.find((f: any) => f.value === value);
     return found ? found.label : '';
   }
 
@@ -164,7 +163,7 @@ export default function LecturerManagement() {
   });
 
   // Filter lecturers based on search term
-  const filteredLecturers = lecturersWithInstances.filter(lecturer =>
+  const filteredLecturers = lecturersWithInstances.filter((lecturer: any) =>
     lecturer.profile.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     lecturer.profile.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -367,7 +366,7 @@ export default function LecturerManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLecturers.map(({ profile, instance, teachingPercentage, adminPercentage, researchPercentage, otherPercentage, totalAllocatedPercentage }) => (
+                {filteredLecturers.map(({ profile, instance, teachingPercentage, adminPercentage, researchPercentage, otherPercentage, totalAllocatedPercentage }: any) => (
                   <TableRow key={profile._id}>
                     <TableCell>
                       <div>
@@ -505,7 +504,7 @@ export default function LecturerManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {careerFamilies.map(family => (
+                  {careerFamilies.map((family: any) => (
                     <SelectItem key={family.value} value={family.value}>
                       {family.label}
                     </SelectItem>

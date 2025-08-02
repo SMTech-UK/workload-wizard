@@ -2,7 +2,6 @@
 
 import React from "react";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +15,7 @@ export function AcademicYearTest() {
     currentAcademicYearId 
   } = useAcademicYear();
 
-  const createAcademicYear = useMutation(api.academic_years.create);
+  const createAcademicYear = useMutation('academic_years:create' as any);
 
   const handleCreateTestYear = async () => {
     try {
@@ -54,7 +53,7 @@ export function AcademicYearTest() {
           <h3 className="font-medium mb-2">All Academic Years</h3>
           {academicYears && academicYears.length > 0 ? (
             <div className="space-y-2">
-              {academicYears.map((year) => (
+              {academicYears.map((year: any) => (
                 <div key={year._id} className="flex items-center gap-2 p-2 border rounded">
                   <span>{year.name}</span>
                   {year.isActive && <Badge>Active</Badge>}
