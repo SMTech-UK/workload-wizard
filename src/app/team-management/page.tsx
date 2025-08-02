@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -93,15 +92,14 @@ export default function TeamManagementPage() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // Fetch data from Convex
-  const teams = useQuery(api.teams.getAll, {}) ?? [];
-  const departments = useQuery(api.departments.getAll, {}) ?? [];
-  const faculties = useQuery(api.faculties.getAll, {}) ?? [];
-  const users = useQuery(api.users.getAll, {}) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
-  const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
-  const createTeam = useMutation(api.teams.create);
-  const updateTeam = useMutation(api.teams.update);
-  const deleteTeam = useMutation(api.teams.delete);
+  const teams = useQuery('teams:getAll' as any, {}) ?? [];
+  const departments = useQuery('departments:getAll' as any, {}) ?? [];
+  const faculties = useQuery('faculties:getAll' as any, {}) ?? [];
+  const users = useQuery('users:getAll' as any, {}) ?? [];
+  const lecturers = useQuery('lecturers:getAll' as any, {}) ?? [];
+  const lecturerProfiles = useQuery('lecturer_profiles:getAll' as any, {}) ?? [];
+  const createTeam = useMutation('teams:create' as any);
+  const updateTeam = useMutation('teams:update' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
@@ -148,7 +146,7 @@ export default function TeamManagementPage() {
         entity: "team",
         description: `Created team: ${form.name}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
       toast.success("Team created successfully");
@@ -185,7 +183,7 @@ export default function TeamManagementPage() {
         entity: "team",
         description: `Updated team: ${form.name}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
       toast.success("Team updated successfully");
@@ -233,36 +231,36 @@ export default function TeamManagementPage() {
 
   const getDepartmentName = (departmentId?: Id<'departments'>) => {
     if (!departmentId) return "Not assigned";
-    const department = departments.find(d => d._id === departmentId);
+    const department = departments.find((d: any) => d._id === departmentId);
     return department?.name || "Unknown";
   };
 
   const getFacultyName = (facultyId?: Id<'faculties'>) => {
     if (!facultyId) return "Not assigned";
-    const faculty = faculties.find(f => f._id === facultyId);
+    const faculty = faculties.find((f: any) => f._id === facultyId);
     return faculty?.name || "Unknown";
   };
 
   const getTeamLeaderName = (teamLeaderId?: Id<'users'>) => {
     if (!teamLeaderId) return "Not assigned";
-    const teamLeader = users.find(u => u._id === teamLeaderId);
+    const teamLeader = users.find((u: any) => u._id === teamLeaderId);
     if (!teamLeader) return "Unknown";
     return `${teamLeader.firstName || ''} ${teamLeader.lastName || ''}`.trim() || teamLeader.email;
   };
 
   const getTeamMemberCount = (teamName: string) => {
-    return lecturers.filter(lecturer => lecturer.team === teamName).length;
+    return lecturers.filter((lecturer: any) => lecturer.team === teamName).length;
   };
 
   const getTeamMembers = (teamName: string) => {
-    const teamLecturers = lecturers.filter(lecturer => lecturer.team === teamName);
-    return teamLecturers.map(lecturer => {
-      const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    const teamLecturers = lecturers.filter((lecturer: any) => lecturer.team === teamName);
+    return teamLecturers.map((lecturer: any) => {
+      const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
       return profile?.fullName || "Unknown";
     });
   };
 
-  const filteredTeams = teams.filter(team =>
+  const filteredTeams = teams.filter((team: any) =>
     team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     team.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     getDepartmentName(team.departmentId).toLowerCase().includes(searchTerm.toLowerCase())
@@ -325,7 +323,7 @@ export default function TeamManagementPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Teams</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {teams.filter(t => t.isActive).length}
+                    {teams.filter((t: any) => t.isActive).length}
                   </p>
                 </div>
                 <Building className="w-8 h-8 text-green-600" />
@@ -403,7 +401,7 @@ export default function TeamManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTeams.map((team) => (
+                {filteredTeams.map((team: any) => (
                   <TableRow key={team._id}>
                     <TableCell className="font-medium">{team.code}</TableCell>
                     <TableCell>{team.name}</TableCell>
@@ -492,7 +490,7 @@ export default function TeamManagementPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Not assigned</SelectItem>
-                      {faculties.map((faculty) => (
+                      {faculties.map((faculty: any) => (
                         <SelectItem key={faculty._id} value={faculty._id}>
                           {faculty.name}
                         </SelectItem>
@@ -508,7 +506,7 @@ export default function TeamManagementPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Not assigned</SelectItem>
-                      {departments.map((department) => (
+                      {departments.map((department: any) => (
                         <SelectItem key={department._id} value={department._id}>
                           {department.name}
                         </SelectItem>
@@ -525,7 +523,7 @@ export default function TeamManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">Not assigned</SelectItem>
-                    {users.map((user) => (
+                    {users.map((user: any) => (
                       <SelectItem key={user._id} value={user._id}>
                         {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
                       </SelectItem>

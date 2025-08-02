@@ -14,9 +14,10 @@ import { Separator } from "@/components/ui/separator";
 import { useCohorts } from "@/hooks/useCohorts";
 import { useCourses } from "@/hooks/useCourses";
 import { useAcademicYear } from "@/hooks/useAcademicYear";
-import { useLogRecentActivity } from "@/hooks/useStoreUserEffect";
+import { useLogRecentActivity } from "@/lib/recentActivity";
 import { toast } from "sonner";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { useUser } from "@clerk/nextjs";
 
 // Cohort form schema
 const cohortFormSchema = z.object({
@@ -49,6 +50,7 @@ interface CohortFormProps {
 
 export function CohortForm({ cohortId, onSuccess, onCancel, mode = "create" }: CohortFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useUser();
   
   const { createCohort, updateCohort, selectedCohort, setSelectedCohortId } = useCohorts();
   const { courses } = useCourses();
@@ -113,7 +115,13 @@ export function CohortForm({ cohortId, onSuccess, onCancel, mode = "create" }: C
 
       if (mode === "create") {
         await createCohort(cohortData);
-        logActivity("cohort_created", { cohortName: data.name, cohortCode: data.code });
+        logActivity({
+          type: "create",
+          entity: "cohort",
+          description: `Created cohort: ${data.name} (${data.code})`,
+          userId: user?.id || "",
+          organisationId: "",
+        });
         toast.success("Cohort created successfully");
       } else {
         if (!cohortId) {
@@ -121,7 +129,13 @@ export function CohortForm({ cohortId, onSuccess, onCancel, mode = "create" }: C
           return;
         }
         await updateCohort({ id: cohortId, ...cohortData });
-        logActivity("cohort_updated", { cohortName: data.name, cohortCode: data.code });
+        logActivity({
+          type: "edit",
+          entity: "cohort",
+          description: `Updated cohort: ${data.name} (${data.code})`,
+          userId: user?.id || "",
+          organisationId: "",
+        });
         toast.success("Cohort updated successfully");
       }
 

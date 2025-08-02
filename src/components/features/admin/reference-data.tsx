@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -98,38 +97,38 @@ export default function ReferenceDataManagement() {
   const logActivity = useLogRecentActivity();
   
   // Fetch data
-  const faculties = useQuery(api.faculties.getAll, {}) ?? [];
-  const departments = useQuery(api.departments.getAll, {}) ?? [];
-  const allocationTypes = useQuery(api.allocation_types.getAll, {}) ?? [];
+  const faculties = useQuery('faculties:getAll' as any, {}) ?? [];
+  const departments = useQuery('departments:getAll' as any, {}) ?? [];
+  const allocationTypes = useQuery('allocation_types:getAll' as any, {}) ?? [];
   
   // Mutations
-  const createFaculty = useMutation(api.faculties.create);
-  const updateFaculty = useMutation(api.faculties.update);
-  const deleteFaculty = useMutation(api.faculties.remove);
-  const createDepartment = useMutation(api.departments.create);
-  const updateDepartment = useMutation(api.departments.update);
-  const deleteDepartment = useMutation(api.departments.remove);
-  const createAllocationType = useMutation(api.allocation_types.create);
-  const updateAllocationType = useMutation(api.allocation_types.update);
-  const deleteAllocationType = useMutation(api.allocation_types.remove);
+  const createFaculty = useMutation('faculties:create' as any);
+  const updateFaculty = useMutation('faculties:update' as any);
+  const deleteFaculty = useMutation('faculties:remove' as any);
+  const createDepartment = useMutation('departments:create' as any);
+  const updateDepartment = useMutation('departments:update' as any);
+  const deleteDepartment = useMutation('departments:remove' as any);
+  const createAllocationType = useMutation('allocation_types:create' as any);
+  const updateAllocationType = useMutation('allocation_types:update' as any);
+  const deleteAllocationType = useMutation('allocation_types:remove' as any);
 
-  const filteredFaculties = faculties.filter(faculty =>
+  const filteredFaculties = faculties.filter((faculty: any) =>
     faculty.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     faculty.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredDepartments = departments.filter(department =>
+  const filteredDepartments = departments.filter((department: any) =>
     department.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     department.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredAllocationTypes = allocationTypes.filter(allocationType =>
+  const filteredAllocationTypes = allocationTypes.filter((allocationType: any) =>
     allocationType.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getFacultyName = (facultyId?: Id<'faculties'>) => {
     if (!facultyId) return "Not assigned";
-    const faculty = faculties.find(f => f._id === facultyId);
+    const faculty = faculties.find((f: any) => f._id === facultyId);
     return faculty?.name || "Unknown";
   };
 
@@ -152,10 +151,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Created faculty",
-          details: newFacultyData.name,
-          entityType: "faculty",
-          entityId: facultyId,
+          type: "create", // Change from 'action' to 'type'
+          entity: "faculty", // Change from 'entityType' to 'entity'
+          description: `Created faculty: ${newFacultyData.name}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -178,10 +178,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated faculty",
-          details: selectedFaculty.name,
-          entityType: "faculty",
-          entityId: selectedFaculty._id,
+          type: "edit", // Change from 'action' to 'type'
+          entity: "faculty", // Change from 'entityType' to 'entity'
+          description: `Updated faculty: ${selectedFaculty.name}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -200,10 +201,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted faculty",
-          details: facultyName,
-          entityType: "faculty",
-          entityId: facultyId,
+          type: "delete", // Change from 'action' to 'type'
+          entity: "faculty", // Change from 'entityType' to 'entity'
+          description: `Deleted faculty: ${facultyName}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -231,10 +233,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Created department",
-          details: newDepartmentData.name,
-          entityType: "department",
-          entityId: departmentId,
+          type: "create", // Change from 'action'
+          entity: "department", // Change from 'entityType'
+          description: `Created department: ${newDepartmentData.name}`, // Change from 'details'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -257,10 +260,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated department",
-          details: selectedDepartment.name,
-          entityType: "department",
-          entityId: selectedDepartment._id,
+          type: "edit", // Change from 'action'
+          entity: "department", // Change from 'entityType'
+          description: `Updated department: ${selectedDepartment.name}`, // Change from 'details'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -279,10 +283,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted department",
-          details: departmentName,
-          entityType: "department",
-          entityId: departmentId,
+          type: "delete", // Change from 'action'
+          entity: "department", // Change from 'entityType'
+          description: `Deleted department: ${departmentName}`, // Change from 'details'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -309,10 +314,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Created allocation type",
-          details: newAllocationTypeData.name,
-          entityType: "allocation_type",
-          entityId: allocationTypeId,
+          type: "create", // Change from 'action'
+          entity: "allocation_type", // Change from 'entityType'
+          description: `Created allocation type: ${newAllocationTypeData.name}`, // Change from 'details'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -335,10 +341,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated allocation type",
-          details: selectedAllocationType.name,
-          entityType: "allocation_type",
-          entityId: selectedAllocationType._id,
+          type: "edit", // Change from 'action'
+          entity: "allocation_type", // Change from 'entityType'
+          description: `Updated allocation type: ${selectedAllocationType.name}`, // Change from 'details'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -357,10 +364,11 @@ export default function ReferenceDataManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted allocation type",
-          details: allocationTypeName,
-          entityType: "allocation_type",
-          entityId: allocationTypeId,
+          type: "delete", // Change from 'action'
+          entity: "allocation_type", // Change from 'entityType'
+          description: `Deleted allocation type: ${allocationTypeName}`, // Change from 'details'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -454,7 +462,7 @@ export default function ReferenceDataManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredFaculties.map((faculty) => (
+                  {filteredFaculties.map((faculty: any) => (
                     <TableRow key={faculty._id}>
                       <TableCell className="font-medium">{faculty.code}</TableCell>
                       <TableCell>{faculty.name}</TableCell>
@@ -546,7 +554,7 @@ export default function ReferenceDataManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredDepartments.map((department) => (
+                  {filteredDepartments.map((department: any) => (
                     <TableRow key={department._id}>
                       <TableCell className="font-medium">{department.code}</TableCell>
                       <TableCell>{department.name}</TableCell>
@@ -638,7 +646,7 @@ export default function ReferenceDataManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAllocationTypes.map((allocationType) => (
+                  {filteredAllocationTypes.map((allocationType: any) => (
                     <TableRow key={allocationType._id}>
                       <TableCell className="font-medium">{allocationType.name}</TableCell>
                       <TableCell>
@@ -791,7 +799,7 @@ export default function ReferenceDataManagement() {
                     <SelectValue placeholder="Select faculty (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties.map((faculty) => (
+                    {faculties.map((faculty: any) => (
                       <SelectItem key={faculty._id} value={faculty._id}>
                         {faculty.name} ({faculty.code})
                       </SelectItem>
@@ -967,7 +975,7 @@ export default function ReferenceDataManagement() {
                     <SelectValue placeholder="Select faculty (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties.map((faculty) => (
+                    {faculties.map((faculty: any) => (
                       <SelectItem key={faculty._id} value={faculty._id}>
                         {faculty.name} ({faculty.code})
                       </SelectItem>

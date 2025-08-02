@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -90,37 +89,37 @@ export default function TeamManagement() {
   const logActivity = useLogRecentActivity();
   
   // Fetch data
-  const teams = useQuery(api.teams.getAllWithRelations, {}) ?? [];
-  const departments = useQuery(api.departments.getAll, {}) ?? [];
-  const faculties = useQuery(api.faculties.getAll, {}) ?? [];
-  const userProfiles = useQuery(api.user_profiles.getAll, {}) ?? [];
+  const teams = useQuery('teams:getAllWithRelations' as any, {}) ?? [];
+  const departments = useQuery('departments:getAll' as any, {}) ?? [];
+  const faculties = useQuery('faculties:getAll' as any, {}) ?? [];
+  const userProfiles = useQuery('user_profiles:getAll' as any, {}) ?? [];
   
   // Mutations
-  const createTeam = useMutation(api.teams.create);
-  const updateTeam = useMutation(api.teams.update);
-  const deleteTeam = useMutation(api.teams.remove);
+  const createTeam = useMutation('teams:create' as any);
+  const updateTeam = useMutation('teams:update' as any);
+  const deleteTeam = useMutation('teams:remove' as any);
 
-  const filteredTeams = teams.filter(team =>
+  const filteredTeams = teams.filter((team: any) =>
     team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     team.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getDepartmentName = (departmentId?: Id<'departments'>) => {
     if (!departmentId) return "Not assigned";
-    const department = departments.find(d => d._id === departmentId);
+    const department = departments.find((d: any) => d._id === departmentId);
     return department?.name || "Unknown";
   };
 
   const getFacultyName = (facultyId?: Id<'faculties'>) => {
     if (!facultyId) return "Not assigned";
-    const faculty = faculties.find(f => f._id === facultyId);
+    const faculty = faculties.find((f: any) => f._id === facultyId);
     return faculty?.name || "Unknown";
   };
 
   const getTeamLeaderName = (teamLeaderId?: Id<'user_profiles'>) => {
     if (!teamLeaderId) return "Not assigned";
-    const teamLeader = userProfiles.find(u => u._id === teamLeaderId);
-    return teamLeader?.fullName || "Unknown";
+    const teamLeader = userProfiles.find((u: any) => u._id === teamLeaderId);
+    return teamLeader ? `${teamLeader.firstName} ${teamLeader.lastName}` : "Unknown";
   };
 
   const getTeamTypeBadgeColor = (teamType: string) => {
@@ -159,10 +158,11 @@ export default function TeamManagement() {
 
       if (user) {
         logActivity({
-          action: "Created team",
-          details: newTeamData.name,
-          entityType: "team",
-          entityId: teamId,
+          type: "create",
+          entity: "team",
+          description: `Created team: ${newTeamData.name}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -185,10 +185,11 @@ export default function TeamManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated team",
-          details: selectedTeam.name,
-          entityType: "team",
-          entityId: selectedTeam._id,
+          type: "edit",
+          entity: "team",
+          description: `Updated team: ${selectedTeam.name}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -207,10 +208,11 @@ export default function TeamManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted team",
-          details: teamName,
-          entityType: "team",
-          entityId: teamId,
+          type: "delete",
+          entity: "team",
+          description: `Deleted team: ${teamName}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -287,7 +289,7 @@ export default function TeamManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTeams.map((team) => (
+              {filteredTeams.map((team: any) => (
                 <TableRow key={team._id}>
                   <TableCell className="font-medium">{team.code}</TableCell>
                   <TableCell>
@@ -428,7 +430,7 @@ export default function TeamManagement() {
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.map((department) => (
+                    {departments.map((department: any) => (
                       <SelectItem key={department._id} value={department._id}>
                         {department.name}
                       </SelectItem>
@@ -446,7 +448,7 @@ export default function TeamManagement() {
                     <SelectValue placeholder="Select faculty" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties.map((faculty) => (
+                    {faculties.map((faculty: any) => (
                       <SelectItem key={faculty._id} value={faculty._id}>
                         {faculty.name}
                       </SelectItem>
@@ -466,9 +468,9 @@ export default function TeamManagement() {
                   <SelectValue placeholder="Select team leader" />
                 </SelectTrigger>
                 <SelectContent>
-                  {userProfiles.map((userProfile) => (
+                  {userProfiles.map((userProfile: any) => (
                     <SelectItem key={userProfile._id} value={userProfile._id}>
-                      {userProfile.fullName} ({userProfile.email})
+                      {`${userProfile.firstName} ${userProfile.lastName}`} ({userProfile.email})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -578,7 +580,7 @@ export default function TeamManagement() {
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.map((department) => (
+                    {departments.map((department: any) => (
                       <SelectItem key={department._id} value={department._id}>
                         {department.name}
                       </SelectItem>
@@ -596,7 +598,7 @@ export default function TeamManagement() {
                     <SelectValue placeholder="Select faculty" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties.map((faculty) => (
+                    {faculties.map((faculty: any) => (
                       <SelectItem key={faculty._id} value={faculty._id}>
                         {faculty.name}
                       </SelectItem>
@@ -616,9 +618,9 @@ export default function TeamManagement() {
                   <SelectValue placeholder="Select team leader" />
                 </SelectTrigger>
                 <SelectContent>
-                  {userProfiles.map((userProfile) => (
+                  {userProfiles.map((userProfile: any) => (
                     <SelectItem key={userProfile._id} value={userProfile._id}>
-                      {userProfile.fullName} ({userProfile.email})
+                      {`${userProfile.firstName} ${userProfile.lastName}`} ({userProfile.email})
                     </SelectItem>
                   ))}
                 </SelectContent>

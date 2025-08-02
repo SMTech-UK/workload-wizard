@@ -12,10 +12,10 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useLogRecentActivity } from "@/hooks/useStoreUserEffect";
+import { useLogRecentActivity } from "@/lib/recentActivity";
 import { toast } from "sonner";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { useUser } from "@clerk/nextjs";
 
 // Site form schema
 const siteFormSchema = z.object({
@@ -38,16 +38,17 @@ interface SiteFormProps {
 
 export function SiteForm({ siteId, onSuccess, onCancel, mode = "create" }: SiteFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useUser();
   
   // Queries
   const selectedSite = useQuery(
-    api.sites.getById,
+    'sites:getById' as any,
     siteId ? { id: siteId } : "skip"
   );
   
   // Mutations
-  const createSite = useMutation(api.sites.create);
-  const updateSite = useMutation(api.sites.update);
+  const createSite = useMutation('sites:create' as any);
+  const updateSite = useMutation('sites:update' as any);
   
   const logActivity = useLogRecentActivity();
 
@@ -92,7 +93,13 @@ export function SiteForm({ siteId, onSuccess, onCancel, mode = "create" }: SiteF
 
       if (mode === "create") {
         await createSite(siteData);
-        logActivity("site_created", { siteName: data.name, siteCode: data.code });
+        logActivity({
+          type: "create",
+          entity: "site",
+          description: `Created site: ${data.name} (${data.code})`,
+          userId: user?.id || "",
+          organisationId: "",
+        });
         toast.success("Site created successfully");
       } else {
         if (!siteId) {
@@ -100,7 +107,13 @@ export function SiteForm({ siteId, onSuccess, onCancel, mode = "create" }: SiteF
           return;
         }
         await updateSite({ id: siteId, ...siteData });
-        logActivity("site_updated", { siteName: data.name, siteCode: data.code });
+        logActivity({
+          type: "edit",
+          entity: "site",
+          description: `Updated site: ${data.name} (${data.code})`,
+          userId: user?.id || "",
+          organisationId: "",
+        });
         toast.success("Site updated successfully");
       }
 

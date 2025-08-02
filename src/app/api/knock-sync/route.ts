@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { identifyKnockUser } from '@/lib/knock-server';
-import { api } from '../../../../convex/_generated/api';
 import { ConvexHttpClient } from 'convex/browser';
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -15,7 +14,7 @@ export async function POST(req: NextRequest) {
     // Fetch user role, settings, specialism, jobTitle, and team from Convex
     let custom_properties: Record<string, any> = {};
     try {
-      const userData: any = await convex.query(api.users.getUserBySubject, { subject: id });
+      const userData = await convex.query('users:getUserBySubject' as any, { subject: id });
       if (userData) {
         if (userData.settings) custom_properties.settings = userData.settings;
         if (userData.specialism) custom_properties.specialism = userData.specialism;

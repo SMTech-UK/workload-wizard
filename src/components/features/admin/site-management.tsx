@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -74,17 +73,17 @@ export default function SiteManagement() {
   const logActivity = useLogRecentActivity();
   
   // Fetch data
-  const sites = useQuery(api.sites.getAll, {}) ?? [];
+  const sites = useQuery('sites:getAll' as any, {}) ?? [];
   
   // Mutations
-  const createSite = useMutation(api.sites.create);
-  const updateSite = useMutation(api.sites.update);
-  const deleteSite = useMutation(api.sites.remove);
+  const createSite = useMutation('sites:create' as any);
+  const updateSite = useMutation('sites:update' as any);
+  const deleteSite = useMutation('sites:remove' as any);
 
-  const filteredSites = sites.filter(site =>
+  const filteredSites = sites.filter((site: any) =>
     site.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     site.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    site.city.toLowerCase().includes(searchTerm.toLowerCase())
+    site.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleCreateSite = async () => {
@@ -118,10 +117,11 @@ export default function SiteManagement() {
 
       if (user) {
         logActivity({
-          action: "Created site",
-          details: newSiteData.name,
-          entityType: "site",
-          entityId: siteId,
+          type: "create", // Change from 'action' to 'type'
+          entity: "site", // Change from 'entityType' to 'entity'
+          description: `Created site: ${newSiteData.name}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -145,10 +145,11 @@ export default function SiteManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated site",
-          details: selectedSite.name,
-          entityType: "site",
-          entityId: selectedSite._id,
+          type: "edit", // Change from 'action' to 'type'
+          entity: "site", // Change from 'entityType' to 'entity'
+          description: `Updated site: ${selectedSite.name}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -167,10 +168,11 @@ export default function SiteManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted site",
-          details: siteName,
-          entityType: "site",
-          entityId: siteId,
+          type: "delete", // Change from 'action' to 'type'
+          entity: "site", // Change from 'entityType' to 'entity'
+          description: `Deleted site: ${siteName}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -219,11 +221,11 @@ export default function SiteManagement() {
   };
 
   const getActiveSitesCount = () => {
-    return sites.filter(site => site.isActive).length;
+    return sites.filter((site: any) => site.isActive).length;
   };
 
   const getTotalCapacity = () => {
-    return sites.reduce((total, site) => total + (site.capacity || 0), 0);
+    return sites.reduce((total: number, site: any) => total + (site.capacity || 0), 0);
   };
 
   return (
@@ -317,7 +319,7 @@ export default function SiteManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSites.map((site) => (
+              {filteredSites.map((site: any) => (
                 <TableRow key={site._id}>
                   <TableCell className="font-medium">{site.code}</TableCell>
                   <TableCell>
@@ -374,7 +376,7 @@ export default function SiteManagement() {
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {site.facilities && site.facilities.length > 0 ? (
-                        site.facilities.slice(0, 2).map((facility, index) => (
+                        site.facilities.slice(0, 2).map((facility: any, index: number) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {facility}
                           </Badge>
@@ -566,7 +568,7 @@ export default function SiteManagement() {
                   Add Facility
                 </Button>
               </div>
-              {newSiteData.facilities.map((facility, index) => (
+              {newSiteData.facilities.map((facility: any, index: number) => (
                 <div key={index} className="flex gap-2">
                   <Input
                     value={facility}
@@ -727,7 +729,7 @@ export default function SiteManagement() {
                   Add Facility
                 </Button>
               </div>
-              {newSiteData.facilities.map((facility, index) => (
+              {newSiteData.facilities.map((facility: any, index: number) => (
                 <div key={index} className="flex gap-2">
                   <Input
                     value={facility}

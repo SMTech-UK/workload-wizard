@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,13 +76,13 @@ export default function ModuleIterations() {
 
   const { currentAcademicYearId, currentAcademicYear } = useAcademicYear();
   
-  const iterations = useQuery(api.module_iterations.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
-  const modules = useQuery(api.modules.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, { academicYearId: currentAcademicYearId as any }) ?? [];
-  const organisationSettings = useQuery(api.organisations.get, {});
-  const createIteration = useMutation(api.module_iterations.createIteration)
-  const updateIteration = useMutation(api.module_iterations.updateIteration)
-  const deleteIteration = useMutation(api.module_iterations.deleteIteration)
+  const iterations = useQuery('module_iterations:getAll' as any, { academicYearId: currentAcademicYearId as any }) ?? [];
+  const modules = useQuery('modules:getAll' as any, { academicYearId: currentAcademicYearId as any }) ?? [];
+  const lecturers = useQuery('lecturers:getAll' as any, { academicYearId: currentAcademicYearId as any }) ?? [];
+  const organisationSettings = useQuery('organisations:get' as any, {});
+  const createIteration = useMutation('module_iterations:createIteration' as any);
+  const updateIteration = useMutation('module_iterations:updateIteration' as any);
+  const deleteIteration = useMutation('module_iterations:deleteIteration' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
 
@@ -189,7 +188,7 @@ export default function ModuleIterations() {
   }
 
   const handleModuleCodeChange = (moduleCode: string) => {
-    const selectedModule = modules.find(m => (m as any).code === moduleCode);
+    const selectedModule = modules.find((m: any) => (m as any).code === moduleCode);
     const defaultTeachingHours = organisationSettings?.defaultTeachingHours || 42;
     
     setForm(prev => ({
@@ -209,7 +208,7 @@ export default function ModuleIterations() {
     setSubmitting(true)
     try {
       // Find the module to get its ID
-      const selectedModule = modules.find(m => (m as any).code === form.moduleCode);
+      const selectedModule = modules.find((m: any) => (m as any).code === form.moduleCode);
       if (!selectedModule) {
         throw new Error("Module not found");
       }
@@ -231,13 +230,11 @@ export default function ModuleIterations() {
         notes: form.notes,
       });
       await logRecentActivity({
-        action: "module iteration created",
-        changeType: "create",
+        type: "create",
         entity: "module_iteration",
-        entityId: newIterationId,
-        fullName: form.title,
-        modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-        permission: "default"
+        description: `Created module iteration: ${form.title}`,
+        userId: user?.id || "",
+        organisationId: "",
       });
       setModalOpen(false)
       resetForm()
@@ -265,13 +262,11 @@ export default function ModuleIterations() {
         isActive: true,
       });
       await logRecentActivity({
-        action: "module iteration updated",
-        changeType: "update",
+        type: "edit",
         entity: "module_iteration",
-        entityId: selectedIteration._id,
-        fullName: form.title,
-        modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-        permission: "default"
+        description: `Updated module iteration: ${form.title}`,
+        userId: user?.id || "",
+        organisationId: "",
       });
       setModalOpen(false)
       setSelectedIteration(null)
@@ -325,7 +320,7 @@ export default function ModuleIterations() {
     setSelectedIteration(null)
     resetForm()
     if (moduleFilter) {
-      const selectedModule = modules.find(m => m.code === moduleFilter);
+      const selectedModule = modules.find((m: any) => m.code === moduleFilter);
       const defaultTeachingHours = organisationSettings?.defaultTeachingHours || 42;
       setForm(prev => ({
         ...prev,
@@ -421,7 +416,7 @@ export default function ModuleIterations() {
     }));
   };
 
-  const filteredIterations = iterations.filter((iteration) => {
+  const filteredIterations = iterations.filter((iteration: any) => {
     const matchesSearch = 
       iteration.moduleCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       iteration.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -468,13 +463,11 @@ export default function ModuleIterations() {
     if (!iterationToDelete || !iterationToDelete._id) return;
     await deleteIteration({ id: iterationToDelete._id });
     await logRecentActivity({
-      action: "module iteration deleted",
-      changeType: "delete",
+      type: "delete",
       entity: "module_iteration",
-      entityId: iterationToDelete._id,
-      fullName: iterationToDelete.title,
-      modifiedBy: user ? [{ name: user.fullName ?? "", email: user.primaryEmailAddress?.emailAddress ?? "" }] : [],
-      permission: "default"
+      description: `Deleted module iteration: ${iterationToDelete.title}`,
+      userId: user?.id || "",
+      organisationId: "",
     });
     setDeleteDialogOpen(false);
     setIterationToDelete(null);
@@ -567,7 +560,7 @@ export default function ModuleIterations() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredIterations.map((iteration) => (
+                filteredIterations.map((iteration: any) => (
                   <TableRow key={iteration._id} className="cursor-pointer hover:bg-accent/40 dark:hover:bg-zinc-800">
                     <TableCell>
                       <div>
@@ -640,7 +633,7 @@ export default function ModuleIterations() {
                     <SelectValue placeholder="Select module" />
                   </SelectTrigger>
                   <SelectContent>
-                    {modules.map(module => (
+                    {modules.map((module: any) => (
                       <SelectItem key={module.code} value={module.code}>
                         {module.code} - {module.title}
                       </SelectItem>
@@ -908,7 +901,7 @@ export default function ModuleIterations() {
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Assigned Lecturers</h3>
                 <Button type="button" variant="outline" size="sm" onClick={() => {
-                  const availableLecturers = lecturers.filter(l => !form.assignedLecturerIds.includes(l._id));
+                  const availableLecturers = lecturers.filter((l: any) => !form.assignedLecturerIds.includes(l._id));
                   if (availableLecturers.length > 0) {
                     setForm(prev => ({
                       ...prev,
@@ -924,7 +917,7 @@ export default function ModuleIterations() {
               {form.assignedLecturerIds.length > 0 ? (
                 <div className="space-y-2">
                   {form.assignedLecturerIds.map((lecturerId, index) => {
-                    const lecturer = lecturers.find(l => l._id === lecturerId);
+                    const lecturer = lecturers.find((l: any) => l._id === lecturerId);
                     return (
                       <div key={lecturerId} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-4">

@@ -82,43 +82,46 @@ export const getById = query({
       organisationId: v.optional(v.id("organisations")),
       updatedAt: v.number(),
       deletedAt: v.optional(v.number()),
-      modules: v.array(v.object({
-        _id: v.id("course_modules"),
-        _creationTime: v.number(),
-        courseId: v.id("courses"),
-        moduleId: v.id("modules"),
-        yearOfStudy: v.number(),
-        prerequisites: v.optional(v.array(v.id("modules"))),
-        coRequisites: v.optional(v.array(v.id("modules"))),
-        isCore: v.boolean(),
-        isOptional: v.boolean(),
-        order: v.optional(v.number()),
-        isActive: v.boolean(),
-        organisationId: v.optional(v.id("organisations")),
-        createdAt: v.number(),
-        updatedAt: v.number(),
-        deletedAt: v.optional(v.number()),
-        module: v.object({
-          _id: v.id("modules"),
+      modules: v.array(v.union(
+        v.object({
+          _id: v.id("course_modules"),
           _creationTime: v.number(),
-          profileId: v.id("module_profiles"),
-          academicYearId: v.id("academic_years"),
-          status: v.string(),
+          courseId: v.id("courses"),
+          moduleId: v.id("modules"),
+          yearOfStudy: v.number(),
+          prerequisites: v.optional(v.array(v.id("modules"))),
+          coRequisites: v.optional(v.array(v.id("modules"))),
+          isCore: v.boolean(),
+          isOptional: v.boolean(),
+          order: v.optional(v.number()),
           isActive: v.boolean(),
-          notes: v.optional(v.string()),
           organisationId: v.optional(v.id("organisations")),
+          createdAt: v.number(),
           updatedAt: v.number(),
           deletedAt: v.optional(v.number()),
-          // Profile data (joined)
-          code: v.string(),
-          title: v.string(),
-          credits: v.number(),
-          level: v.number(),
-          moduleLeader: v.string(),
-          defaultTeachingHours: v.number(),
-          defaultMarkingHours: v.number(),
+          module: v.object({
+            _id: v.id("modules"),
+            _creationTime: v.number(),
+            profileId: v.id("module_profiles"),
+            academicYearId: v.id("academic_years"),
+            status: v.string(),
+            isActive: v.boolean(),
+            notes: v.optional(v.string()),
+            organisationId: v.optional(v.id("organisations")),
+            updatedAt: v.number(),
+            deletedAt: v.optional(v.number()),
+            // Profile data (joined)
+            code: v.string(),
+            title: v.string(),
+            credits: v.number(),
+            level: v.number(),
+            moduleLeader: v.string(),
+            defaultTeachingHours: v.number(),
+            defaultMarkingHours: v.number(),
+          }),
         }),
-      })),
+        v.null()
+      )),
     }),
     v.null()
   ),
@@ -163,7 +166,7 @@ export const getById = query({
     
     return {
       ...course,
-      modules: modulesWithDetails.filter(Boolean),
+      modules: modulesWithDetails, // Remove .filter(Boolean) to match the validator
     };
   },
 });
@@ -336,7 +339,7 @@ export const update = mutation({
 });
 
 // Delete a course (soft delete)
-export const delete = mutation({
+export const deleteCourse = mutation({
   args: { id: v.id("courses") },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -612,43 +615,46 @@ export const getByFaculty = query({
 // Get course modules
 export const getCourseModules = query({
   args: { courseId: v.id("courses") },
-  returns: v.array(v.object({
-    _id: v.id("course_modules"),
-    _creationTime: v.number(),
-    courseId: v.id("courses"),
-    moduleId: v.id("modules"),
-    yearOfStudy: v.number(),
-    prerequisites: v.optional(v.array(v.id("modules"))),
-    coRequisites: v.optional(v.array(v.id("modules"))),
-    isCore: v.boolean(),
-    isOptional: v.boolean(),
-    order: v.optional(v.number()),
-    isActive: v.boolean(),
-    organisationId: v.optional(v.id("organisations")),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-    deletedAt: v.optional(v.number()),
-    module: v.object({
-      _id: v.id("modules"),
+  returns: v.array(v.union(
+    v.object({
+      _id: v.id("course_modules"),
       _creationTime: v.number(),
-      profileId: v.id("module_profiles"),
-      academicYearId: v.id("academic_years"),
-      status: v.string(),
+      courseId: v.id("courses"),
+      moduleId: v.id("modules"),
+      yearOfStudy: v.number(),
+      prerequisites: v.optional(v.array(v.id("modules"))),
+      coRequisites: v.optional(v.array(v.id("modules"))),
+      isCore: v.boolean(),
+      isOptional: v.boolean(),
+      order: v.optional(v.number()),
       isActive: v.boolean(),
-      notes: v.optional(v.string()),
       organisationId: v.optional(v.id("organisations")),
+      createdAt: v.number(),
       updatedAt: v.number(),
       deletedAt: v.optional(v.number()),
-      // Profile data (joined)
-      code: v.string(),
-      title: v.string(),
-      credits: v.number(),
-      level: v.number(),
-      moduleLeader: v.string(),
-      defaultTeachingHours: v.number(),
-      defaultMarkingHours: v.number(),
+      module: v.object({
+        _id: v.id("modules"),
+        _creationTime: v.number(),
+        profileId: v.id("module_profiles"),
+        academicYearId: v.id("academic_years"),
+        status: v.string(),
+        isActive: v.boolean(),
+        notes: v.optional(v.string()),
+        organisationId: v.optional(v.id("organisations")),
+        updatedAt: v.number(),
+        deletedAt: v.optional(v.number()),
+        // Profile data (joined)
+        code: v.string(),
+        title: v.string(),
+        credits: v.number(),
+        level: v.number(),
+        moduleLeader: v.string(),
+        defaultTeachingHours: v.number(),
+        defaultMarkingHours: v.number(),
+      }),
     }),
-  })),
+    v.null()
+  )),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
@@ -695,7 +701,7 @@ export const getCourseModules = query({
       })
     );
     
-    return modulesWithDetails.filter(Boolean);
+    return modulesWithDetails; // Remove .filter(Boolean)
   },
 });
 

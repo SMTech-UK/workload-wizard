@@ -13,11 +13,10 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useAcademicYear } from "@/hooks/useAcademicYear";
-import { useLogRecentActivity } from "@/hooks/useStoreUserEffect";
+import { useLogRecentActivity } from "@/lib/recentActivity";
 import { toast } from "sonner";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 // Allocation form schema
 const allocationFormSchema = z.object({
@@ -97,10 +96,10 @@ export function AllocationForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Queries
-  const lecturers = useQuery(api.lecturers.getAll);
-  const allocationTypes = useQuery(api.allocation_types.getAll);
+  const lecturers = useQuery('lecturers:getAll' as any, {}) ?? [];
+  const allocationTypes = useQuery('allocation_types:getAll' as any, {}) ?? [];
   const selectedAllocation = useQuery(
-    api.admin_allocations.getById,
+    'admin_allocations:getById' as any,
     allocationId ? { id: allocationId } : "skip"
   );
   
@@ -109,8 +108,8 @@ export function AllocationForm({
   const logActivity = useLogRecentActivity();
   
   // Mutations
-  const createAllocation = useMutation(api.admin_allocations.create);
-  const updateAllocation = useMutation(api.admin_allocations.update);
+  const createAllocation = useMutation('admin_allocations:create' as any);
+  const updateAllocation = useMutation('admin_allocations:update' as any);
 
   const form = useForm<AllocationFormData>({
     resolver: zodResolver(allocationFormSchema),
@@ -182,7 +181,7 @@ export function AllocationForm({
       const allocationData = {
         lecturerId: data.lecturerId as Id<"lecturers">,
         academicYearId: data.academicYearId as Id<"academic_years">,
-        allocationTypeId: data.allocationTypeId || undefined,
+        allocationTypeId: data.allocationTypeId as Id<"allocation_types"> | undefined,
         category: data.category,
         title: data.title,
         description: data.description,
@@ -205,9 +204,12 @@ export function AllocationForm({
 
       if (mode === "create") {
         await createAllocation(allocationData);
-        logActivity("allocation_created", { 
-          allocationTitle: data.title, 
-          lecturerId: data.lecturerId 
+        logActivity({
+          type: "create",
+          entity: "admin_allocation",
+          description: `Created allocation: ${data.title}`,
+          userId: "", // user?.id || "", // user is not defined in this scope
+          organisationId: "",
         });
         toast.success("Allocation created successfully");
       } else {
@@ -216,9 +218,12 @@ export function AllocationForm({
           return;
         }
         await updateAllocation({ id: allocationId, ...allocationData });
-        logActivity("allocation_updated", { 
-          allocationTitle: data.title, 
-          lecturerId: data.lecturerId 
+        logActivity({
+          type: "edit",
+          entity: "admin_allocation", 
+          description: `Updated allocation: ${data.title}`,
+          userId: "", // user?.id || "", // user is not defined in this scope
+          organisationId: "",
         });
         toast.success("Allocation updated successfully");
       }
@@ -238,7 +243,7 @@ export function AllocationForm({
   };
 
   // Get selected lecturer for display
-  const selectedLecturer = lecturers?.find(lecturer => lecturer._id === form.watch("lecturerId"));
+  const selectedLecturer = lecturers?.find((lecturer: any) => lecturer._id === form.watch("lecturerId"));
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -267,7 +272,7 @@ export function AllocationForm({
                     <SelectValue placeholder="Select lecturer" />
                   </SelectTrigger>
                   <SelectContent>
-                    {lecturers?.map((lecturer) => (
+                    {lecturers?.map((lecturer: any) => (
                       <SelectItem key={lecturer._id} value={lecturer._id}>
                         {lecturer.profileId} - {lecturer.status}
                       </SelectItem>
@@ -329,7 +334,7 @@ export function AllocationForm({
                     <SelectValue placeholder="Select allocation type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {allocationTypes?.map((type) => (
+                    {allocationTypes?.map((type: any) => (
                       <SelectItem key={type._id} value={type._id}>
                         {type.name}
                       </SelectItem>

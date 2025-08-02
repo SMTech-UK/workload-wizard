@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,7 +35,8 @@ interface LecturerProfile {
   _id: Id<'lecturer_profiles'>;
   fullName: string;
   email: string;
-  family: string;
+  family?: string; // Make optional
+  contract?: string; // Add this
   fte: number;
   capacity: number;
   maxTeachingHours: number;
@@ -81,12 +81,12 @@ export default function LecturerManagementPage() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // Fetch data from Convex
-  const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
-  const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
-  const createLecturerProfile = useMutation(api.lecturer_profiles.create);
-  const updateLecturerProfile = useMutation(api.lecturer_profiles.update);
-  const deleteLecturerProfile = useMutation(api.lecturer_profiles.delete);
+  const lecturerProfiles = useQuery('lecturer_profiles:getAll' as any, {}) ?? [];
+  const lecturers = useQuery('lecturers:getAll' as any, {}) ?? [];
+  const academicYears = useQuery('academic_years:getAll' as any, {}) ?? [];
+  const createLecturerProfile = useMutation('lecturers:createNewLecturer' as any);
+  const updateLecturerProfile = useMutation('lecturers:updateProfile' as any);
+  const deleteLecturerProfile = useMutation('lecturers:deleteProfile' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
@@ -96,6 +96,7 @@ export default function LecturerManagementPage() {
     fullName: "",
     email: "",
     family: "",
+    contract: "", // Add this
     fte: 1.0,
     capacity: 0,
     maxTeachingHours: 0,
@@ -124,6 +125,7 @@ export default function LecturerManagementPage() {
         fullName: form.fullName,
         email: form.email,
         family: form.family,
+        contract: form.contract,
         fte: form.fte,
         capacity: form.capacity,
         maxTeachingHours: form.maxTeachingHours,
@@ -135,7 +137,7 @@ export default function LecturerManagementPage() {
         entity: "lecturer_profile",
         description: `Created lecturer profile: ${form.fullName}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
       toast.success("Lecturer profile created successfully");
@@ -173,7 +175,7 @@ export default function LecturerManagementPage() {
         entity: "lecturer_profile",
         description: `Updated lecturer profile: ${form.fullName}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "", // Remove user?.organizationId
       });
 
       toast.success("Lecturer profile updated successfully");
@@ -193,6 +195,7 @@ export default function LecturerManagementPage() {
       fullName: "",
       email: "",
       family: "",
+      contract: "", // Add this
       fte: 1.0,
       capacity: 0,
       maxTeachingHours: 0,
@@ -211,7 +214,8 @@ export default function LecturerManagementPage() {
     setForm({
       fullName: profile.fullName,
       email: profile.email,
-      family: profile.family,
+      family: profile.family || "",
+      contract: profile.contract || "",
       fte: profile.fte,
       capacity: profile.capacity,
       maxTeachingHours: profile.maxTeachingHours,
@@ -222,7 +226,7 @@ export default function LecturerManagementPage() {
   };
 
   const getCurrentYearLecturer = (profileId: Id<'lecturer_profiles'>) => {
-    return lecturers.find(l => l.profileId === profileId && l.academicYearId === currentAcademicYearId);
+    return lecturers.find((l: any) => l.profileId === profileId && l.academicYearId === currentAcademicYearId);
   };
 
   const getStatusBadge = (profile: LecturerProfile) => {
@@ -252,10 +256,10 @@ export default function LecturerManagementPage() {
     return Math.round((currentLecturer.totalAllocated / currentLecturer.totalContract) * 100);
   };
 
-  const filteredProfiles = lecturerProfiles.filter(profile =>
+  const filteredProfiles = lecturerProfiles.filter((profile: any) =>
     profile.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     profile.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.family.toLowerCase().includes(searchTerm.toLowerCase())
+    profile.family?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleProfileClick = () => {
@@ -315,7 +319,7 @@ export default function LecturerManagementPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Profiles</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {lecturerProfiles.filter(p => p.isActive).length}
+                    {lecturerProfiles.filter((p: any) => p.isActive).length}
                   </p>
                 </div>
                 <User className="w-8 h-8 text-green-600" />
@@ -328,7 +332,7 @@ export default function LecturerManagementPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Current Year</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {lecturers.filter(l => l.academicYearId === currentAcademicYearId).length}
+                    {lecturers.filter((l: any) => l.academicYearId === currentAcademicYearId).length}
                   </p>
                 </div>
                 <Calendar className="w-8 h-8 text-purple-600" />
@@ -341,7 +345,7 @@ export default function LecturerManagementPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Families</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {new Set(lecturerProfiles.map(p => p.family)).size}
+                    {new Set(lecturerProfiles.map((p: any) => p.family)).size}
                   </p>
                 </div>
                 <Building className="w-8 h-8 text-amber-600" />
@@ -394,7 +398,7 @@ export default function LecturerManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProfiles.map((profile) => {
+                {filteredProfiles.map((profile: any) => {
                   const currentLecturer = getCurrentYearLecturer(profile._id);
                   const utilization = getUtilizationPercentage(profile);
                   
@@ -402,7 +406,7 @@ export default function LecturerManagementPage() {
                     <TableRow key={profile._id}>
                       <TableCell className="font-medium">{profile.fullName}</TableCell>
                       <TableCell>{profile.email}</TableCell>
-                      <TableCell>{profile.family}</TableCell>
+                      <TableCell>{profile.family || "N/A"}</TableCell>
                       <TableCell>{profile.fte}</TableCell>
                       <TableCell>{profile.totalContract}h</TableCell>
                       <TableCell>

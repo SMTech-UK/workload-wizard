@@ -513,6 +513,16 @@ export const getSettings = query({
 
 export const getUserBySubject = query({
   args: { subject: v.string() },
+  returns: v.union(
+    v.object({
+      systemRole: v.union(v.string(), v.null()),
+      settings: v.union(v.object({}), v.null()),
+      specialism: v.union(v.string(), v.null()),
+      jobTitle: v.union(v.string(), v.null()),
+      team: v.union(v.string(), v.null()),
+    }),
+    v.null()
+  ),
   handler: async (ctx, args) => {
     const user = await ctx.db.query("users")
       .filter(q => q.eq(q.field("subject"), args.subject))

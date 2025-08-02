@@ -14,9 +14,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { useCourses } from "@/hooks/useCourses";
 import { useReferenceData } from "@/hooks/useReferenceData";
-import { useLogRecentActivity } from "@/hooks/useStoreUserEffect";
+import { useLogRecentActivity } from "@/lib/recentActivity";
 import { toast } from "sonner";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { useQuery } from "convex/react";
 
 // Course form schema
 const courseFormSchema = z.object({
@@ -63,7 +64,8 @@ export function CourseForm({ courseId, onSuccess, onCancel, mode = "create" }: C
   const [newOutcome, setNewOutcome] = useState("");
   
   const { createCourse, updateCourse, selectedCourse, setSelectedCourseId } = useCourses();
-  const { faculties, departments, userProfiles } = useReferenceData();
+  const { faculties, departments } = useReferenceData();
+  const userProfiles = useQuery('user_profiles:getAll' as any, {}) ?? [];
   const logActivity = useLogRecentActivity();
 
   const form = useForm<CourseFormData>({
@@ -144,14 +146,20 @@ export function CourseForm({ courseId, onSuccess, onCancel, mode = "create" }: C
       const courseData = {
         ...data,
         learningOutcomes: learningOutcomes,
-        facultyId: data.facultyId || undefined,
-        departmentId: data.departmentId || undefined,
-        courseLeaderId: data.courseLeaderId || undefined,
+        facultyId: data.facultyId as Id<"faculties"> | undefined,
+        departmentId: data.departmentId as Id<"departments"> | undefined,
+        courseLeaderId: data.courseLeaderId as Id<"user_profiles"> | undefined,
       };
 
       if (mode === "create") {
         await createCourse(courseData);
-        logActivity("course_created", { courseName: data.name, courseCode: data.code });
+        logActivity({
+          type: "create",
+          entity: "course",
+          description: `Created course: ${data.name} (${data.code})`,
+          userId: userProfiles[0]?.id || "",
+          organisationId: "",
+        });
         toast.success("Course created successfully");
       } else {
         if (!courseId) {
@@ -159,7 +167,13 @@ export function CourseForm({ courseId, onSuccess, onCancel, mode = "create" }: C
           return;
         }
         await updateCourse({ id: courseId, ...courseData });
-        logActivity("course_updated", { courseName: data.name, courseCode: data.code });
+        logActivity({
+          type: "edit",
+          entity: "course",
+          description: `Updated course: ${data.name} (${data.code})`,
+          userId: userProfiles[0]?.id || "",
+          organisationId: "",
+        });
         toast.success("Course updated successfully");
       }
 
@@ -338,7 +352,7 @@ export function CourseForm({ courseId, onSuccess, onCancel, mode = "create" }: C
                     <SelectValue placeholder="Select course leader" />
                   </SelectTrigger>
                   <SelectContent>
-                    {userProfiles?.map((profile) => (
+                    {userProfiles?.map((profile: any) => (
                       <SelectItem key={profile._id} value={profile._id}>
                         {profile.firstName} {profile.lastName}
                       </SelectItem>

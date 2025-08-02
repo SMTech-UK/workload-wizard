@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -99,62 +98,62 @@ export default function ModuleAllocations() {
   const { currentAcademicYearId } = useAcademicYear();
 
   // Fetch data from Convex with academic year context
-  const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
-  const modules = useQuery(api.modules.getAll, {}) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
-  const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
-  const moduleAllocations = useQuery(api.module_allocations.getAll, {}) ?? [];
-  const updateModuleIteration = useMutation(api.module_iterations.update);
-  const createModuleAllocation = useMutation(api.module_allocations.create);
-  const updateModuleAllocation = useMutation(api.module_allocations.update);
-  const deleteModuleAllocation = useMutation(api.module_allocations.delete);
+  const moduleIterations = useQuery('module_iterations:getAll' as any, {}) ?? [];
+  const modules = useQuery('modules:getAll' as any, {}) ?? [];
+  const lecturers = useQuery('lecturers:getAll' as any, {}) ?? [];
+  const lecturerProfiles = useQuery('lecturer_profiles:getAll' as any, {}) ?? [];
+  const moduleAllocations = useQuery('module_allocations:getAll' as any, {}) ?? [];
+  const updateModuleIteration = useMutation('module_iterations:updateIterationAssignments' as any);
+  const createModuleAllocation = useMutation('module_allocations:create' as any);
+  const updateModuleAllocation = useMutation('module_allocations:update' as any);
+  const deleteModuleAllocation = useMutation('module_allocations:delete' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
 
   // Helper functions
   const getModuleName = (moduleId: Id<'modules'>) => {
-    const moduleData = modules.find(m => m._id === moduleId);
+    const moduleData = modules.find((m: any) => m._id === moduleId);
     return moduleData ? `${moduleData.code} - ${moduleData.title}` : "Unknown Module";
   };
 
   const getModuleCode = (moduleId: Id<'modules'>) => {
-    const moduleData = modules.find(m => m._id === moduleId);
+    const moduleData = modules.find((m: any) => m._id === moduleId);
     return moduleData?.code || "Unknown";
   };
 
   const getLecturerName = (lecturerId: Id<'lecturers'>) => {
-    const lecturer = lecturers.find(l => l._id === lecturerId);
+    const lecturer = lecturers.find((l: any) => l._id === lecturerId);
     if (!lecturer) return "Unknown";
     
-    const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
     return profile?.fullName || "Unknown";
   };
 
   const getLecturerProfile = (lecturerId: Id<'lecturers'>) => {
-    const lecturer = lecturers.find(l => l._id === lecturerId);
+    const lecturer = lecturers.find((l: any) => l._id === lecturerId);
     if (!lecturer) return null;
     
-    return lecturerProfiles.find(p => p._id === lecturer.profileId);
+    return lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
   };
 
   const getCurrentYearIterations = () => {
-    return moduleIterations.filter(mi => mi.academicYearId === currentAcademicYearId);
+    return moduleIterations.filter((mi: any) => mi.academicYearId === currentAcademicYearId);
   };
 
   const getCurrentYearLecturers = () => {
-    return lecturers.filter(l => l.academicYearId === currentAcademicYearId);
+    return lecturers.filter((l: any) => l.academicYearId === currentAcademicYearId);
   };
 
   const getModuleAllocations = (moduleIterationId: Id<'module_iterations'>) => {
-    return moduleAllocations.filter(ma => ma.moduleIterationId === moduleIterationId);
+    return moduleAllocations.filter((ma: any) => ma.moduleIterationId === moduleIterationId);
   };
 
   const getLecturerAllocations = (lecturerId: Id<'lecturers'>) => {
-    return moduleAllocations.filter(ma => ma.lecturerId === lecturerId);
+    return moduleAllocations.filter((ma: any) => ma.lecturerId === lecturerId);
   };
 
   const getLecturerUtilization = (lecturerId: Id<'lecturers'>) => {
-    const lecturer = lecturers.find(l => l._id === lecturerId);
+    const lecturer = lecturers.find((l: any) => l._id === lecturerId);
     if (!lecturer) return 0;
     
     const totalContract = lecturer.totalContract || 0;
@@ -199,7 +198,7 @@ export default function ModuleAllocations() {
   };
 
   // Filter data based on search and semester
-  const filteredIterations = getCurrentYearIterations().filter(iteration => {
+  const filteredIterations = getCurrentYearIterations().filter((iteration: any) => {
     const moduleName = getModuleName(iteration.moduleId).toLowerCase();
     const matchesSearch = searchTerm === "" || moduleName.includes(searchTerm.toLowerCase());
     const matchesSemester = selectedSemester === "all" || iteration.semester === selectedSemester;
@@ -208,7 +207,7 @@ export default function ModuleAllocations() {
     return matchesSearch && matchesSemester && matchesSemester;
   });
 
-  const availableLecturers = getCurrentYearLecturers().filter(lecturer => {
+  const availableLecturers = getCurrentYearLecturers().filter((lecturer: any) => {
     const profile = getLecturerProfile(lecturer._id);
     return profile && profile.isActive && lecturer.isActive;
   });
@@ -240,7 +239,7 @@ export default function ModuleAllocations() {
 
     try {
       // Update the module iteration's assigned lecturers
-      const iteration = moduleIterations.find(mi => mi._id === iterationId);
+      const iteration = moduleIterations.find((mi: any) => mi._id === iterationId);
       if (!iteration) return;
 
       const currentAssignedIds = iteration.assignedLecturerIds || [];
@@ -253,7 +252,7 @@ export default function ModuleAllocations() {
       });
 
       // Create module allocation record
-      const moduleData = modules.find(m => m._id === iteration.moduleId);
+      const moduleData = modules.find((m: any) => m._id === iteration.moduleId);
       if (moduleData) {
         await createModuleAllocation({
           moduleIterationId: iterationId as Id<'module_iterations'>,
@@ -271,7 +270,7 @@ export default function ModuleAllocations() {
         entity: "module_allocation",
         description: `Assigned lecturer to ${getModuleName(iteration.moduleId)}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
     } catch (error) {
@@ -282,11 +281,11 @@ export default function ModuleAllocations() {
 
   const handleUnassignLecturer = async (iterationId: string, lecturerId: string) => {
     try {
-      const iteration = moduleIterations.find(mi => mi._id === iterationId);
+      const iteration = moduleIterations.find((mi: any) => mi._id === iterationId);
       if (!iteration) return;
 
       const currentAssignedIds = iteration.assignedLecturerIds || [];
-      const newAssignedIds = currentAssignedIds.filter(id => id !== lecturerId);
+      const newAssignedIds = currentAssignedIds.filter((id: any) => id !== lecturerId);
 
       await updateModuleIteration({
         id: iterationId as Id<'module_iterations'>,
@@ -295,7 +294,7 @@ export default function ModuleAllocations() {
       });
 
       // Remove module allocation record
-      const allocation = moduleAllocations.find(ma => 
+      const allocation = moduleAllocations.find((ma: any) => 
         ma.moduleIterationId === iterationId && ma.lecturerId === lecturerId
       );
       if (allocation) {
@@ -310,7 +309,7 @@ export default function ModuleAllocations() {
         entity: "module_allocation",
         description: `Unassigned lecturer from ${getModuleName(iteration.moduleId)}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
     } catch (error) {
@@ -338,7 +337,7 @@ export default function ModuleAllocations() {
   };
 
   // Get unique semesters for filter
-  const semesters = [...new Set(getCurrentYearIterations().map(mi => mi.semester))];
+  const semesters = [...new Set(getCurrentYearIterations().map((mi: any) => mi.semester))];
 
   return (
     <div className="space-y-6">
@@ -385,7 +384,7 @@ export default function ModuleAllocations() {
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Assigned</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {getCurrentYearIterations().filter(mi => mi.assignedStatus === "assigned").length}
+                  {getCurrentYearIterations().filter((mi: any) => mi.assignedStatus === "assigned").length}
                 </p>
               </div>
               <Users className="w-8 h-8 text-green-600" />
@@ -398,7 +397,7 @@ export default function ModuleAllocations() {
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Unassigned</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {getCurrentYearIterations().filter(mi => mi.assignedStatus === "unassigned").length}
+                  {getCurrentYearIterations().filter((mi: any) => mi.assignedStatus === "unassigned").length}
                 </p>
               </div>
               <Clock className="w-8 h-8 text-red-600" />
@@ -437,7 +436,7 @@ export default function ModuleAllocations() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Semesters</SelectItem>
-                {semesters.map(semester => (
+                {semesters.map((semester: any) => (
                   <SelectItem key={semester} value={semester}>
                     {getSemesterLabel(semester)}
                   </SelectItem>
@@ -468,7 +467,7 @@ export default function ModuleAllocations() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredIterations.map((iteration) => {
+              {filteredIterations.map((iteration: any) => {
                 const assignedLecturers = iteration.assignedLecturerIds || [];
                 const allocations = getModuleAllocations(iteration._id);
                 
@@ -481,9 +480,9 @@ export default function ModuleAllocations() {
                     <TableCell>
                       {assignedLecturers.length > 0 ? (
                         <div className="space-y-1">
-                          {assignedLecturers.map(lecturerId => {
+                          {assignedLecturers.map((lecturerId: any) => {
                             const profile = getLecturerProfile(lecturerId);
-                            const allocation = allocations.find(a => a.lecturerId === lecturerId);
+                            const allocation = allocations.find((a: any) => a.lecturerId === lecturerId);
                             return (
                               <div key={lecturerId} className="flex items-center justify-between text-sm">
                                 <span>{profile?.fullName || "Unknown"}</span>
@@ -542,7 +541,7 @@ export default function ModuleAllocations() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {availableLecturers.map((lecturer) => {
+              {availableLecturers.map((lecturer: any) => {
                 const profile = getLecturerProfile(lecturer._id);
                 const utilization = getLecturerUtilization(lecturer._id);
                 const lecturerAllocations = getLecturerAllocations(lecturer._id);

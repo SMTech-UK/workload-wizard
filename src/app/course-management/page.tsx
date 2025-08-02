@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -72,12 +71,12 @@ export default function CourseManagementPage() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // Fetch data from Convex
-  const courses = useQuery(api.courses.getAll, {}) ?? [];
-  const faculties = useQuery(api.faculties.getAll, {}) ?? [];
-  const departments = useQuery(api.departments.getAll, {}) ?? [];
-  const createCourse = useMutation(api.courses.create);
-  const updateCourse = useMutation(api.courses.update);
-  const deleteCourse = useMutation(api.courses.remove);
+  const courses = useQuery('courses:getAll' as any, {}) ?? [];
+  const faculties = useQuery('faculties:getAll' as any, {}) ?? [];
+  const departments = useQuery('departments:getAll' as any, {}) ?? [];
+  const createCourse = useMutation('courses:create' as any);
+  const updateCourse = useMutation('courses:update' as any);
+  const deleteCourse = useMutation('courses:deleteCourse' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
@@ -245,17 +244,17 @@ export default function CourseManagementPage() {
 
   const getFacultyName = (facultyId?: Id<'faculties'>) => {
     if (!facultyId) return "Not assigned";
-    const faculty = faculties.find(f => f._id === facultyId);
+    const faculty = faculties.find((f: any) => f._id === facultyId);
     return faculty?.name || "Unknown";
   };
 
   const getDepartmentName = (departmentId?: Id<'departments'>) => {
     if (!departmentId) return "Not assigned";
-    const department = departments.find(d => d._id === departmentId);
+    const department = departments.find((d: any) => d._id === departmentId);
     return department?.name || "Unknown";
   };
 
-  const filteredCourses = courses.filter(course =>
+  const filteredCourses = courses.filter((course: any) =>
     course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -317,7 +316,7 @@ export default function CourseManagementPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Courses</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {courses.filter(c => c.isActive).length}
+                    {courses.filter((c: any) => c.isActive).length}
                   </p>
                 </div>
                 <BookOpen className="w-8 h-8 text-green-600" />
@@ -392,7 +391,7 @@ export default function CourseManagementPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCourses.map((course) => (
+                {filteredCourses.map((course: any) => (
                   <TableRow key={course._id}>
                     <TableCell className="font-medium">{course.code}</TableCell>
                     <TableCell>{course.name}</TableCell>
@@ -517,7 +516,7 @@ export default function CourseManagementPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Not assigned</SelectItem>
-                      {faculties.map((faculty) => (
+                      {faculties.map((faculty: any) => (
                         <SelectItem key={faculty._id} value={faculty._id}>
                           {faculty.name}
                         </SelectItem>
@@ -533,7 +532,7 @@ export default function CourseManagementPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">Not assigned</SelectItem>
-                      {departments.map((department) => (
+                      {departments.map((department: any) => (
                         <SelectItem key={department._id} value={department._id}>
                           {department.name}
                         </SelectItem>

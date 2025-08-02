@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -82,35 +81,35 @@ export default function CohortManagement() {
   const { currentAcademicYearId } = useAcademicYear();
   
   // Fetch data
-  const cohorts = useQuery(api.cohorts.getAll, { 
+  const cohorts = useQuery('cohorts:getAll' as any, { 
     academicYearId: currentAcademicYearId as any,
     isActive: true 
   }) ?? [];
-  const courses = useQuery(api.courses.getAll, { isActive: true }) ?? [];
-  const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
+  const courses = useQuery('courses:getAll' as any, { isActive: true }) ?? [];
+  const academicYears = useQuery('academic_years:getAll' as any, {}) ?? [];
   
   // Mutations
-  const createCohort = useMutation(api.cohorts.create);
-  const updateCohort = useMutation(api.cohorts.update);
-  const deleteCohort = useMutation(api.cohorts.remove);
+  const createCohort = useMutation('cohorts:create' as any);
+  const updateCohort = useMutation('cohorts:update' as any);
+  const deleteCohort = useMutation('cohorts:remove' as any);
 
-  const filteredCohorts = cohorts.filter(cohort =>
+  const filteredCohorts = cohorts.filter((cohort: any) =>
     cohort.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cohort.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getCourseName = (courseId: Id<'courses'>) => {
-    const course = courses.find(c => c._id === courseId);
+    const course = courses.find((c: any) => c._id === courseId);
     return course?.name || "Unknown Course";
   };
 
   const getCourseCode = (courseId: Id<'courses'>) => {
-    const course = courses.find(c => c._id === courseId);
+    const course = courses.find((c: any) => c._id === courseId);
     return course?.code || "Unknown";
   };
 
   const getAcademicYearName = (academicYearId: Id<'academic_years'>) => {
-    const academicYear = academicYears.find(ay => ay._id === academicYearId);
+    const academicYear = academicYears.find((ay: any) => ay._id === academicYearId);
     return academicYear?.name || "Unknown Year";
   };
 
@@ -157,10 +156,11 @@ export default function CohortManagement() {
 
       if (user) {
         logActivity({
-          action: "Created cohort",
-          details: newCohortData.name,
-          entityType: "cohort",
-          entityId: cohortId,
+          type: "create", // Change from 'action' to 'type'
+          entity: "cohort", // Change from 'entityType' to 'entity'
+          description: `Created cohort: ${newCohortData.name}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -188,10 +188,11 @@ export default function CohortManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated cohort",
-          details: selectedCohort.name,
-          entityType: "cohort",
-          entityId: selectedCohort._id,
+          type: "edit", // Change from 'action' to 'type'
+          entity: "cohort", // Change from 'entityType' to 'entity'
+          description: `Updated cohort: ${selectedCohort.name}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -210,10 +211,11 @@ export default function CohortManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted cohort",
-          details: cohortName,
-          entityType: "cohort",
-          entityId: cohortId,
+          type: "delete", // Change from 'action' to 'type'
+          entity: "cohort", // Change from 'entityType' to 'entity'
+          description: `Deleted cohort: ${cohortName}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -287,8 +289,8 @@ export default function CohortManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCohorts.map((cohort) => {
-                const status = getCohortStatus(cohort);
+              {filteredCohorts.map((cohort: any) => {
+                const status = getCohortStatus(cohort as any);
                 return (
                   <TableRow key={cohort._id}>
                     <TableCell className="font-medium">{cohort.code}</TableCell>
@@ -398,7 +400,7 @@ export default function CohortManagement() {
                     <SelectValue placeholder="Select course" />
                   </SelectTrigger>
                   <SelectContent>
-                    {courses.map((course) => (
+                    {courses.map((course: any) => (
                       <SelectItem key={course._id} value={course._id}>
                         {course.name} ({course.code})
                       </SelectItem>
@@ -416,7 +418,7 @@ export default function CohortManagement() {
                     <SelectValue placeholder="Select academic year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {academicYears.map((academicYear) => (
+                    {academicYears.map((academicYear: any) => (
                       <SelectItem key={academicYear._id} value={academicYear._id}>
                         {academicYear.name}
                       </SelectItem>
@@ -527,7 +529,7 @@ export default function CohortManagement() {
                     <SelectValue placeholder="Select course" />
                   </SelectTrigger>
                   <SelectContent>
-                    {courses.map((course) => (
+                    {courses.map((course: any) => (
                       <SelectItem key={course._id} value={course._id}>
                         {course.name} ({course.code})
                       </SelectItem>
@@ -545,7 +547,7 @@ export default function CohortManagement() {
                     <SelectValue placeholder="Select academic year" />
                   </SelectTrigger>
                   <SelectContent>
-                    {academicYears.map((academicYear) => (
+                    {academicYears.map((academicYear: any) => (
                       <SelectItem key={academicYear._id} value={academicYear._id}>
                         {academicYear.name}
                       </SelectItem>

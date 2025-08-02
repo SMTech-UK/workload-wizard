@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,9 +40,10 @@ interface AdminAllocation {
   description?: string;
   hours: number;
   status: string;
-  startDate?: string;
-  endDate?: string;
+  startDate?: number; // Change to number
+  endDate?: number; // Change to number
   isActive: boolean;
+  priority: string; // Add missing field
   organisationId: Id<'organisations'>;
   createdAt: number;
   updatedAt: number;
@@ -104,22 +104,22 @@ export default function AdminAllocations() {
   const { currentAcademicYearId } = useAcademicYear();
   
   // Fetch data
-  const adminAllocations = useQuery(api.admin_allocations.getAll, { 
+  const adminAllocations = useQuery('admin_allocations:getAll' as any, { 
     academicYearId: currentAcademicYearId as any,
     isActive: true 
   }) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, { 
+  const lecturers = useQuery('lecturers:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   }) ?? [];
-  const lecturerProfiles = useQuery(api.lecturers.getProfiles, {}) ?? [];
-  const allocationTypes = useQuery(api.allocation_types.getAll, {}) ?? [];
+  const lecturerProfiles = useQuery('lecturers:getProfiles' as any, {}) ?? [];
+  const allocationTypes = useQuery('allocation_types:getAll' as any, {}) ?? [];
   
   // Mutations
-  const createAdminAllocation = useMutation(api.admin_allocations.create);
-  const updateAdminAllocation = useMutation(api.admin_allocations.update);
-  const deleteAdminAllocation = useMutation(api.admin_allocations.remove);
+  const createAdminAllocation = useMutation('admin_allocations:create' as any);
+  const updateAdminAllocation = useMutation('admin_allocations:update' as any);
+  const deleteAdminAllocation = useMutation('admin_allocations:remove' as any);
 
-  const filteredAllocations = adminAllocations.filter(allocation => {
+  const filteredAllocations = adminAllocations.filter((allocation: any) => {
     const lecturerName = getLecturerName(allocation.lecturerId);
     return lecturerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
            allocation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -127,32 +127,32 @@ export default function AdminAllocations() {
   });
 
   const getLecturerName = (lecturerId: Id<'lecturers'>) => {
-    const lecturer = lecturers.find(l => l._id === lecturerId);
+    const lecturer = lecturers.find((l: any) => l._id === lecturerId);
     if (!lecturer) return "Unknown Lecturer";
     
-    const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
     return profile?.fullName || "Unknown Lecturer";
   };
 
   const getLecturerEmail = (lecturerId: Id<'lecturers'>) => {
-    const lecturer = lecturers.find(l => l._id === lecturerId);
+    const lecturer = lecturers.find((l: any) => l._id === lecturerId);
     if (!lecturer) return "Unknown";
     
-    const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
     return profile?.email || "Unknown";
   };
 
   const getLecturerFamily = (lecturerId: Id<'lecturers'>) => {
-    const lecturer = lecturers.find(l => l._id === lecturerId);
+    const lecturer = lecturers.find((l: any) => l._id === lecturerId);
     if (!lecturer) return "Unknown";
     
-    const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
     return profile?.family || "Unknown";
   };
 
   const getAllocationTypeName = (allocationTypeId?: Id<'allocation_types'>) => {
     if (!allocationTypeId) return "Not specified";
-    const allocationType = allocationTypes.find(at => at._id === allocationTypeId);
+    const allocationType = allocationTypes.find((at: any) => at._id === allocationTypeId);
     return allocationType?.name || "Unknown";
   };
 
@@ -192,6 +192,10 @@ export default function AdminAllocations() {
       const allocationId = await createAdminAllocation({
         ...newAllocationData,
         academicYearId: currentAcademicYearId as any,
+        isActive: true, // Add missing field
+        priority: "medium", // Add missing field
+        startDate: newAllocationData.startDate ? new Date(newAllocationData.startDate).getTime() : undefined, // Convert to number
+        endDate: newAllocationData.endDate ? new Date(newAllocationData.endDate).getTime() : undefined, // Convert to number
       });
 
       toast.success("Admin allocation created successfully");
@@ -210,10 +214,11 @@ export default function AdminAllocations() {
 
       if (user) {
         logActivity({
-          action: "Created admin allocation",
-          details: newAllocationData.title,
-          entityType: "admin_allocation",
-          entityId: allocationId,
+          type: "create", // Change from 'action' to 'type'
+          entity: "admin_allocation", // Change from 'entityType' to 'entity'
+          description: `Created admin allocation: ${newAllocationData.title}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -228,6 +233,8 @@ export default function AdminAllocations() {
       await updateAdminAllocation({
         id: selectedAllocation._id,
         ...newAllocationData,
+        startDate: newAllocationData.startDate ? new Date(newAllocationData.startDate).getTime() : undefined, // Convert to number
+        endDate: newAllocationData.endDate ? new Date(newAllocationData.endDate).getTime() : undefined, // Convert to number
       });
 
       toast.success("Admin allocation updated successfully");
@@ -236,10 +243,11 @@ export default function AdminAllocations() {
 
       if (user) {
         logActivity({
-          action: "Updated admin allocation",
-          details: selectedAllocation.title,
-          entityType: "admin_allocation",
-          entityId: selectedAllocation._id,
+          type: "edit", // Change from 'action' to 'type'
+          entity: "admin_allocation", // Change from 'entityType' to 'entity'
+          description: `Updated admin allocation: ${selectedAllocation.title}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -258,10 +266,11 @@ export default function AdminAllocations() {
 
       if (user) {
         logActivity({
-          action: "Deleted admin allocation",
-          details: allocationTitle,
-          entityType: "admin_allocation",
-          entityId: allocationId,
+          type: "delete", // Change from 'action' to 'type'
+          entity: "admin_allocation", // Change from 'entityType' to 'entity'
+          description: `Deleted admin allocation: ${allocationTitle}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -279,18 +288,18 @@ export default function AdminAllocations() {
       description: allocation.description || "",
       hours: allocation.hours,
       status: allocation.status,
-      startDate: allocation.startDate || "",
-      endDate: allocation.endDate || "",
+      startDate: allocation.startDate ? new Date(allocation.startDate).toISOString().slice(0, 10) : "", // Convert back to string
+      endDate: allocation.endDate ? new Date(allocation.endDate).toISOString().slice(0, 10) : "", // Convert back to string
     });
     setModalOpen(true);
   };
 
   const getTotalAdminHours = () => {
-    return adminAllocations.reduce((total, allocation) => total + allocation.hours, 0);
+    return adminAllocations.reduce((total: number, allocation: any) => total + allocation.hours, 0);
   };
 
   const getActiveAllocationsCount = () => {
-    return adminAllocations.filter(allocation => allocation.status === 'active').length;
+    return adminAllocations.filter((allocation: any) => allocation.status === 'active').length;
   };
 
   const getAverageHoursPerAllocation = () => {
@@ -401,7 +410,7 @@ export default function AdminAllocations() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAllocations.map((allocation) => (
+              {filteredAllocations.map((allocation: any) => (
                 <TableRow key={allocation._id}>
                   <TableCell>
                     <div>
@@ -436,7 +445,7 @@ export default function AdminAllocations() {
                     <div className="text-sm">
                       {allocation.startDate && allocation.endDate ? (
                         <div>
-                          <div>{formatDate(allocation.startDate)} - {formatDate(allocation.endDate)}</div>
+                          <div>{formatDate(new Date(allocation.startDate).toISOString().slice(0, 10))} - {formatDate(new Date(allocation.endDate).toISOString().slice(0, 10))}</div>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">Not specified</span>
@@ -502,8 +511,8 @@ export default function AdminAllocations() {
                   <SelectValue placeholder="Select lecturer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {lecturers.map((lecturer) => {
-                    const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+                  {lecturers.map((lecturer: any) => {
+                    const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
                     return (
                       <SelectItem key={lecturer._id} value={lecturer._id}>
                         {profile?.fullName || "Unknown"} ({profile?.family || "Unknown"})
@@ -557,7 +566,7 @@ export default function AdminAllocations() {
                     <SelectValue placeholder="Select type (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {allocationTypes.map((type) => (
+                    {allocationTypes.map((type: any) => (
                       <SelectItem key={type._id} value={type._id}>
                         {type.name}
                       </SelectItem>
@@ -656,8 +665,8 @@ export default function AdminAllocations() {
                   <SelectValue placeholder="Select lecturer" />
                 </SelectTrigger>
                 <SelectContent>
-                  {lecturers.map((lecturer) => {
-                    const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+                  {lecturers.map((lecturer: any) => {
+                    const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
                     return (
                       <SelectItem key={lecturer._id} value={lecturer._id}>
                         {profile?.fullName || "Unknown"} ({profile?.family || "Unknown"})
@@ -711,7 +720,7 @@ export default function AdminAllocations() {
                     <SelectValue placeholder="Select type (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    {allocationTypes.map((type) => (
+                    {allocationTypes.map((type: any) => (
                       <SelectItem key={type._id} value={type._id}>
                         {type.name}
                       </SelectItem>

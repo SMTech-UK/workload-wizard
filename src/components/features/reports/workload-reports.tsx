@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useQuery } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -97,59 +96,59 @@ export default function WorkloadReports() {
   const { currentAcademicYearId } = useAcademicYear();
   
   // Fetch data
-  const workloadReports = useQuery(api.workload_reports.getAll, { 
+  const workloadReports = useQuery('workload_reports:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   }) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, { 
+  const lecturers = useQuery('lecturers:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   }) ?? [];
-  const lecturerProfiles = useQuery(api.lecturers.getProfiles, {}) ?? [];
-  const moduleAllocations = useQuery(api.module_allocations.getAll, { 
+  const lecturerProfiles = useQuery('lecturers:getProfiles' as any, {}) ?? [];
+  const moduleAllocations = useQuery('module_allocations:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   }) ?? [];
-  const adminAllocations = useQuery(api.admin_allocations.getAll, { 
+  const adminAllocations = useQuery('admin_allocations:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   }) ?? [];
-  const academicYears = useQuery(api.academic_years.getAll, {}) ?? [];
+  const academicYears = useQuery('academic_years:getAll' as any, {}) ?? [];
 
-  const filteredReports = workloadReports.filter(report =>
+  const filteredReports = workloadReports.filter((report: any) =>
     report.reportName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     report.reportType.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getLecturerName = (profileId: Id<'lecturer_profiles'>) => {
-    const profile = lecturerProfiles.find(p => p._id === profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === profileId);
     return profile?.fullName || "Unknown Lecturer";
   };
 
   const getLecturerEmail = (profileId: Id<'lecturer_profiles'>) => {
-    const profile = lecturerProfiles.find(p => p._id === profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === profileId);
     return profile?.email || "Unknown";
   };
 
   const getLecturerFamily = (profileId: Id<'lecturer_profiles'>) => {
-    const profile = lecturerProfiles.find(p => p._id === profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === profileId);
     return profile?.family || "Unknown";
   };
 
   const getLecturerFTE = (profileId: Id<'lecturer_profiles'>) => {
-    const profile = lecturerProfiles.find(p => p._id === profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === profileId);
     return profile?.fte || 0;
   };
 
   const getLecturerCapacity = (profileId: Id<'lecturer_profiles'>) => {
-    const profile = lecturerProfiles.find(p => p._id === profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === profileId);
     return profile?.capacity || 0;
   };
 
   const getTotalTeachingHours = (lecturerId: Id<'lecturers'>) => {
-    const allocations = moduleAllocations.filter(ma => ma.lecturerId === lecturerId);
-    return allocations.reduce((total, allocation) => total + allocation.hours, 0);
+    const allocations = moduleAllocations.filter((ma: any) => ma.lecturerId === lecturerId);
+    return allocations.reduce((total: any, allocation: any) => total + allocation.hours, 0);
   };
 
   const getTotalAdminHours = (lecturerId: Id<'lecturers'>) => {
-    const allocations = adminAllocations.filter(aa => aa.lecturerId === lecturerId);
-    return allocations.reduce((total, allocation) => total + allocation.hours, 0);
+    const allocations = adminAllocations.filter((aa: any) => aa.lecturerId === lecturerId);
+    return allocations.reduce((total: any, allocation: any) => total + allocation.hours, 0);
   };
 
   const getWorkloadPercentage = (lecturer: Lecturer) => {
@@ -175,8 +174,8 @@ export default function WorkloadReports() {
   };
 
   const generateLecturerWorkloadReport = () => {
-    const reportData = lecturers.map(lecturer => {
-      const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    const reportData = lecturers.map((lecturer: any) => {
+      const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
       const teachingHours = getTotalTeachingHours(lecturer._id);
       const adminHours = getTotalAdminHours(lecturer._id);
       const workloadPercentage = getWorkloadPercentage(lecturer);
@@ -206,10 +205,10 @@ export default function WorkloadReports() {
 
   const generateDepartmentSummary = () => {
     // Group lecturers by department (would need department info in lecturer profiles)
-    const departmentData = {};
+    const departmentData: any = {};
     
-    lecturers.forEach(lecturer => {
-      const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+    lecturers.forEach((lecturer: any) => {
+      const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
       const family = profile?.family || "Unknown";
       
       if (!departmentData[family]) {
@@ -315,7 +314,7 @@ export default function WorkloadReports() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {lecturers.reduce((total, lecturer) => total + getTotalTeachingHours(lecturer._id), 0)}
+              {lecturers.reduce((total: any, lecturer: any) => total + getTotalTeachingHours(lecturer._id), 0)}
             </div>
             <p className="text-xs text-muted-foreground">
               Allocated across all modules
@@ -330,7 +329,7 @@ export default function WorkloadReports() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {lecturers.reduce((total, lecturer) => total + getTotalAdminHours(lecturer._id), 0)}
+              {lecturers.reduce((total: any, lecturer: any) => total + getTotalAdminHours(lecturer._id), 0)}
             </div>
             <p className="text-xs text-muted-foreground">
               Administrative workload
@@ -346,7 +345,7 @@ export default function WorkloadReports() {
           <CardContent>
             <div className="text-2xl font-bold">
               {lecturerWorkloadData.length > 0 
-                ? Math.round(lecturerWorkloadData.reduce((sum, lecturer) => sum + lecturer.workloadPercentage, 0) / lecturerWorkloadData.length)
+                ? Math.round(lecturerWorkloadData.reduce((sum: any, lecturer: any) => sum + lecturer.workloadPercentage, 0) / lecturerWorkloadData.length)
                 : 0}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -402,11 +401,11 @@ export default function WorkloadReports() {
                 </TableHeader>
                 <TableBody>
                   {lecturerWorkloadData
-                    .filter(lecturer => 
+                    .filter((lecturer: any) => 
                       lecturer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       lecturer.family.toLowerCase().includes(searchTerm.toLowerCase())
                     )
-                    .map((lecturer) => (
+                    .map((lecturer: any) => (
                     <TableRow key={lecturer.lecturerId}>
                       <TableCell>
                         <div>
@@ -524,7 +523,7 @@ export default function WorkloadReports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredReports.map((report) => (
+                  {filteredReports.map((report: any) => (
                     <TableRow key={report._id}>
                       <TableCell className="font-medium">{report.reportName}</TableCell>
                       <TableCell>

@@ -221,15 +221,11 @@ export default function LecturerManagement() {
       // Log activity
       if (user) {
         logRecentActivity({
-          changeType: "create",
-          entity: "lecturer",
-          entityId: profileId,
-          action: "Created new lecturer",
-          details: `Added ${newLecturerData.fullName} to the system`,
-          modifiedBy: [{ name: user.fullName || "Unknown", email: user.emailAddresses[0]?.emailAddress || "" }],
-          permission: "admin",
-          fullName: newLecturerData.fullName,
-          type: "lecturer_created",
+          type: "create", // Change from 'changeType' to 'type'
+          entity: "lecturer", // Keep 'entity'
+          description: `Added ${newLecturerData.fullName} to the system`, // Change from 'details' to 'description'
+          userId: user?.id || "", // Add 'userId'
+          organisationId: "", // Add 'organisationId'
         });
       }
     } catch (error) {
@@ -247,15 +243,11 @@ export default function LecturerManagement() {
         // Log activity
         if (user) {
           logRecentActivity({
-            changeType: "delete",
-            entity: "lecturer",
-            entityId: profileId,
-            action: "Deleted lecturer",
-            details: `Removed ${fullName} from the system`,
-            modifiedBy: [{ name: user.fullName || "Unknown", email: user.emailAddresses[0]?.emailAddress || "" }],
-            permission: "admin",
-            fullName: fullName,
-            type: "lecturer_deleted",
+            type: "delete", // Change from 'changeType' to 'type'
+            entity: "lecturer", // Keep 'entity'
+            description: `Removed ${fullName} from the system`, // Change from 'details' to 'description'
+            userId: user?.id || "", // Add 'userId'
+            organisationId: "", // Add 'organisationId'
           });
         }
       } catch (error) {

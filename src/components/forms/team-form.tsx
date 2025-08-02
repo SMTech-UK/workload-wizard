@@ -15,9 +15,9 @@ import { Separator } from "@/components/ui/separator";
 import { useTeams } from "@/hooks/useTeams";
 import { useReferenceData } from "@/hooks/useReferenceData";
 import { useAcademicYear } from "@/hooks/useAcademicYear";
-import { useLogRecentActivity } from "@/hooks/useStoreUserEffect";
+import { useLogRecentActivity } from "@/lib/recentActivity";
 import { toast } from "sonner";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
 
 // Team form schema
 const teamFormSchema = z.object({

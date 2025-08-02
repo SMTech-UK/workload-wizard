@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -94,29 +93,29 @@ export default function CourseManagement() {
   const logActivity = useLogRecentActivity();
   
   // Fetch data
-  const courses = useQuery(api.courses.getAll, { isActive: true }) ?? [];
-  const faculties = useQuery(api.faculties.getAll, {}) ?? [];
-  const departments = useQuery(api.departments.getAll, {}) ?? [];
+  const courses = useQuery('courses:getAll' as any, { isActive: true }) ?? [];
+  const faculties = useQuery('faculties:getAll' as any, {}) ?? [];
+  const departments = useQuery('departments:getAll' as any, {}) ?? [];
   
   // Mutations
-  const createCourse = useMutation(api.courses.create);
-  const updateCourse = useMutation(api.courses.update);
-  const deleteCourse = useMutation(api.courses.remove);
+  const createCourse = useMutation('courses:create' as any);
+  const updateCourse = useMutation('courses:update' as any);
+  const deleteCourse = useMutation('courses:deleteCourse' as any);
 
-  const filteredCourses = courses.filter(course =>
+  const filteredCourses = courses.filter((course: any) =>
     course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getFacultyName = (facultyId?: Id<'faculties'>) => {
     if (!facultyId) return "Not assigned";
-    const faculty = faculties.find(f => f._id === facultyId);
+    const faculty = faculties.find((f: any) => f._id === facultyId);
     return faculty?.name || "Unknown";
   };
 
   const getDepartmentName = (departmentId?: Id<'departments'>) => {
     if (!departmentId) return "Not assigned";
-    const department = departments.find(d => d._id === departmentId);
+    const department = departments.find((d: any) => d._id === departmentId);
     return department?.name || "Unknown";
   };
 
@@ -163,10 +162,11 @@ export default function CourseManagement() {
 
       if (user) {
         logActivity({
-          action: "Created course",
-          details: newCourseData.name,
-          entityType: "course",
-          entityId: courseId,
+          type: "create", // Change from 'action' to 'type'
+          entity: "course", // Change from 'entityType' to 'entity'
+          description: `Created course: ${newCourseData.name}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -190,10 +190,11 @@ export default function CourseManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated course",
-          details: selectedCourse.name,
-          entityType: "course",
-          entityId: selectedCourse._id,
+          type: "edit", // Change from 'action' to 'type'
+          entity: "course", // Change from 'entityType' to 'entity'
+          description: `Updated course: ${selectedCourse.name}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -212,10 +213,11 @@ export default function CourseManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted course",
-          details: courseName,
-          entityType: "course",
-          entityId: courseId,
+          type: "delete", // Change from 'action' to 'type'
+          entity: "course", // Change from 'entityType' to 'entity'
+          description: `Deleted course: ${courseName}`, // Change from 'details' to 'description'
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -317,7 +319,7 @@ export default function CourseManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCourses.map((course) => (
+              {filteredCourses.map((course: any) => (
                 <TableRow key={course._id}>
                   <TableCell className="font-medium">{course.code}</TableCell>
                   <TableCell>{course.name}</TableCell>
@@ -465,7 +467,7 @@ export default function CourseManagement() {
                     <SelectValue placeholder="Select faculty" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties.map((faculty) => (
+                    {faculties.map((faculty: any) => (
                       <SelectItem key={faculty._id} value={faculty._id}>
                         {faculty.name}
                       </SelectItem>
@@ -483,7 +485,7 @@ export default function CourseManagement() {
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.map((department) => (
+                    {departments.map((department: any) => (
                       <SelectItem key={department._id} value={department._id}>
                         {department.name}
                       </SelectItem>
@@ -683,7 +685,7 @@ export default function CourseManagement() {
                     <SelectValue placeholder="Select faculty" />
                   </SelectTrigger>
                   <SelectContent>
-                    {faculties.map((faculty) => (
+                    {faculties.map((faculty: any) => (
                       <SelectItem key={faculty._id} value={faculty._id}>
                         {faculty.name}
                       </SelectItem>
@@ -701,7 +703,7 @@ export default function CourseManagement() {
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.map((department) => (
+                    {departments.map((department: any) => (
                       <SelectItem key={department._id} value={department._id}>
                         {department.name}
                       </SelectItem>

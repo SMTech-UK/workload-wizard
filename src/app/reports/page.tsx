@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useQuery } from "convex/react"
-import { api } from "../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -83,15 +82,18 @@ interface Module {
 
 interface TeamSummary {
   _id: string;
-  teamName: string;
+  name: string; // Change from teamName
   academicYearId: string;
-  totalMembers: number;
+  facultyId?: string;
+  departmentId?: string;
+  totalStaff: number; // Change from totalMembers
   totalCapacity: number;
   totalAllocated: number;
   averageUtilization: number;
   overloadedCount: number;
   availableCount: number;
   isActive: boolean;
+  lastCalculatedAt: number;
 }
 
 export default function ReportsPage() {
@@ -101,22 +103,22 @@ export default function ReportsPage() {
   const [userProfileModalTab, setUserProfileModalTab] = useState<TabType>("profile");
 
   // Fetch data from Convex
-  const lecturers = useQuery(api.lecturers.getAll, {}) ?? [];
-  const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
-  const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
-  const modules = useQuery(api.modules.getAll, {}) ?? [];
-  const teamSummaries = useQuery(api.team_summaries.getAll, {}) ?? [];
+  const lecturers = useQuery('lecturers:getAll' as any, {}) ?? [];
+  const lecturerProfiles = useQuery('lecturer_profiles:getAll' as any, {}) ?? [];
+  const moduleIterations = useQuery('module_iterations:getAll' as any, {}) ?? [];
+  const modules = useQuery('modules:getAll' as any, {}) ?? [];
+  const teamSummaries = useQuery('team_summaries:getAll' as any, {}) ?? [];
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
 
   // Helper functions
   const getLecturerName = (profileId: string) => {
-    const profile = lecturerProfiles.find(p => p._id === profileId);
+    const profile = lecturerProfiles.find((p: any) => p._id === profileId);
     return profile?.fullName || "Unknown";
   };
 
   const getModuleName = (moduleId: string) => {
-    const moduleData = modules.find(m => m._id === moduleId);
+    const moduleData = modules.find((m: any) => m._id === moduleId);
     return moduleData ? `${moduleData.code} - ${moduleData.title}` : "Unknown Module";
   };
 
@@ -139,25 +141,25 @@ export default function ReportsPage() {
 
   // Calculate metrics
   const totalLecturers = lecturers.length;
-  const activeLecturers = lecturers.filter(l => l.isActive).length;
+  const activeLecturers = lecturers.filter((l: any) => l.isActive).length;
   const totalModules = modules.length;
-  const activeModules = modules.filter(m => m.isActive).length;
+  const activeModules = modules.filter((m: any) => m.isActive).length;
   const totalIterations = moduleIterations.length;
-  const assignedIterations = moduleIterations.filter(mi => 
+  const assignedIterations = moduleIterations.filter((mi: any) => 
     mi.assignedLecturerIds && mi.assignedLecturerIds.length > 0
   ).length;
   const unassignedIterations = totalIterations - assignedIterations;
 
-  const totalCapacity = lecturers.reduce((sum, l) => sum + (l.totalContract || 0), 0);
-  const totalAllocated = lecturers.reduce((sum, l) => sum + (l.totalAllocated || 0), 0);
+  const totalCapacity = lecturers.reduce((sum: number, l: any) => sum + (l.totalContract || 0), 0);
+  const totalAllocated = lecturers.reduce((sum: number, l: any) => sum + (l.totalAllocated || 0), 0);
   const overallUtilization = totalCapacity > 0 ? Math.round((totalAllocated / totalCapacity) * 100) : 0;
 
-  const overloadedStaff = lecturers.filter(l => {
+  const overloadedStaff = lecturers.filter((l: any) => {
     const utilization = calculateUtilization(l.totalAllocated || 0, l.totalContract || 0);
     return utilization > 100;
   }).length;
 
-  const availableStaff = lecturers.filter(l => {
+  const availableStaff = lecturers.filter((l: any) => {
     const utilization = calculateUtilization(l.totalAllocated || 0, l.totalContract || 0);
     return utilization < 70;
   }).length;
@@ -368,8 +370,8 @@ export default function ReportsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lecturers.map((lecturer) => {
-                      const profile = lecturerProfiles.find(p => p._id === lecturer.profileId);
+                    {lecturers.map((lecturer: any) => {
+                      const profile = lecturerProfiles.find((p: any) => p._id === lecturer.profileId);
                       const utilization = calculateUtilization(lecturer.totalAllocated || 0, lecturer.totalContract || 0);
                       
                       return (
@@ -416,10 +418,10 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {teamSummaries.map((team) => (
+                      {teamSummaries.map((team: any) => (
                         <TableRow key={team._id}>
-                          <TableCell className="font-medium">{team.teamName}</TableCell>
-                          <TableCell>{team.totalMembers}</TableCell>
+                          <TableCell className="font-medium">{team.name}</TableCell>
+                          <TableCell>{team.totalStaff}</TableCell>
                           <TableCell>{team.totalCapacity}h</TableCell>
                           <TableCell>{team.totalAllocated}h</TableCell>
                           <TableCell>
@@ -470,9 +472,9 @@ export default function ReportsPage() {
                   </TableHeader>
                   <TableBody>
                     {(() => {
-                      const moduleStats = modules.map(module => {
-                        const iterations = moduleIterations.filter(mi => mi.moduleId === module._id);
-                        const assigned = iterations.filter(mi => 
+                      const moduleStats = modules.map((module: any) => {
+                        const iterations = moduleIterations.filter((mi: any) => mi.moduleId === module._id);
+                        const assigned = iterations.filter((mi: any) => 
                           mi.assignedLecturerIds && mi.assignedLecturerIds.length > 0
                         ).length;
                         const unassigned = iterations.length - assigned;
@@ -481,7 +483,7 @@ export default function ReportsPage() {
                         return { module, iterations: iterations.length, assigned, unassigned, rate };
                       });
 
-                      return moduleStats.map(({ module, iterations, assigned, unassigned, rate }) => (
+                      return moduleStats.map(({ module, iterations, assigned, unassigned, rate }: any) => (
                         <TableRow key={module._id}>
                           <TableCell className="font-medium">
                             {module.code} - {module.title}

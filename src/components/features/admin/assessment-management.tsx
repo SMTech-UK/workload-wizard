@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -109,57 +108,57 @@ export default function AssessmentManagement() {
   const logActivity = useLogRecentActivity();
   
   // Fetch data
-  const assessmentTypes = useQuery(api.assessment_types.getAll, {}) ?? [];
-  const moduleIterationAssessments = useQuery(api.module_iteration_assessments.getAll, {}) ?? [];
-  const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
-  const modules = useQuery(api.modules.getAll, {}) ?? [];
+  const assessmentTypes = useQuery('assessment_types:getAll' as any, {}) ?? [];
+  const moduleIterationAssessments = useQuery('module_iteration_assessments:getAll' as any, {}) ?? [];
+  const moduleIterations = useQuery('module_iterations:getAll' as any, {}) ?? [];
+  const modules = useQuery('modules:getAll' as any, {}) ?? [];
   
   // Mutations
-  const createAssessmentType = useMutation(api.assessment_types.create);
-  const updateAssessmentType = useMutation(api.assessment_types.update);
-  const deleteAssessmentType = useMutation(api.assessment_types.remove);
-  const createModuleIterationAssessment = useMutation(api.module_iteration_assessments.create);
-  const updateModuleIterationAssessment = useMutation(api.module_iteration_assessments.update);
-  const deleteModuleIterationAssessment = useMutation(api.module_iteration_assessments.remove);
+  const createAssessmentType = useMutation('assessment_types:create' as any);
+  const updateAssessmentType = useMutation('assessment_types:update' as any);
+  const deleteAssessmentType = useMutation('assessment_types:remove' as any);
+  const createModuleIterationAssessment = useMutation('module_iteration_assessments:create' as any);
+  const updateModuleIterationAssessment = useMutation('module_iteration_assessments:update' as any);
+  const deleteModuleIterationAssessment = useMutation('module_iteration_assessments:remove' as any);
 
-  const filteredAssessmentTypes = assessmentTypes.filter(type =>
+  const filteredAssessmentTypes = assessmentTypes.filter((type: any) =>
     type.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     type.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredModuleAssessments = moduleIterationAssessments.filter(assessment => {
-    const moduleIteration = moduleIterations.find(mi => mi._id === assessment.moduleIterationId);
-    const moduleData = moduleIteration ? modules.find(m => m._id === moduleIteration.moduleId) : null;
-    const assessmentType = assessmentTypes.find(at => at._id === assessment.assessmentTypeId);
+  const filteredModuleAssessments = moduleIterationAssessments.filter((assessment: any) => {
+    const moduleIteration = moduleIterations.find((mi: any) => mi._id === assessment.moduleIterationId);
+    const moduleData = moduleIteration ? modules.find((m: any) => m._id === moduleIteration.moduleId) : null;
+    const assessmentType = assessmentTypes.find((at: any) => at._id === assessment.assessmentTypeId);
     
-    return (moduleData?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return (moduleData?.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
            (assessmentType?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
            assessment.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const getModuleName = (moduleIterationId: Id<'module_iterations'>) => {
-    const moduleIteration = moduleIterations.find(mi => mi._id === moduleIterationId);
+    const moduleIteration = moduleIterations.find((mi: any) => mi._id === moduleIterationId);
     if (!moduleIteration) return "Unknown Module";
     
-    const moduleData = modules.find(m => m._id === moduleIteration.moduleId);
-    return moduleData?.name || "Unknown Module";
+    const moduleData = modules.find((m: any) => m._id === moduleIteration.moduleId);
+    return moduleData?.title || "Unknown Module";
   };
 
   const getModuleCode = (moduleIterationId: Id<'module_iterations'>) => {
-    const moduleIteration = moduleIterations.find(mi => mi._id === moduleIterationId);
+    const moduleIteration = moduleIterations.find((mi: any) => mi._id === moduleIterationId);
     if (!moduleIteration) return "Unknown";
     
-    const moduleData = modules.find(m => m._id === moduleIteration.moduleId);
+    const moduleData = modules.find((m: any) => m._id === moduleIteration.moduleId);
     return moduleData?.code || "Unknown";
   };
 
   const getAssessmentTypeName = (assessmentTypeId: Id<'assessment_types'>) => {
-    const assessmentType = assessmentTypes.find(at => at._id === assessmentTypeId);
+    const assessmentType = assessmentTypes.find((at: any) => at._id === assessmentTypeId);
     return assessmentType?.name || "Unknown";
   };
 
   const getAssessmentTypeCode = (assessmentTypeId: Id<'assessment_types'>) => {
-    const assessmentType = assessmentTypes.find(at => at._id === assessmentTypeId);
+    const assessmentType = assessmentTypes.find((at: any) => at._id === assessmentTypeId);
     return assessmentType?.code || "Unknown";
   };
 
@@ -189,10 +188,11 @@ export default function AssessmentManagement() {
 
       if (user) {
         logActivity({
-          action: "Created assessment type",
-          details: newAssessmentTypeData.name,
-          entityType: "assessment_type",
-          entityId: assessmentTypeId,
+          type: "create",
+          entity: "assessment_type",
+          description: `Created assessment type: ${newAssessmentTypeData.name}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -215,10 +215,11 @@ export default function AssessmentManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated assessment type",
-          details: selectedAssessmentType.name,
-          entityType: "assessment_type",
-          entityId: selectedAssessmentType._id,
+          type: "edit",
+          entity: "assessment_type",
+          description: `Updated assessment type: ${selectedAssessmentType.name}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -237,10 +238,11 @@ export default function AssessmentManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted assessment type",
-          details: assessmentTypeName,
-          entityType: "assessment_type",
-          entityId: assessmentTypeId,
+          type: "delete",
+          entity: "assessment_type",
+          description: `Deleted assessment type: ${assessmentTypeName}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -271,10 +273,11 @@ export default function AssessmentManagement() {
 
       if (user) {
         logActivity({
-          action: "Created module assessment",
-          details: newModuleAssessmentData.name,
-          entityType: "module_iteration_assessment",
-          entityId: moduleAssessmentId,
+          type: "create",
+          entity: "module_iteration_assessment",
+          description: `Created module assessment: ${newModuleAssessmentData.name}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -297,10 +300,11 @@ export default function AssessmentManagement() {
 
       if (user) {
         logActivity({
-          action: "Updated module assessment",
-          details: selectedModuleAssessment.name,
-          entityType: "module_iteration_assessment",
-          entityId: selectedModuleAssessment._id,
+          type: "edit",
+          entity: "module_iteration_assessment",
+          description: `Updated module assessment: ${selectedModuleAssessment.name}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -319,10 +323,11 @@ export default function AssessmentManagement() {
 
       if (user) {
         logActivity({
-          action: "Deleted module assessment",
-          details: assessmentName,
-          entityType: "module_iteration_assessment",
-          entityId: assessmentId,
+          type: "delete",
+          entity: "module_iteration_assessment",
+          description: `Deleted module assessment: ${assessmentName}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
       }
     } catch (error) {
@@ -431,7 +436,7 @@ export default function AssessmentManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAssessmentTypes.map((assessmentType) => (
+                {filteredAssessmentTypes.map((assessmentType: any) => (
                   <TableRow key={assessmentType._id}>
                     <TableCell className="font-medium">{assessmentType.code}</TableCell>
                     <TableCell>{assessmentType.name}</TableCell>
@@ -527,7 +532,7 @@ export default function AssessmentManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredModuleAssessments.map((moduleAssessment) => (
+                {filteredModuleAssessments.map((moduleAssessment: any) => (
                   <TableRow key={moduleAssessment._id}>
                     <TableCell>
                       <div>
@@ -771,8 +776,8 @@ export default function AssessmentManagement() {
                   <SelectValue placeholder="Select module iteration" />
                 </SelectTrigger>
                 <SelectContent>
-                  {moduleIterations.map((moduleIteration) => {
-                    const moduleData = modules.find(m => m._id === moduleIteration.moduleId);
+                  {moduleIterations.map((moduleIteration: any) => {
+                    const moduleData = modules.find((m: any) => m._id === moduleIteration.moduleId);
                     return (
                       <SelectItem key={moduleIteration._id} value={moduleIteration._id}>
                         {moduleData?.name || "Unknown"} - Semester {moduleIteration.semester}
@@ -793,7 +798,7 @@ export default function AssessmentManagement() {
                   <SelectValue placeholder="Select assessment type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {assessmentTypes.map((assessmentType) => (
+                  {assessmentTypes.map((assessmentType: any) => (
                     <SelectItem key={assessmentType._id} value={assessmentType._id}>
                       {assessmentType.name} ({assessmentType.code})
                     </SelectItem>
@@ -887,8 +892,8 @@ export default function AssessmentManagement() {
                   <SelectValue placeholder="Select module iteration" />
                 </SelectTrigger>
                 <SelectContent>
-                  {moduleIterations.map((moduleIteration) => {
-                    const moduleData = modules.find(m => m._id === moduleIteration.moduleId);
+                  {moduleIterations.map((moduleIteration: any) => {
+                    const moduleData = modules.find((m: any) => m._id === moduleIteration.moduleId);
                     return (
                       <SelectItem key={moduleIteration._id} value={moduleIteration._id}>
                         {moduleData?.name || "Unknown"} - Semester {moduleIteration.semester}
@@ -909,7 +914,7 @@ export default function AssessmentManagement() {
                   <SelectValue placeholder="Select assessment type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {assessmentTypes.map((assessmentType) => (
+                  {assessmentTypes.map((assessmentType: any) => (
                     <SelectItem key={assessmentType._id} value={assessmentType._id}>
                       {assessmentType.name} ({assessmentType.code})
                     </SelectItem>

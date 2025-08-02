@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useQuery } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -109,19 +108,19 @@ export default function TeamSummaries() {
   const { currentAcademicYearId } = useAcademicYear();
   
   // Fetch data
-  const teamSummaries = useQuery(api.team_summaries.getAll, { 
+  const teamSummaries = useQuery('team_summaries:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   }) ?? [];
-  const teams = useQuery(api.teams.getAllWithRelations, {}) ?? [];
-  const lecturers = useQuery(api.lecturers.getAll, { 
+  const teams = useQuery('teams:getAllWithRelations' as any, {}) ?? [];
+  const lecturers = useQuery('lecturers:getAll' as any, { 
     academicYearId: currentAcademicYearId as any 
   }) ?? [];
-  const lecturerProfiles = useQuery(api.lecturers.getProfiles, {}) ?? [];
-  const departments = useQuery(api.departments.getAll, {}) ?? [];
-  const faculties = useQuery(api.faculties.getAll, {}) ?? [];
+  const lecturerProfiles = useQuery('lecturers:getProfiles' as any, {}) ?? [];
+  const departments = useQuery('departments:getAll' as any, {}) ?? [];
+  const faculties = useQuery('faculties:getAll' as any, {}) ?? [];
 
-  const filteredTeamSummaries = teamSummaries.filter(summary => {
-    const team = teams.find(t => t._id === summary.teamId);
+  const filteredTeamSummaries = teamSummaries.filter((summary: any) => {
+    const team = teams.find((t: any) => t._id === summary.teamId);
     if (!team) return false;
     
     const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,24 +132,24 @@ export default function TeamSummaries() {
   });
 
   const getTeamName = (teamId: Id<'teams'>) => {
-    const team = teams.find(t => t._id === teamId);
+    const team = teams.find((t: any) => t._id === teamId);
     return team?.name || "Unknown Team";
   };
 
   const getTeamCode = (teamId: Id<'teams'>) => {
-    const team = teams.find(t => t._id === teamId);
+    const team = teams.find((t: any) => t._id === teamId);
     return team?.code || "Unknown";
   };
 
   const getDepartmentName = (departmentId?: Id<'departments'>) => {
     if (!departmentId) return "Not assigned";
-    const department = departments.find(d => d._id === departmentId);
+    const department = departments.find((d: any) => d._id === departmentId);
     return department?.name || "Unknown";
   };
 
   const getFacultyName = (facultyId?: Id<'faculties'>) => {
     if (!facultyId) return "Not assigned";
-    const faculty = faculties.find(f => f._id === facultyId);
+    const faculty = faculties.find((f: any) => f._id === facultyId);
     return faculty?.name || "Unknown";
   };
 
@@ -177,8 +176,8 @@ export default function TeamSummaries() {
   };
 
   const generateTeamSummaryData = () => {
-    return filteredTeamSummaries.map(summary => {
-      const team = teams.find(t => t._id === summary.teamId);
+    return filteredTeamSummaries.map((summary: any) => {
+      const team = teams.find((t: any) => t._id === summary.teamId);
       const workloadStatus = getWorkloadStatus(summary.averageWorkloadPercentage);
       const statusColor = getWorkloadStatusColor(summary.averageWorkloadPercentage);
 
@@ -197,19 +196,19 @@ export default function TeamSummaries() {
 
   const generateOverallSummary = () => {
     const totalTeams = filteredTeamSummaries.length;
-    const totalLecturers = filteredTeamSummaries.reduce((sum, summary) => sum + summary.totalLecturers, 0);
-    const totalFTE = filteredTeamSummaries.reduce((sum, summary) => sum + summary.totalFTE, 0);
-    const totalTeachingHours = filteredTeamSummaries.reduce((sum, summary) => sum + summary.totalTeachingHours, 0);
-    const totalAdminHours = filteredTeamSummaries.reduce((sum, summary) => sum + summary.totalAdminHours, 0);
-    const totalResearchHours = filteredTeamSummaries.reduce((sum, summary) => sum + summary.totalResearchHours, 0);
-    const totalOtherHours = filteredTeamSummaries.reduce((sum, summary) => sum + summary.totalOtherHours, 0);
+    const totalLecturers = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.totalLecturers, 0);
+    const totalFTE = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.totalFTE, 0);
+    const totalTeachingHours = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.totalTeachingHours, 0);
+    const totalAdminHours = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.totalAdminHours, 0);
+    const totalResearchHours = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.totalResearchHours, 0);
+    const totalOtherHours = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.totalOtherHours, 0);
     
-    const totalUnderAllocated = filteredTeamSummaries.reduce((sum, summary) => sum + summary.underAllocatedCount, 0);
-    const totalWellAllocated = filteredTeamSummaries.reduce((sum, summary) => sum + summary.wellAllocatedCount, 0);
-    const totalOverAllocated = filteredTeamSummaries.reduce((sum, summary) => sum + summary.overAllocatedCount, 0);
+    const totalUnderAllocated = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.underAllocatedCount, 0);
+    const totalWellAllocated = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.wellAllocatedCount, 0);
+    const totalOverAllocated = filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.overAllocatedCount, 0);
 
     const averageWorkloadPercentage = totalTeams > 0 
-      ? filteredTeamSummaries.reduce((sum, summary) => sum + summary.averageWorkloadPercentage, 0) / totalTeams
+      ? filteredTeamSummaries.reduce((sum: any, summary: any) => sum + summary.averageWorkloadPercentage, 0) / totalTeams
       : 0;
 
     return {
@@ -228,10 +227,10 @@ export default function TeamSummaries() {
   };
 
   const generateDepartmentBreakdown = () => {
-    const departmentData = {};
+    const departmentData: any = {};
     
-    filteredTeamSummaries.forEach(summary => {
-      const team = teams.find(t => t._id === summary.teamId);
+    filteredTeamSummaries.forEach((summary: any) => {
+      const team = teams.find((t: any) => t._id === summary.teamId);
       const departmentName = team?.departmentId ? getDepartmentName(team.departmentId) : "Not assigned";
       
       if (!departmentData[departmentName]) {
@@ -446,7 +445,7 @@ export default function TeamSummaries() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Departments</SelectItem>
-                      {departments.map((dept) => (
+                      {departments.map((dept: any) => (
                         <SelectItem key={dept._id} value={dept._id}>
                           {dept.name}
                         </SelectItem>
@@ -484,7 +483,7 @@ export default function TeamSummaries() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {teamSummaryData.map((summary) => (
+                  {teamSummaryData.map((summary: any) => (
                     <TableRow key={summary._id}>
                       <TableCell>
                         <div>

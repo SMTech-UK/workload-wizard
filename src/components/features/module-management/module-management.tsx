@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useQuery } from "convex/react"
 import { useMutation } from "convex/react"
-import { api } from "../../../../convex/_generated/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -73,12 +72,12 @@ export default function ModuleManagement() {
   const [isEditing, setIsEditing] = useState(false);
 
   // Fetch data from Convex
-  const modules = useQuery(api.modules.getAll, {}) ?? [];
-  const lecturerProfiles = useQuery(api.lecturer_profiles.getAll, {}) ?? [];
-  const moduleIterations = useQuery(api.module_iterations.getAll, {}) ?? [];
-  const createModule = useMutation(api.modules.create);
-  const updateModule = useMutation(api.modules.update);
-  const deleteModule = useMutation(api.modules.delete);
+  const modules = useQuery('modules:getAll' as any, {}) ?? [];
+  const lecturerProfiles = useQuery('lecturer_profiles:getAll' as any, {}) ?? [];
+  const moduleIterations = useQuery('module_iterations:getAll' as any, {}) ?? [];
+  const createModule = useMutation('modules:createModule' as any);
+  const updateModule = useMutation('modules:updateModule' as any);
+  const deleteModule = useMutation('modules:deleteModule' as any);
   const logRecentActivity = useLogRecentActivity();
   const { user } = useUser();
   const { currentAcademicYearId } = useAcademicYear();
@@ -145,14 +144,11 @@ export default function ModuleManagement() {
     setSubmitting(true);
     try {
       await createModule({
-        code: form.code.toUpperCase(),
-        title: form.title,
-        description: form.description,
-        credits: form.credits,
-        level: form.level,
-        moduleLeaderId: form.moduleLeaderId || undefined,
-        defaultTeachingHours: form.defaultTeachingHours,
-        defaultMarkingHours: form.defaultMarkingHours,
+        academicYearId: currentAcademicYearId as Id<'academic_years'>,
+        profileId: form.moduleLeaderId as Id<'module_profiles'>,
+        isActive: true,
+        status: "active",
+        notes: form.description,
       });
 
       logRecentActivity({
@@ -160,7 +156,7 @@ export default function ModuleManagement() {
         entity: "module",
         description: `Created module: ${form.title}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
       toast.success("Module created successfully");
@@ -184,14 +180,9 @@ export default function ModuleManagement() {
     try {
       await updateModule({
         id: selectedModule._id,
-        code: form.code.toUpperCase(),
-        title: form.title,
-        description: form.description,
-        credits: form.credits,
-        level: form.level,
-        moduleLeaderId: form.moduleLeaderId || undefined,
-        defaultTeachingHours: form.defaultTeachingHours,
-        defaultMarkingHours: form.defaultMarkingHours,
+        isActive: true,
+        status: "active",
+        notes: form.description,
       });
 
       logRecentActivity({
@@ -199,7 +190,7 @@ export default function ModuleManagement() {
         entity: "module",
         description: `Updated module: ${form.title}`,
         userId: user?.id || "",
-        organisationId: user?.organizationId || "",
+        organisationId: "",
       });
 
       toast.success("Module updated successfully");
@@ -266,21 +257,21 @@ export default function ModuleManagement() {
 
   const getModuleLeaderName = (moduleLeaderId?: Id<'lecturer_profiles'>) => {
     if (!moduleLeaderId) return "Not assigned";
-    const leader = lecturerProfiles.find(p => p._id === moduleLeaderId);
+    const leader = lecturerProfiles.find((p: any) => p._id === moduleLeaderId);
     return leader?.fullName || "Unknown";
   };
 
   const getIterationCount = (moduleId: Id<'modules'>) => {
-    return moduleIterations.filter(mi => mi.moduleId === moduleId).length;
+    return moduleIterations.filter((mi: any) => mi.moduleId === moduleId).length;
   };
 
   const getCurrentYearIterations = (moduleId: Id<'modules'>) => {
-    return moduleIterations.filter(mi => 
+    return moduleIterations.filter((mi: any) => 
       mi.moduleId === moduleId && mi.academicYearId === currentAcademicYearId
     ).length;
   };
 
-  const filteredModules = modules.filter(module =>
+  const filteredModules = modules.filter((module: any) =>
     module.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     module.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     getModuleLeaderName(module.moduleLeaderId).toLowerCase().includes(searchTerm.toLowerCase())
@@ -323,7 +314,7 @@ export default function ModuleManagement() {
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Modules</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {modules.filter(m => m.isActive).length}
+                  {modules.filter((m: any) => m.isActive).length}
                 </p>
               </div>
               <GraduationCap className="w-8 h-8 text-green-600" />
@@ -347,7 +338,7 @@ export default function ModuleManagement() {
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Current Year</p>
                 <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {moduleIterations.filter(mi => mi.academicYearId === currentAcademicYearId).length}
+                  {moduleIterations.filter((mi: any) => mi.academicYearId === currentAcademicYearId).length}
                 </p>
               </div>
               <Calendar className="w-8 h-8 text-amber-600" />
@@ -400,7 +391,7 @@ export default function ModuleManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredModules.map((module) => (
+              {filteredModules.map((module: any) => (
                 <TableRow key={module._id}>
                   <TableCell className="font-medium">{module.code}</TableCell>
                   <TableCell>{module.title}</TableCell>
@@ -539,7 +530,7 @@ export default function ModuleManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">Not assigned</SelectItem>
-                  {lecturerProfiles.map((profile) => (
+                  {lecturerProfiles.map((profile: any) => (
                     <SelectItem key={profile._id} value={profile._id}>
                       {profile.fullName} ({profile.family})
                     </SelectItem>

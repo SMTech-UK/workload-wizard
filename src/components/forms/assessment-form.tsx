@@ -13,10 +13,10 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useQuery, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useLogRecentActivity } from "@/hooks/useStoreUserEffect";
+import { useLogRecentActivity } from "@/lib/recentActivity";
 import { toast } from "sonner";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { useUser } from "@clerk/nextjs";
 
 // Assessment form schema
 const assessmentFormSchema = z.object({
@@ -83,21 +83,22 @@ export function AssessmentForm({
   mode = "create" 
 }: AssessmentFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useUser();
   
   // Queries
-  const assessmentTypes = useQuery(api.assessment_types.getAll);
+  const assessmentTypes = useQuery('assessment_types:getAll' as any, {}) ?? [];
   const selectedAssessment = useQuery(
-    api.module_iteration_assessments.getById,
+    'module_iteration_assessments:getById' as any,
     assessmentId ? { id: assessmentId } : "skip"
   );
   const moduleIteration = useQuery(
-    api.module_iterations.getById,
+    'module_iterations:getById' as any,
     { id: moduleIterationId }
   );
   
   // Mutations
-  const createAssessment = useMutation(api.module_iteration_assessments.create);
-  const updateAssessment = useMutation(api.module_iteration_assessments.update);
+  const createAssessment = useMutation('module_iteration_assessments:create' as any);
+  const updateAssessment = useMutation('module_iteration_assessments:update' as any);
   
   const logActivity = useLogRecentActivity();
 
@@ -168,9 +169,12 @@ export function AssessmentForm({
 
       if (mode === "create") {
         await createAssessment(assessmentData);
-        logActivity("assessment_created", { 
-          assessmentTitle: data.title, 
-          moduleIterationId 
+        logActivity({
+          type: "create",
+          entity: "module_iteration_assessment",
+          description: `Created assessment: ${data.title}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
         toast.success("Assessment created successfully");
       } else {
@@ -179,9 +183,12 @@ export function AssessmentForm({
           return;
         }
         await updateAssessment({ id: assessmentId, ...assessmentData });
-        logActivity("assessment_updated", { 
-          assessmentTitle: data.title, 
-          moduleIterationId 
+        logActivity({
+          type: "edit",
+          entity: "module_iteration_assessment",
+          description: `Updated assessment: ${data.title}`,
+          userId: user?.id || "",
+          organisationId: "",
         });
         toast.success("Assessment updated successfully");
       }
