@@ -14,7 +14,7 @@ export function useLoadingOverlay() {
 }
 
 export function LoadingOverlayProvider({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true); // Show overlay immediately
+  const [loading, setLoading] = useState(false); // Don't show overlay by default
 
   // Memoize setLoading to prevent unnecessary re-renders
   const setLoadingSafe = useCallback((newLoading: boolean) => {
