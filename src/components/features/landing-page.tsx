@@ -21,7 +21,7 @@ export default function LandingHero() {
                   <span className="block text-blue-600 dark:text-blue-400">Made Easy & Transparent</span>
                 </h1>
                 <p className="mx-auto max-w-[700px] text-gray-600 dark:text-gray-300 text-lg md:text-xl leading-relaxed">
-                  WorkloadWizard is a tool for universities and colleges to easily and transparently manage academic workload staffing allocations. Simplify the process of assigning teaching, research, and service duties—ensuring fairness, clarity, and efficiency for all staff.
+                  WorkloadWizard helps universities and colleges manage academic workload allocations with ease and transparency. Streamline teaching, research and service assignments whilst ensuring fairness and efficiency for all staff.
                 </p>
               </div>
             </div>
